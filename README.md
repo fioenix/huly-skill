@@ -22,8 +22,8 @@ This section explains how you, as a developer or user, can securely set up and t
 Clone the repository and build the TypeScript definitions. Finally, link the executable globally so your AI Agents can find it:
 
 ```bash
-git clone https://github.com/fioenix/huly-assist-skill.git
-cd huly-assist-skill
+git clone https://github.com/fioenix/huly-skill.git
+cd huly-skill
 
 pnpm install
 pnpm run build
