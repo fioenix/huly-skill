@@ -58,9 +58,9 @@ huly update task ITDXC-26 --add-comment "Bắt đầu triển khai"
 ```
 
 ### 6. Deleting Tasks
-To permanently delete a task from the workspace:
+To permanently delete a task from the workspace (requires explicit confirmation):
 ```bash
-huly delete task ITDXC-26
+huly delete task ITDXC-26 --yes
 ```
 
 ### 7. Generating Reports

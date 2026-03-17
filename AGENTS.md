@@ -55,8 +55,10 @@ huly update task ITDXC-26 --add-comment "Bắt đầu triển khai"
 
 #### 6. Deleting Tasks
 Permanently remove a task from the workspace. Only execute this if the user explicitly asks to delete/remove a task.
+
+**Safety:** this command requires explicit confirmation with `--yes`.
 ```bash
-huly delete task ITDXC-26
+huly delete task ITDXC-26 --yes
 ```
 
 #### 7. Generating Reports

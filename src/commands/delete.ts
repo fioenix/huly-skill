@@ -5,10 +5,20 @@ import { printToConsole } from '../utils/logger.js';
 export function deleteTaskCommand() {
     return new Command('delete')
         .arguments('task <taskId>')
-        .description('Delete a task permanently')
-        .action(async (type, taskId) => {
+        .description('Delete a task permanently (requires --yes)')
+        .option('-y, --yes', 'Confirm deletion')
+        .action(async (type, taskId, options) => {
             // Note: commander treats the arg structure as delete task <taskId>,
             // so we skip validation of type='task' explicitly here.
+
+            if (!options?.yes) {
+                printToConsole(
+                    `⚠️ Lệnh này sẽ XOÁ VĨNH VIỄN task ${taskId}.\n` +
+                    `Để xác nhận, hãy chạy lại với cờ --yes:\n\n` +
+                    `huly delete task ${taskId} --yes\n`
+                );
+                return;
+            }
 
             const client = new HulyClient();
             try {
@@ -16,7 +26,7 @@ export function deleteTaskCommand() {
 
                 const task = await client.getTask(taskId);
                 if (!task) {
-                    console.log(`❌ Không tìm thấy task với Identifier: ${taskId}`);
+                    printToConsole(`❌ Không tìm thấy task với Identifier: ${taskId}`);
                     return;
                 }
 
