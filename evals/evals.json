@@ -1,0 +1,40 @@
+{
+  "skill_name": "huly-assist",
+  "evals": [
+    {
+      "id": 1,
+      "name": "list-my-tasks",
+      "prompt": "Show me all my tasks in Huly that are due this week",
+      "expected_output": "A list of tasks assigned to the user with due dates within the current week, formatted in Vietnamese with emojis",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "overdue-tasks",
+      "prompt": "What tasks are overdue? I need to see which ones I'm late on",
+      "expected_output": "A list of overdue tasks with days late, formatted in Vietnamese",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "create-task",
+      "prompt": "Create a new task in project DELTA titled 'Test API connection' with medium priority, due tomorrow",
+      "expected_output": "Confirmation of task creation with task ID and details",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "task-details",
+      "prompt": "Show me details for task DELTA-1",
+      "expected_output": "Full task details including title, status, priority, assignee, due date, estimation, project, formatted in Vietnamese",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "daily-report",
+      "prompt": "Give me a daily report of my tasks",
+      "expected_output": "Summary of tasks: due today, overdue, in progress, completed, formatted in Vietnamese with emojis",
+      "files": []
+    }
+  ]
+}
