@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "CLI tool to interact with Huly project management",
+  "license": "MIT",
   "main": "dist/index.js",
   "bin": {
     "huly": "./bin/huly.js"
