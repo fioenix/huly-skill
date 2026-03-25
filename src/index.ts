@@ -28,6 +28,7 @@ if (typeof globalAny.window === 'undefined') {
     }
 }
 
+import { createRequire } from 'module';
 import { Command } from 'commander';
 import { setJsonMode } from './utils/logger.js';
 import { listTasksCommand } from './commands/tasks.js';
@@ -42,12 +43,15 @@ import { labelsCommand } from './commands/labels.js';
 import { documentsCommand } from './commands/documents.js';
 import { milestonesCommand } from './commands/milestones.js';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
+
 const program = new Command();
 
 program
     .name('huly')
     .description('CLI tool to interact with Huly project management')
-    .version('1.0.0')
+    .version(version)
     .option('--json', 'Output in JSON format');
 
 program.hook('preAction', (thisCommand) => {
