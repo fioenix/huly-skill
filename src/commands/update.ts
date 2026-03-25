@@ -1,7 +1,8 @@
+import fs from 'fs';
 import { Command } from 'commander';
 import { HulyClient } from '../client.js';
 import { printToConsole, PRIORITY_LABELS, formatDate } from '../utils/logger.js';
-import { resolveStatus, resolvePerson, parsePriority, parseDate } from '../resolvers.js';
+import { resolveStatus, resolvePerson, parsePriority, parseDate, parseRawFields } from '../resolvers.js';
 
 export function updateTaskCommand() {
     return new Command('update')
@@ -11,8 +12,12 @@ export function updateTaskCommand() {
         .option('--priority <priority>', 'Set priority (0-4 or LOW, MEDIUM, HIGH, URGENT)')
         .option('--due <dueDate>', 'Set due date (YYYY-MM-DD, "today", "tomorrow")')
         .option('-a, --assignee <assigneeId>', 'Set assignee (ID, name, or "me")')
+        .option('--kind-id <kindId>', 'Set task type / kind ID')
+        .option('--component-id <componentId>', 'Set component ID')
+        .option('--milestone-id <milestoneId>', 'Set milestone ID')
+        .option('--set-field <fields...>', 'Set custom field (key=value, supports null/true/false/number)')
+        .option('--description-file <path>', 'Set description from a markdown file')
         .option('--add-comment <comment>', 'Add a comment to the task')
-        .option('--set-field <fields...>', 'Set custom field (key=value)')
         .action(async (type, taskId, options) => {
             const client = new HulyClient();
             try {
@@ -49,18 +54,32 @@ export function updateTaskCommand() {
                     changes.push(`Nguoi thuc hien → ${person.name}`);
                 }
 
+                if (options.kindId) {
+                    updates.kindId = options.kindId;
+                    changes.push(`Kind → ${options.kindId}`);
+                }
+
+                if (options.componentId !== undefined) {
+                    updates.componentId = options.componentId;
+                    changes.push(`Component → ${options.componentId}`);
+                }
+
+                if (options.milestoneId !== undefined) {
+                    updates.milestoneId = options.milestoneId;
+                    changes.push(`Milestone → ${options.milestoneId}`);
+                }
+
                 if (options.setField) {
-                    for (const field of options.setField) {
-                        const eqIdx = field.indexOf('=');
-                        if (eqIdx === -1) {
-                            printToConsole(`⚠️ Custom field phai co dang key=value: '${field}'`);
-                            continue;
-                        }
-                        const key = field.slice(0, eqIdx);
-                        const value = field.slice(eqIdx + 1);
-                        updates[key] = value;
-                        changes.push(`${key} → ${value}`);
+                    const rawFields = parseRawFields(options.setField);
+                    updates.rawFields = rawFields;
+                    for (const [k, v] of Object.entries(rawFields)) {
+                        changes.push(`${k} → ${v}`);
                     }
+                }
+
+                if (options.descriptionFile) {
+                    updates.descriptionMarkdown = fs.readFileSync(options.descriptionFile, 'utf8');
+                    changes.push(`Description → (from file)`);
                 }
 
                 if (Object.keys(updates).length > 0) {

@@ -1,5 +1,5 @@
 import pkg from '@hcengineering/api-client';
-const { connect } = pkg;
+const { connect, MarkupContent } = pkg as any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 
 export interface TaskQueryOptions {
@@ -18,6 +18,10 @@ export interface CreateTaskOptions {
     assigneeId?: string; // Person ID
     statusId?: string; // Status ID
     description?: string;
+    kindId?: string; // Task type / kind ref
+    componentId?: string; // Component ref
+    milestoneId?: string; // Milestone ref
+    rawFields?: Record<string, any>; // custom/raw fields
 }
 
 export interface UpdateTaskOptions {
@@ -27,6 +31,11 @@ export interface UpdateTaskOptions {
     assigneeId?: string;
     title?: string;
     description?: string;
+    kindId?: string;
+    componentId?: string | null;
+    milestoneId?: string | null;
+    descriptionMarkdown?: string;
+    rawFields?: Record<string, any>;
 }
 
 export class HulyClient {
@@ -64,11 +73,9 @@ export class HulyClient {
     }
 
     async getStatuses(): Promise<any[]> {
-        // Some statuses are attached to spaces, some are global. We'll fetch a bunch.
         try {
-            return await this.client.findAll('tracker:class:Status', {}, { limit: 500 });
+            return await this.client.findAll('tracker:class:IssueStatus', {}, { limit: 500 });
         } catch (e: any) {
-            // "domain not found" error means we can't fetch statuses globally like this on this version
             return [];
         }
     }
@@ -169,6 +176,10 @@ export class HulyClient {
         if (options.assigneeId) taskAttributes.assignee = options.assigneeId;
         if (options.statusId) taskAttributes.status = options.statusId;
         if (options.description) taskAttributes.description = options.description;
+        if (options.kindId) taskAttributes.kind = options.kindId;
+        if (options.componentId) taskAttributes.component = options.componentId;
+        if (options.milestoneId) taskAttributes.milestone = options.milestoneId;
+        if (options.rawFields) Object.assign(taskAttributes, options.rawFields);
 
         const createdTaskId = await this.client.addCollection(
             'tracker:class:Issue',
@@ -195,8 +206,22 @@ export class HulyClient {
         if (options.assigneeId !== undefined) updates.assignee = options.assigneeId;
         if (options.title !== undefined) updates.title = options.title;
         if (options.description !== undefined) updates.description = options.description;
+        if (options.kindId !== undefined) updates.kind = options.kindId;
+        if (options.componentId !== undefined) updates.component = options.componentId;
+        if (options.milestoneId !== undefined) updates.milestone = options.milestoneId;
+        if (options.rawFields) Object.assign(updates, options.rawFields);
+        if (options.descriptionMarkdown !== undefined) {
+            const uploaded = await this.client.uploadMarkup(
+                'tracker:class:Issue',
+                task._id,
+                'description',
+                options.descriptionMarkdown,
+                'markdown'
+            );
+            updates.description = uploaded;
+        }
 
-        await this.client.update('tracker:class:Issue', task._id, updates);
+        await this.client.updateDoc('tracker:class:Issue', task.space, task._id, updates, false);
         return await this.getTask(taskId);
     }
 

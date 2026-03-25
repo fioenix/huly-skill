@@ -17,7 +17,10 @@ export interface CreateIssueInput {
     due?: string;            // "today", "tomorrow", or YYYY-MM-DD
     assignee?: string;       // "me", name, or _id
     description?: string;
-    customFields?: Record<string, string>;
+    kindId?: string;
+    componentId?: string;
+    milestoneId?: string;
+    rawFields?: Record<string, any>;
 }
 
 export interface UpdateIssueInput {
@@ -62,6 +65,10 @@ export async function createIssue(client: HulyClient, input: CreateIssueInput): 
         dueDate: parseDate(input.due),
         assigneeId,
         description: input.description,
+        kindId: input.kindId,
+        componentId: input.componentId,
+        milestoneId: input.milestoneId,
+        rawFields: input.rawFields,
     };
 
     const created = await client.createTask(taskData);

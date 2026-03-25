@@ -148,6 +148,26 @@ export function parsePriority(input: string | undefined): number {
  * Supports: "today", "tomorrow", "YYYY-MM-DD"
  * Returns a timestamp (end of day) or undefined.
  */
+/**
+ * Parse raw field pairs (key=value) with type coercion.
+ * Supports: null, true, false, integers, and strings.
+ */
+export function parseRawFields(pairs: string[]): Record<string, any> {
+    const fields: Record<string, any> = {};
+    for (const pair of pairs) {
+        const idx = pair.indexOf('=');
+        if (idx === -1) continue;
+        const key = pair.slice(0, idx);
+        const raw = pair.slice(idx + 1);
+        if (raw === 'null') fields[key] = null;
+        else if (raw === 'true') fields[key] = true;
+        else if (raw === 'false') fields[key] = false;
+        else if (/^-?\d+$/.test(raw)) fields[key] = Number(raw);
+        else fields[key] = raw;
+    }
+    return fields;
+}
+
 export function parseDate(input: string | undefined): number | undefined {
     if (!input) return undefined;
     const now = new Date();

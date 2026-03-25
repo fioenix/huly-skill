@@ -1,5 +1,5 @@
-const DEFAULT_HOST = 'https://huly.io';
-const DEFAULT_WORKSPACE_ID = '';
+const DEFAULT_HOST = 'https://work.yody.io';
+const DEFAULT_WORKSPACE_ID = '098f54fd-611a-41f7-b817-b69282fe8d91';
 
 export function getHost(): string {
     return process.env.HULY_HOST || DEFAULT_HOST;

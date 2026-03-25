@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { HulyClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS } from '../utils/logger.js';
+import { parseRawFields } from '../resolvers.js';
 import { createIssue } from '../services/issues.js';
 
 export function createTaskCommand() {
@@ -11,7 +12,10 @@ export function createTaskCommand() {
         .option('--priority <priority>', 'Priority level (0-4 or LOW, MEDIUM, HIGH, URGENT)', '2')
         .option('--due <dueDate>', 'Due date (YYYY-MM-DD or "today", "tomorrow")')
         .option('-a, --assignee <assigneeId>', 'Assignee ID, name, or "me"')
-        .option('--set-field <fields...>', 'Set custom field (key=value)')
+        .option('--kind-id <kindId>', 'Task type / kind ID')
+        .option('--component-id <componentId>', 'Component ID')
+        .option('--milestone-id <milestoneId>', 'Milestone ID')
+        .option('--set-field <fields...>', 'Set custom field (key=value, supports null/true/false/number)')
         .action(async (type, title, options) => {
             const client = new HulyClient();
             try {
@@ -22,15 +26,7 @@ export function createTaskCommand() {
                     return;
                 }
 
-                const customFields: Record<string, string> = {};
-                if (options.setField) {
-                    for (const field of options.setField) {
-                        const eqIdx = field.indexOf('=');
-                        if (eqIdx !== -1) {
-                            customFields[field.slice(0, eqIdx)] = field.slice(eqIdx + 1);
-                        }
-                    }
-                }
+                const rawFields = options.setField ? parseRawFields(options.setField) : undefined;
 
                 const result = await createIssue(client, {
                     title,
@@ -38,7 +34,10 @@ export function createTaskCommand() {
                     priority: options.priority,
                     due: options.due,
                     assignee: options.assignee,
-                    customFields,
+                    kindId: options.kindId,
+                    componentId: options.componentId,
+                    milestoneId: options.milestoneId,
+                    rawFields,
                 });
 
                 const task = result.task;
