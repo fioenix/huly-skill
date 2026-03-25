@@ -29,7 +29,11 @@ export interface UpdateIssueInput {
     due?: string;
     assignee?: string;
     comment?: string;
-    customFields?: Record<string, string>;
+    kindId?: string;
+    componentId?: string;
+    milestoneId?: string;
+    rawFields?: Record<string, any>;
+    descriptionMarkdown?: string;
 }
 
 export interface QueryIssuesInput {
@@ -108,6 +112,33 @@ export async function updateIssue(client: HulyClient, taskId: string, input: Upd
         const person = await resolvePerson(client, input.assignee);
         updates.assigneeId = person._id;
         changes.push(`Nguoi thuc hien → ${person.name}`);
+    }
+
+    if (input.kindId) {
+        updates.kindId = input.kindId;
+        changes.push(`Kind → ${input.kindId}`);
+    }
+
+    if (input.componentId !== undefined) {
+        updates.componentId = input.componentId;
+        changes.push(`Component → ${input.componentId}`);
+    }
+
+    if (input.milestoneId !== undefined) {
+        updates.milestoneId = input.milestoneId;
+        changes.push(`Milestone → ${input.milestoneId}`);
+    }
+
+    if (input.rawFields && Object.keys(input.rawFields).length > 0) {
+        updates.rawFields = input.rawFields;
+        for (const [k, v] of Object.entries(input.rawFields)) {
+            changes.push(`${k} → ${v}`);
+        }
+    }
+
+    if (input.descriptionMarkdown) {
+        updates.descriptionMarkdown = input.descriptionMarkdown;
+        changes.push('Description → (from file)');
     }
 
     if (Object.keys(updates).length > 0) {

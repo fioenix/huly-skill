@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { HulyClient } from '../client.js';
-import { printToConsole, formatDate } from '../utils/logger.js';
+import { printToConsole, formatDate, isJsonMode, outputJson } from '../utils/logger.js';
 
 export function projectsCommand() {
     return new Command('projects')
@@ -12,27 +12,32 @@ export function projectsCommand() {
 
                 const projects = await client.getProjects();
 
-                if (!projects || projects.length === 0) {
-                    printToConsole('✅ Không tìm thấy dự án nào trong không gian làm việc.');
+                if (isJsonMode()) {
+                    outputJson({ status: 'ok', count: projects.length, data: projects });
                     return;
                 }
 
-                // Sort projects by ID or name
+                if (!projects || projects.length === 0) {
+                    printToConsole('✅ Khong tim thay du an nao trong khong gian lam viec.');
+                    return;
+                }
+
                 projects.sort((a, b) => (a.identifier || '').localeCompare(b.identifier || ''));
 
-                let output = `📋 DANH SÁCH DỰ ÁN (${projects.length})\n`;
+                let output = `📋 DANH SACH DU AN (${projects.length})\n`;
                 output += '━'.repeat(60) + '\n';
 
                 for (const p of projects) {
-                    output += `📌 [${p.identifier || 'N/A'}] ${p.name || 'Không có tên'}\n`;
+                    output += `📌 [${p.identifier || 'N/A'}] ${p.name || 'Khong co ten'}\n`;
                     output += `   🆔 ID: ${p._id}\n`;
-                    output += `   📅 Cập nhật: ${p.modifiedOn ? formatDate(p.modifiedOn) : 'N/A'}\n`;
+                    output += `   📅 Cap nhat: ${p.modifiedOn ? formatDate(p.modifiedOn) : 'N/A'}\n`;
                     output += `   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
                 }
 
                 printToConsole(output);
             } catch (e: any) {
-                console.error(`❌ Loi khi tai danh sach du an: ${e.message}`);
+                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                else console.error(`❌ Loi khi tai danh sach du an: ${e.message}`);
                 process.exitCode = 1;
             } finally {
                 await client.disconnect();

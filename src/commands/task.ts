@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { HulyClient } from '../client.js';
-import { printToConsole, formatDate, PRIORITY_LABELS } from '../utils/logger.js';
+import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
 import { getProjectMap, getStatusMap, resolvePerson } from '../resolvers.js';
 
 export function getTaskCommand() {
@@ -14,8 +14,14 @@ export function getTaskCommand() {
 
                 const task = await client.getTask(taskId);
                 if (!task) {
-                    console.error(`❌ Khong tim thay cong viec: ${taskId}`);
+                    if (isJsonMode()) outputJson({ status: 'error', error: `Task not found: ${taskId}` });
+                    else console.error(`❌ Khong tim thay cong viec: ${taskId}`);
                     process.exitCode = 1;
+                    return;
+                }
+
+                if (isJsonMode()) {
+                    outputJson({ status: 'ok', data: task });
                     return;
                 }
 
@@ -62,7 +68,8 @@ export function getTaskCommand() {
 
                 printToConsole(output);
             } catch (e: any) {
-                console.error(`❌ Loi: ${e.message}`);
+                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                else console.error(`❌ Loi: ${e.message}`);
                 process.exitCode = 1;
             } finally {
                 await client.disconnect();

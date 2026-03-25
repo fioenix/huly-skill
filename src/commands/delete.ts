@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { HulyClient } from '../client.js';
-import { printToConsole } from '../utils/logger.js';
+import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
 
 export function deleteTaskCommand() {
     return new Command('delete')
@@ -34,13 +34,17 @@ export function deleteTaskCommand() {
                 // Actually perform the deletion via client
                 await client.deleteTask(taskId);
 
-                let output = `✅ ĐÃ XOÁ TASK THÀNH CÔNG\n\n`;
-                output += `🗑️ Task đã xoá: [${task.identifier}] ${task.title}\n`;
-
-                printToConsole(output);
+                if (isJsonMode()) {
+                    outputJson({ status: 'ok', deleted: { identifier: task.identifier, title: task.title } });
+                } else {
+                    let output = `✅ DA XOA TASK THANH CONG\n\n`;
+                    output += `🗑️ Task da xoa: [${task.identifier}] ${task.title}\n`;
+                    printToConsole(output);
+                }
 
             } catch (e: any) {
-                console.error(`❌ Loi khi xoa task: ${e.message}`);
+                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                else console.error(`❌ Loi khi xoa task: ${e.message}`);
                 process.exitCode = 1;
             } finally {
                 await client.disconnect();

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { HulyClient } from './client.js';
 
 export interface ResolvedPerson {
@@ -152,12 +154,22 @@ export function parsePriority(input: string | undefined): number {
  * Parse raw field pairs (key=value) with type coercion.
  * Supports: null, true, false, integers, and strings.
  */
+const RESERVED_FIELD_KEYS = new Set([
+    '_id', '_class', 'space', 'status', 'priority', 'assignee', 'dueDate',
+    'identifier', 'title', 'description', 'kind', 'component', 'milestone',
+    '__proto__', 'constructor', 'prototype',
+]);
+
 export function parseRawFields(pairs: string[]): Record<string, any> {
     const fields: Record<string, any> = {};
     for (const pair of pairs) {
         const idx = pair.indexOf('=');
         if (idx === -1) continue;
         const key = pair.slice(0, idx);
+        if (RESERVED_FIELD_KEYS.has(key)) {
+            console.error(`⚠️ Khong the set reserved field '${key}' qua --set-field. Dung flag rieng.`);
+            continue;
+        }
         const raw = pair.slice(idx + 1);
         if (raw === 'null') fields[key] = null;
         else if (raw === 'true') fields[key] = true;
@@ -166,6 +178,21 @@ export function parseRawFields(pairs: string[]): Record<string, any> {
         else fields[key] = raw;
     }
     return fields;
+}
+
+const ALLOWED_FILE_EXTENSIONS = new Set(['.md', '.txt', '.markdown']);
+
+export function safeReadFile(filePath: string): string {
+    const resolved = path.resolve(filePath);
+    const cwd = process.cwd();
+    if (!resolved.startsWith(cwd + path.sep) && resolved !== cwd) {
+        throw new Error(`--description-file phai nam trong thu muc hien tai.\n  Path: ${resolved}\n  CWD: ${cwd}`);
+    }
+    const ext = path.extname(resolved).toLowerCase();
+    if (ext && !ALLOWED_FILE_EXTENSIONS.has(ext)) {
+        throw new Error(`--description-file chi chap nhan file .md, .txt, .markdown (nhan: ${ext})`);
+    }
+    return fs.readFileSync(resolved, 'utf8');
 }
 
 export function parseDate(input: string | undefined): number | undefined {

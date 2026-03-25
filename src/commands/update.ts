@@ -1,8 +1,8 @@
-import fs from 'fs';
 import { Command } from 'commander';
 import { HulyClient } from '../client.js';
-import { printToConsole, PRIORITY_LABELS, formatDate } from '../utils/logger.js';
-import { resolveStatus, resolvePerson, parsePriority, parseDate, parseRawFields } from '../resolvers.js';
+import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
+import { parseRawFields, safeReadFile } from '../resolvers.js';
+import { updateIssue } from '../services/issues.js';
 
 export function updateTaskCommand() {
     return new Command('update')
@@ -23,76 +23,22 @@ export function updateTaskCommand() {
             try {
                 await client.connect();
 
-                const task = await client.getTask(taskId);
-                if (!task) {
-                    console.error(`❌ Khong tim thay cong viec: ${taskId}`);
-                    process.exitCode = 1;
-                    return;
-                }
+                const changes = await updateIssue(client, taskId, {
+                    status: options.status,
+                    priority: options.priority,
+                    due: options.due,
+                    assignee: options.assignee,
+                    kindId: options.kindId,
+                    componentId: options.componentId,
+                    milestoneId: options.milestoneId,
+                    rawFields: options.setField ? parseRawFields(options.setField) : undefined,
+                    descriptionMarkdown: options.descriptionFile ? safeReadFile(options.descriptionFile) : undefined,
+                    comment: options.addComment,
+                });
 
-                const updates: any = {};
-                const changes: string[] = [];
-
-                if (options.status) {
-                    const resolved = await resolveStatus(client, options.status, task.space);
-                    updates.statusId = resolved._id;
-                    changes.push(`Trang thai → '${resolved.name}'`);
-                }
-
-                if (options.priority !== undefined) {
-                    updates.priority = parsePriority(options.priority);
-                    changes.push(`Uu tien → ${PRIORITY_LABELS[updates.priority] || updates.priority}`);
-                }
-
-                if (options.due) {
-                    updates.dueDate = parseDate(options.due);
-                    changes.push(`Han chot → ${updates.dueDate ? formatDate(updates.dueDate) : 'N/A'}`);
-                }
-
-                if (options.assignee) {
-                    const person = await resolvePerson(client, options.assignee);
-                    updates.assigneeId = person._id;
-                    changes.push(`Nguoi thuc hien → ${person.name}`);
-                }
-
-                if (options.kindId) {
-                    updates.kindId = options.kindId;
-                    changes.push(`Kind → ${options.kindId}`);
-                }
-
-                if (options.componentId !== undefined) {
-                    updates.componentId = options.componentId;
-                    changes.push(`Component → ${options.componentId}`);
-                }
-
-                if (options.milestoneId !== undefined) {
-                    updates.milestoneId = options.milestoneId;
-                    changes.push(`Milestone → ${options.milestoneId}`);
-                }
-
-                if (options.setField) {
-                    const rawFields = parseRawFields(options.setField);
-                    updates.rawFields = rawFields;
-                    for (const [k, v] of Object.entries(rawFields)) {
-                        changes.push(`${k} → ${v}`);
-                    }
-                }
-
-                if (options.descriptionFile) {
-                    updates.descriptionMarkdown = fs.readFileSync(options.descriptionFile, 'utf8');
-                    changes.push(`Description → (from file)`);
-                }
-
-                if (Object.keys(updates).length > 0) {
-                    await client.updateTask(taskId, updates);
-                }
-
-                if (options.addComment) {
-                    await client.addComment(taskId, options.addComment);
-                    changes.push(`Binh luan da them`);
-                }
-
-                if (changes.length === 0) {
+                if (isJsonMode()) {
+                    outputJson({ status: 'ok', taskId, changes });
+                } else if (changes.length === 0) {
                     printToConsole(`ℹ️ Khong co thong tin gi de cap nhat cho ${taskId}`);
                 } else {
                     let output = `✅ Cap nhat hoan tat cho ${taskId}:\n`;
@@ -101,7 +47,8 @@ export function updateTaskCommand() {
                 }
 
             } catch (e: any) {
-                console.error(`❌ Loi cap nhat task: ${e.message}`);
+                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                else console.error(`❌ Loi cap nhat task: ${e.message}`);
                 process.exitCode = 1;
             } finally {
                 await client.disconnect();

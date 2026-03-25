@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { HulyClient } from '../client.js';
-import { printToConsole, formatDate, PRIORITY_LABELS } from '../utils/logger.js';
+import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
 import { queryIssues, isCompletedStatus } from '../services/issues.js';
 
 export function listTasksCommand() {
@@ -33,6 +33,11 @@ export function listTasksCommand() {
 
                 activeTasks.sort((a, b) => (a.dueDate || 0) - (b.dueDate || 0));
 
+                if (isJsonMode()) {
+                    outputJson({ status: 'ok', count: activeTasks.length, data: activeTasks });
+                    return;
+                }
+
                 if (activeTasks.length === 0) {
                     printToConsole('✅ Khong tim thay cong viec nao phu hop voi bo loc!');
                     return;
@@ -57,7 +62,8 @@ export function listTasksCommand() {
                 printToConsole(output);
 
             } catch (e: any) {
-                console.error(`❌ Loi: ${e.message}`);
+                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                else console.error(`❌ Loi: ${e.message}`);
                 process.exitCode = 1;
             } finally {
                 await client.disconnect();

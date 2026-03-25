@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { HulyClient } from '../client.js';
-import { printToConsole, PRIORITY_LABELS } from '../utils/logger.js';
+import { printToConsole, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
 import { resolvePerson, getProjectMap, getStatusMap } from '../resolvers.js';
 import { isCompletedStatus } from '../services/issues.js';
 
@@ -90,10 +90,22 @@ export function reportCommand() {
 
                 output += `\n📊 Summary: ${dueTarget.length} due ${isDaily ? 'today' : 'this week'} | ${overdue.length} overdue | ${inProgress} in progress`;
 
-                printToConsole(output);
+                if (isJsonMode()) {
+                    outputJson({
+                        status: 'ok',
+                        type: isDaily ? 'daily' : 'weekly',
+                        assignee: assigneeName,
+                        due: dueTarget,
+                        overdue,
+                        inProgress,
+                    });
+                } else {
+                    printToConsole(output);
+                }
 
             } catch (e: any) {
-                console.error(`❌ Loi tao bao cao: ${e.message}`);
+                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                else console.error(`❌ Loi tao bao cao: ${e.message}`);
                 process.exitCode = 1;
             } finally {
                 await client.disconnect();
