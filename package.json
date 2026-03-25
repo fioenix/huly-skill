@@ -1,8 +1,8 @@
 {
   "name": "huly-assist",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
-  "description": "CLI tool to interact with Huly project management",
+  "description": "CLI tool and agent skill for managing tasks, projects, labels, documents, and milestones in Huly",
   "license": "MIT",
   "main": "dist/index.js",
   "bin": {
@@ -10,9 +10,25 @@
   },
   "scripts": {
     "build": "tsc",
+    "prepare": "tsc",
     "dev": "tsc --watch",
     "test": "node -e \"console.log('No tests configured yet')\"",
     "start": "node dist/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "huly",
+    "project-management",
+    "cli",
+    "agent-skill",
+    "claude-code",
+    "task-management"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fioenix/huly-skill.git"
   },
   "dependencies": {
     "@hcengineering/api-client": "^0.7.19",

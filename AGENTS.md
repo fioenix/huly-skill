@@ -1,72 +1,138 @@
-# Agents Guide
+# Huly Assist — Agent Guide
 
-## 🤖 For Agent Readers
+You are a proxy to the Huly project management system. Use the `huly` CLI to execute operations. If `huly` is not found, use `node dist/index.js` from the repository root.
 
-This section is for AI Assistants (like Claude Code, OpenClaw, Gemini, etc.).
+## Prerequisites
 
-**Role:** You are acting as a proxy to the Huly Project Management System. Whenever the user asks you to interact with tasks, manage projects, or fetch reports on Huly, you should leverage the locally installed `huly` CLI tool.
+Ensure these environment variables are set:
+- `HULY_HOST` — Huly instance URL
+- `HULY_WORKSPACE_ID` — workspace UUID
+- `HULY_API_KEY` — API token
 
-**Execution:**
-You should execute standard shell commands invoking the `huly` binary. If the command fails because `huly` is not found, you can invoke it directly from this repository using `node bin/huly.js` or `node dist/index.js` (assuming you are operating within the repository root).
+## JSON Mode
 
-If the CLI outputs an error (`❌ Lỗi:`), parse the Vietnamese output string and report the failure back to the human. Ensure your shell has the required environment variables loaded before running tasks:
-- `HULY_API_KEY`
-- `HULY_HOST`
-- `HULY_WORKSPACE_ID`
-
-### Capability Guide & Commands
-
-#### 1. Listing Projects
-Use this when the user needs to know what projects exist in the workspace or to find a Project ID needed for creating new tasks.
+Always prefer `--json` for programmatic use. All commands support it:
 ```bash
-huly projects
+huly tasks --assignee me --json
 ```
 
-#### 2. Querying Tasks
-Query tasks using various flags. Note that you can mix filters efficiently.
-- **My Tasks**: Use `--assignee me` to show tasks assigned exclusively to the current user.
-- **By Status**: Use `--status` (e.g., `--status "todo, in progress"`).
-- **By Project**: Use `--project` (e.g., `--project ITDXC`).
-- **Due Dates**: Use `--due-today` or `--overdue`.
-
-```bash
-huly tasks --assignee me
-huly tasks --project ITDXC --due-today
+Response format:
+```json
+{ "status": "ok", "data": {...} }
+{ "status": "error", "error": "message" }
 ```
 
-#### 3. Task Details
-Fetch comprehensive metadata, descriptions, and comments for a single task id (e.g., `ITDXC-26`).
+## Command Reference
+
+### Connection & Setup
+| Command | Purpose |
+|---------|---------|
+| `huly whoami` | Verify connection, show account info |
+| `huly projects` | List all workspace projects |
+
+### Task Management
+| Command | Purpose |
+|---------|---------|
+| `huly tasks [options]` | Query tasks with filters |
+| `huly task <id>` | Get full task details |
+| `huly create task <title> --project <id> [options]` | Create a new task |
+| `huly update task <id> [options]` | Update task fields |
+| `huly delete task <id> --yes` | Permanently delete a task |
+
+#### Task Query Filters
+- `--assignee me` — current user's tasks
+- `--assignee <name>` — by person name
+- `--project <identifier>` — by project (e.g., DELTA)
+- `--status "In Progress"` — by status name (comma-separated)
+- `--overdue` — overdue tasks only
+- `--due-today` — due today only
+
+#### Create Task Options
+- `--project <id>` — **required**, project identifier
+- `--priority <level>` — 0-4 or LOW/MEDIUM/HIGH/URGENT (default: 2)
+- `--due <date>` — YYYY-MM-DD, "today", "tomorrow"
+- `--assignee <person>` — name, ID, or "me"
+- `--kind-id <id>` — task type
+- `--component-id <id>` — component
+- `--milestone-id <id>` — milestone
+- `--set-field "key=value"` — custom fields (repeatable)
+
+#### Update Task Options
+- `--status <name>` — new status
+- `--priority <level>` — new priority
+- `--due <date>` — new due date
+- `--assignee <person>` — new assignee
+- `--add-comment <text>` — append a comment
+- `--description-file <path>` — replace description from .md/.txt file
+- `--kind-id`, `--component-id`, `--milestone-id` — update references
+- `--set-field "key=value"` — update custom fields
+
+### Reports
+| Command | Purpose |
+|---------|---------|
+| `huly report daily --assignee me` | Due today + overdue summary |
+| `huly report weekly` | Due this week + overdue summary |
+
+### Labels / Tags
+| Command | Purpose |
+|---------|---------|
+| `huly labels list` | List all workspace labels |
+| `huly labels create <title> [--color N]` | Create a new label |
+| `huly labels assign <taskId> <labelId>` | Assign label to a task |
+| `huly labels show <taskId>` | Show labels on a task |
+
+### Documents
+| Command | Purpose |
+|---------|---------|
+| `huly docs teamspaces` | List all teamspaces |
+| `huly docs list <teamspace>` | List documents in a teamspace |
+| `huly docs read <teamspace> <title>` | Read document content as markdown |
+| `huly docs create <title> -t <teamspace>` | Create a document |
+| `huly docs create-teamspace <name>` | Create a new teamspace |
+
+#### Document Create Options
+- `-t, --teamspace <name>` — **required**, teamspace name or ID
+- `-c, --content <markdown>` — inline markdown content
+- `-f, --file <path>` — read content from a file
+
+#### Teamspace Create Options
+- `-d, --description <text>` — teamspace description
+- `--private` — make teamspace private
+
+### Milestones
+| Command | Purpose |
+|---------|---------|
+| `huly milestones list --project <id>` | List milestones in a project |
+| `huly milestones create <label> --project <id>` | Create a milestone |
+| `huly milestones complete <milestoneId> --project <id>` | Mark milestone completed |
+
+#### Milestone Create Options
+- `--project <id>` — **required**, project identifier
+- `--target <date>` — target date (default: 2 weeks from now)
+
+## Error Handling
+
+Errors appear in Vietnamese with prefix `Loi:`. Parse and relay the message to the user. Never call Huly API routes directly — the CLI is the single source of truth.
+
+## Common Workflows
+
+**"What's on my plate today?"**
 ```bash
-huly task ITDXC-26
+huly report daily --assignee me --json
 ```
 
-#### 4. Creating Tasks
-Priority accepts numerical levels (0-4) or names (LOW, MEDIUM, HIGH, URGENT). Due date accepts `YYYY-MM-DD`, `today`, or `tomorrow`.
+**"Create a task and assign it to me"**
 ```bash
-huly create task "Update CLI Documentation" --project ITDXC --priority HIGH --due tomorrow --assignee me
+huly create task "Fix login bug" --project DELTA --priority HIGH --due today --assignee me --json
 ```
 
-#### 5. Updating Tasks
-Modify the status or add new threaded comments to existing workflows.
+**"Move task to Done and add a comment"**
 ```bash
-huly update task ITDXC-26 --status "In Progress"
-huly update task ITDXC-26 --add-comment "Bắt đầu triển khai"
+huly update task DELTA-42 --status Done --add-comment "Completed and tested" --json
 ```
 
-#### 6. Deleting Tasks
-Permanently remove a task from the workspace. Only execute this if the user explicitly asks to delete/remove a task.
-
-**Safety:** this command requires explicit confirmation with `--yes`.
+**"Tag an issue with a label"**
 ```bash
-huly delete task ITDXC-26 --yes
+huly labels create "critical" --color 4 --json
+huly labels assign DELTA-42 <returned-label-id> --json
 ```
-
-#### 7. Generating Reports
-Generate high-level daily or weekly summaries. These are great to run automatically when the user asks "What's on my plate today?" or "Give me a weekly summary".
-```bash
-huly report daily --assignee me
-huly report weekly
-```
-
-### Skill Context & Instructions
-For more advanced, canonical context regarding this specific skill architecture, refer to `skills/huly-assist/SKILL.md`.
