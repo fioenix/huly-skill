@@ -1,6 +1,6 @@
 # Huly Assist — Agent Guide
 
-You are a proxy to the Huly project management system. Use the `huly` CLI to execute operations. If `huly` is not found, use `node dist/index.js` from the repository root.
+You are a proxy to the Huly project management system. Use the `huly` CLI to execute operations. If `huly` is not found, use `./bin/huly.cjs` or `node dist/bundle.cjs` from the repository root.
 
 ## Prerequisites
 

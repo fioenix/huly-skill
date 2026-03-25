@@ -2,7 +2,7 @@
 name: huly-assist
 description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, or work with milestones in Huly. Supports both human-readable Vietnamese output and structured JSON mode for programmatic agent use."
 license: MIT
-compatibility: "Node.js 20+. Requires environment variables: HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY. The @hcengineering/api-client package requires access to GitHub Packages registry."
+compatibility: "Node.js 20+. Requires environment variables: HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY. Zero-install: all dependencies are bundled."
 metadata:
   author: fioenix
   version: "1.1.0"
@@ -22,7 +22,7 @@ Required before any command:
 
 ## Execution
 
-Run commands via the `huly` binary. If not found globally, fall back to `node dist/index.js` from the repo root.
+Run commands via the `huly` binary. If not found globally, fall back to `./bin/huly.cjs` or `node dist/bundle.cjs` from the repo root.
 
 All commands support `--json` for structured JSON output (preferred for programmatic agent use).
 
