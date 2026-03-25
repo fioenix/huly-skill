@@ -87,7 +87,7 @@ huly tasks --assignee me --json
 
 ## For AI Agents
 
-See [AGENTS.md](./AGENTS.md) for the full agent integration guide, or [skills/huly-assist/SKILL.md](./skills/huly-assist/SKILL.md) for the skill definition.
+See [AGENTS.md](./AGENTS.md) for the full agent integration guide, or [skills/huly-skill/SKILL.md](./skills/huly-skill/SKILL.md) for the skill definition.
 
 ## Technical Notes
 
