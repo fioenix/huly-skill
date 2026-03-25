@@ -10,19 +10,15 @@ Works with Claude Code, Cursor, OpenCode, and any agent supporting the [Agent Sk
 npx skills add fioenix/huly-skill
 ```
 
-Or manually:
+Or manually (zero-install — no `npm install` needed):
 ```bash
 git clone https://github.com/fioenix/huly-skill.git
 cd huly-skill
-npm install
-npm run build
 ```
 
 ## Setup
 
-### 1. Environment Variables
-
-Set these before using any command:
+Set these environment variables before using any command:
 
 ```bash
 export HULY_HOST="https://huly.app"
@@ -34,22 +30,10 @@ export HULY_API_KEY="your-api-token"
 - **HULY_WORKSPACE_ID**: Found in Huly Settings > Workspace
 - **HULY_API_KEY**: Create at Huly Settings > API Tokens
 
-### 2. GitHub Packages Registry
-
-The `@hcengineering/api-client` package is hosted on GitHub Packages. You need a GitHub Personal Access Token with `read:packages` scope:
+### Verify
 
 ```bash
-# Create .npmrc in project root (or ~/.npmrc for global)
-echo "@hcengineering:registry=https://npm.pkg.github.com" >> .npmrc
-echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT" >> .npmrc
-```
-
-Create a PAT at: https://github.com/settings/tokens/new (select `read:packages` scope)
-
-### 3. Verify
-
-```bash
-node dist/index.js whoami
+./bin/huly.cjs whoami
 ```
 
 ## Usage
@@ -107,7 +91,7 @@ See [AGENTS.md](./AGENTS.md) for the full agent integration guide, or [skills/hu
 
 ## Technical Notes
 
-The `@hcengineering/api-client` expects browser APIs (`indexedDB`, `window`). This project polyfills them in `src/index.ts` using `fake-indexeddb` — no browser required.
+All dependencies are bundled into a single `dist/bundle.cjs` via esbuild — no `npm install` or GitHub PAT required. The `@hcengineering/api-client` expects browser APIs (`indexedDB`, `window`), which are polyfilled automatically.
 
 ## License
 
