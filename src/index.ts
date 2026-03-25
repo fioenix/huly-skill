@@ -29,6 +29,7 @@ if (typeof globalAny.window === 'undefined') {
 }
 
 import { Command } from 'commander';
+import { setJsonMode } from './utils/logger.js';
 import { listTasksCommand } from './commands/tasks.js';
 import { getTaskCommand } from './commands/task.js';
 import { createTaskCommand } from './commands/create.js';
@@ -36,13 +37,20 @@ import { updateTaskCommand } from './commands/update.js';
 import { reportCommand } from './commands/report.js';
 import { projectsCommand } from './commands/projects.js';
 import { deleteTaskCommand } from './commands/delete.js';
+import { whoamiCommand } from './commands/whoami.js';
 
 const program = new Command();
 
 program
     .name('huly')
     .description('CLI tool to interact with Huly project management')
-    .version('1.0.0');
+    .version('1.0.0')
+    .option('--json', 'Output in JSON format');
+
+program.hook('preAction', (thisCommand) => {
+    const opts = thisCommand.optsWithGlobals();
+    if (opts.json) setJsonMode(true);
+});
 
 program.addCommand(listTasksCommand());
 program.addCommand(getTaskCommand());
@@ -51,5 +59,6 @@ program.addCommand(updateTaskCommand());
 program.addCommand(reportCommand());
 program.addCommand(projectsCommand());
 program.addCommand(deleteTaskCommand());
+program.addCommand(whoamiCommand());
 
 program.parse(process.argv);

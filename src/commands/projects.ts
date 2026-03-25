@@ -1,40 +1,43 @@
 import { Command } from 'commander';
-import { HulyClient } from '../client.js';
-import { printToConsole, formatDate } from '../utils/logger.js';
+import { withClient } from '../client.js';
+import { printToConsole, formatDate, isJsonMode, outputJson } from '../utils/logger.js';
 
 export function projectsCommand() {
     return new Command('projects')
         .description('List all available projects in the workspace')
         .action(async () => {
-            const client = new HulyClient();
             try {
-                await client.connect();
+                await withClient(async (client) => {
+                    const projects = await client.getProjects();
 
-                const projects = await client.getProjects();
+                    if (isJsonMode()) {
+                        outputJson({ status: 'ok', count: projects.length, data: projects });
+                        return;
+                    }
 
-                if (!projects || projects.length === 0) {
-                    printToConsole('✅ Không tìm thấy dự án nào trong không gian làm việc.');
-                    return;
-                }
+                    if (!projects || projects.length === 0) {
+                        printToConsole('✅ Khong tim thay du an nao trong khong gian lam viec.');
+                        return;
+                    }
 
-                // Sort projects by ID or name
-                projects.sort((a, b) => (a.identifier || '').localeCompare(b.identifier || ''));
+                    projects.sort((a, b) => (a.identifier || '').localeCompare(b.identifier || ''));
 
-                let output = `📋 DANH SÁCH DỰ ÁN (${projects.length})\n`;
-                output += '━'.repeat(60) + '\n';
+                    let output = `📋 DANH SACH DU AN (${projects.length})\n`;
+                    output += '━'.repeat(60) + '\n';
 
-                for (const p of projects) {
-                    output += `📌 [${p.identifier || 'N/A'}] ${p.name || 'Không có tên'}\n`;
-                    output += `   🆔 ID: ${p._id}\n`;
-                    output += `   📅 Cập nhật: ${p.modifiedOn ? formatDate(p.modifiedOn) : 'N/A'}\n`;
-                    output += `   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-                }
+                    for (const p of projects) {
+                        output += `📌 [${p.identifier || 'N/A'}] ${p.name || 'Khong co ten'}\n`;
+                        output += `   🆔 ID: ${p._id}\n`;
+                        output += `   📅 Cap nhat: ${p.modifiedOn ? formatDate(p.modifiedOn) : 'N/A'}\n`;
+                        output += `   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+                    }
 
-                printToConsole(output);
+                    printToConsole(output);
+                });
             } catch (e: any) {
-                console.error(`❌ Lỗi khi tải danh sách dự án: ${e.message}`);
-            } finally {
-                await client.disconnect();
+                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                else console.error(`❌ Loi khi tai danh sach du an: ${e.message}`);
+                process.exitCode = 1;
             }
         });
 }

@@ -1,5 +1,5 @@
 import pkg from '@hcengineering/api-client';
-const { connect } = pkg;
+const { connect } = pkg as any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 
 export interface TaskQueryOptions {
@@ -18,16 +18,32 @@ export interface CreateTaskOptions {
     assigneeId?: string; // Person ID
     statusId?: string; // Status ID
     description?: string;
+    kindId?: string; // Task type / kind ref
+    componentId?: string; // Component ref
+    milestoneId?: string; // Milestone ref
+    rawFields?: Record<string, any>; // custom/raw fields
 }
 
 export interface UpdateTaskOptions {
     statusId?: string;
     priority?: number;
     dueDate?: number;
+    assigneeId?: string;
+    title?: string;
+    description?: string;
+    kindId?: string;
+    componentId?: string | null;
+    milestoneId?: string | null;
+    descriptionMarkdown?: string;
+    rawFields?: Record<string, any>;
 }
 
 export class HulyClient {
     private client: any = null;
+    private _persons: any[] | null = null;
+    private _projects: any[] | null = null;
+    private _statuses: any[] | null = null;
+    private _account: any | null = null;
 
     async connect() {
         this.client = await connect(getHost(), {
@@ -49,24 +65,31 @@ export class HulyClient {
     }
 
     async getAccount() {
-        return await this.client.getAccount();
+        if (!this._account) this._account = await this.client.getAccount();
+        return this._account;
     }
 
     async getPersons(): Promise<any[]> {
-        return await this.client.findAll('contact:class:Person', {});
+        if (!this._persons) this._persons = await this.client.findAll('contact:class:Person', {});
+        return this._persons!;
     }
 
     async getProjects(): Promise<any[]> {
-        return await this.client.findAll('tracker:class:Project', {});
+        if (!this._projects) this._projects = await this.client.findAll('tracker:class:Project', {});
+        return this._projects!;
     }
 
     async getStatuses(): Promise<any[]> {
-        // Some statuses are attached to spaces, some are global. We'll fetch a bunch.
+        if (this._statuses) return this._statuses;
         try {
-            return await this.client.findAll('tracker:class:Status', {}, { limit: 500 });
+            this._statuses = await this.client.findAll('tracker:class:IssueStatus', {}, { limit: 500 });
+            return this._statuses!;
         } catch (e: any) {
-            // "domain not found" error means we can't fetch statuses globally like this on this version
-            return [];
+            if (e.message?.includes('domain not found') || e.message?.includes('class not found')) {
+                this._statuses = [];
+                return this._statuses;
+            }
+            throw e;
         }
     }
 
@@ -132,33 +155,8 @@ export class HulyClient {
     }
 
     async createTask(options: CreateTaskOptions): Promise<any> {
-        // Find next identifier
-        const existingIssues = await this.client.findAll('tracker:class:Issue', {
-            space: options.projectId
-        }, { limit: 100 });
-
-        let maxNum = 0;
-        const projectMatch = options.projectId; // Will use project abbreviation next step
-
-        // We need to fetch the project to know its identifier (e.g., DELTA)
-        const projects = await this.client.findAll('tracker:class:Project', { _id: options.projectId });
-        const projectIdentifier = projects && projects.length > 0 ? projects[0].identifier : 'TASK';
-
-        for (const issue of existingIssues) {
-            if (issue.identifier) {
-                const match = issue.identifier.match(new RegExp(`${projectIdentifier}-(\\d+)`));
-                if (match) {
-                    const num = parseInt(match[1], 10);
-                    if (num > maxNum) maxNum = num;
-                }
-            }
-        }
-        const nextNum = maxNum + 1;
-        const identifier = `${projectIdentifier}-${nextNum}`;
-
         const taskAttributes: any = {
             title: options.title,
-            identifier: identifier
         };
 
         if (options.priority !== undefined) taskAttributes.priority = options.priority;
@@ -166,6 +164,10 @@ export class HulyClient {
         if (options.assigneeId) taskAttributes.assignee = options.assigneeId;
         if (options.statusId) taskAttributes.status = options.statusId;
         if (options.description) taskAttributes.description = options.description;
+        if (options.kindId) taskAttributes.kind = options.kindId;
+        if (options.componentId) taskAttributes.component = options.componentId;
+        if (options.milestoneId) taskAttributes.milestone = options.milestoneId;
+        if (options.rawFields) Object.assign(taskAttributes, options.rawFields);
 
         const createdTaskId = await this.client.addCollection(
             'tracker:class:Issue',
@@ -189,8 +191,25 @@ export class HulyClient {
         if (options.statusId !== undefined) updates.status = options.statusId;
         if (options.priority !== undefined) updates.priority = options.priority;
         if (options.dueDate !== undefined) updates.dueDate = options.dueDate;
+        if (options.assigneeId !== undefined) updates.assignee = options.assigneeId;
+        if (options.title !== undefined) updates.title = options.title;
+        if (options.description !== undefined) updates.description = options.description;
+        if (options.kindId !== undefined) updates.kind = options.kindId;
+        if (options.componentId !== undefined) updates.component = options.componentId;
+        if (options.milestoneId !== undefined) updates.milestone = options.milestoneId;
+        if (options.rawFields) Object.assign(updates, options.rawFields);
+        if (options.descriptionMarkdown !== undefined) {
+            const uploaded = await this.client.uploadMarkup(
+                'tracker:class:Issue',
+                task._id,
+                'description',
+                options.descriptionMarkdown,
+                'markdown'
+            );
+            updates.description = uploaded;
+        }
 
-        await this.client.update('tracker:class:Issue', task._id, updates);
+        await this.client.updateDoc('tracker:class:Issue', task.space, task._id, updates, false);
         return await this.getTask(taskId);
     }
 
@@ -222,5 +241,15 @@ export class HulyClient {
             task.space,
             task._id
         );
+    }
+}
+
+export async function withClient<T>(fn: (client: HulyClient) => Promise<T>): Promise<T> {
+    const client = new HulyClient();
+    try {
+        await client.connect();
+        return await fn(client);
+    } finally {
+        await client.disconnect();
     }
 }

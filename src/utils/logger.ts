@@ -1,16 +1,21 @@
-/**
- * Output formatting utilities to provide Vietnamese output and emojis.
- * Also handles character length limits (splits if > 2500 chars).
- */
-
 const MAX_OUTPUT_LENGTH = 2500;
 
+let jsonMode = false;
+
+export function setJsonMode(enabled: boolean) {
+    jsonMode = enabled;
+}
+
+export function isJsonMode(): boolean {
+    return jsonMode;
+}
+
 export const PRIORITY_LABELS: Record<number, string> = {
-    0: 'KHÔNG ƯU TIÊN',
-    1: 'THẤP',
-    2: 'TRUNG BÌNH',
+    0: 'KHONG UU TIEN',
+    1: 'THAP',
+    2: 'TRUNG BINH',
     3: 'CAO',
-    4: 'KHẨN CẤP'
+    4: 'KHAN CAP'
 };
 
 export function formatDate(timestamp: number | undefined | null, includeTime = false): string {
@@ -29,9 +34,10 @@ export function formatDate(timestamp: number | undefined | null, includeTime = f
     return date.toLocaleDateString('vi-VN');
 }
 
-/**
- * Splits output into multiple blocks if it exceeds telegram limit.
- */
+export function outputJson(data: any) {
+    console.log(JSON.stringify(data, null, 2));
+}
+
 export function printToConsole(text: string) {
     if (text.length <= MAX_OUTPUT_LENGTH) {
         console.log(text);
@@ -42,7 +48,7 @@ export function printToConsole(text: string) {
     const lines = text.split('\n');
 
     for (const line of lines) {
-        if (currentBlock.length + line.length > MAX_OUTPUT_LENGTH) {
+        if (currentBlock.length + line.length + 1 > MAX_OUTPUT_LENGTH) {
             console.log(currentBlock);
             currentBlock = line + '\n';
         } else {

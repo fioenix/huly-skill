@@ -1,128 +1,64 @@
 import { Command } from 'commander';
-import { HulyClient } from '../client.js';
-import { printToConsole, formatDate, PRIORITY_LABELS } from '../utils/logger.js';
+import { withClient } from '../client.js';
+import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
+import { parseRawFields } from '../resolvers.js';
+import { createIssue } from '../services/issues.js';
 
 export function createTaskCommand() {
     return new Command('create')
         .arguments('task <title>')
         .description('Create a new task')
         .option('-p, --project <projectId>', 'Project identifier (e.g., DELTA, required)')
-        .option('--priority <priority>', 'Priority level (0-4 or string LOW, MEDIUM, HIGH, URGENT)', '2')
+        .option('--priority <priority>', 'Priority level (0-4 or LOW, MEDIUM, HIGH, URGENT)', '2')
         .option('--due <dueDate>', 'Due date (YYYY-MM-DD or "today", "tomorrow")')
-        .option('-a, --assignee <assigneeId>', 'Assignee ID or "me"')
+        .option('-a, --assignee <assigneeId>', 'Assignee ID, name, or "me"')
+        .option('--kind-id <kindId>', 'Task type / kind ID')
+        .option('--component-id <componentId>', 'Component ID')
+        .option('--milestone-id <milestoneId>', 'Milestone ID')
+        .option('--set-field <fields...>', 'Set custom field (key=value, supports null/true/false/number)')
         .action(async (type, title, options) => {
-            // NOTE: commander parses 'create task <title>' but the argument is type, title
-            // We ignore type because we only support 'task' for now
+            if (!options.project) {
+                console.error('❌ Phai co co --project (VD: --project DELTA)');
+                process.exitCode = 1;
+                return;
+            }
 
-            const client = new HulyClient();
             try {
-                await client.connect();
+                await withClient(async (client) => {
+                    const rawFields = options.setField ? parseRawFields(options.setField) : undefined;
 
-                let projectId = options.project;
-                if (!projectId) {
-                    console.log(`❌ Phải có cờ --project (VD: --project DELTA)`);
-                    return;
-                }
+                    const result = await createIssue(client, {
+                        title,
+                        project: options.project,
+                        priority: options.priority,
+                        due: options.due,
+                        assignee: options.assignee,
+                        kindId: options.kindId,
+                        componentId: options.componentId,
+                        milestoneId: options.milestoneId,
+                        rawFields,
+                    });
 
-                // Find project real ID
-                let realProjectId;
-                const projects = await client.getProjects();
-                for (const p of projects) {
-                    if (p.identifier === projectId || p.name === projectId || p._id === projectId) {
-                        realProjectId = p._id;
-                        projectId = p.identifier || p.name; // For display
-                        break;
-                    }
-                }
+                    const task = result.task;
 
-                if (!realProjectId) {
-                    console.log(`❌ Vui lòng cung cấp ID dự án hợp lệ. Dự án không tồn tại: ${projectId}`);
-                    return;
-                }
-
-                let priorityLevel = 2; // Default Medium
-                if (options.priority) {
-                    if (typeof options.priority === 'string') {
-                        switch (options.priority.toLowerCase()) {
-                            case 'low': priorityLevel = 1; break;
-                            case 'medium': priorityLevel = 2; break;
-                            case 'high': priorityLevel = 3; break;
-                            case 'urgent': priorityLevel = 4; break;
-                            default:
-                                const parsed = parseInt(options.priority, 10);
-                                if (!isNaN(parsed) && parsed >= 0 && parsed <= 4) priorityLevel = parsed;
-                        }
+                    if (isJsonMode()) {
+                        outputJson({ status: 'ok', data: task });
                     } else {
-                        priorityLevel = parseInt(options.priority, 10);
+                        let output = `✅ DA TAO TASK MOI\n\n`;
+                        output += `📋 ${task.identifier}: ${task.title}\n\n`;
+                        output += `🆔 Task ID: ${task._id}\n`;
+                        output += `📁 Du an: ${result.projectIdentifier}\n`;
+                        output += `🎯 Muc uu tien: ${PRIORITY_LABELS[task.priority] || 'Trung binh'}\n`;
+                        output += `📅 Ngay het han: ${task.dueDate ? formatDate(task.dueDate) : 'Khong co'}\n`;
+                        output += `👤 Nguoi thuc hien: ${result.assigneeName}\n`;
+                        output += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+                        printToConsole(output);
                     }
-                }
-
-                let dueTimestamp: number | undefined;
-                if (options.due) {
-                    const now = new Date();
-                    now.setHours(23, 59, 59, 999); // Due dates generally mean end of day
-                    if (options.due.toLowerCase() === 'today') {
-                        dueTimestamp = now.getTime();
-                    } else if (options.due.toLowerCase() === 'tomorrow') {
-                        now.setDate(now.getDate() + 1);
-                        dueTimestamp = now.getTime();
-                    } else {
-                        const parsed = new Date(options.due);
-                        if (!isNaN(parsed.getTime())) {
-                            parsed.setHours(23, 59, 59, 999);
-                            dueTimestamp = parsed.getTime();
-                        }
-                    }
-                }
-
-                let targetAssigneeId: string | undefined;
-                let assigneeName = 'Chưa giao';
-
-                if (options.assignee?.toLowerCase() === 'me') {
-                    const account = await client.getAccount();
-                    const personUuid = account.fullSocialIds?.[0]?.personUuid || account.uuid;
-
-                    const persons = await client.getPersons();
-                    const me = persons.find(p => p.personUuid === personUuid);
-                    if (me) {
-                        targetAssigneeId = me._id;
-                        assigneeName = me.name || 'Bạn';
-                    } else {
-                        console.log('❌ Không thể xác minh được tài khoản của bạn (me) trên hệ thống.');
-                        return;
-                    }
-                } else if (options.assignee) {
-                    targetAssigneeId = options.assignee;
-                    const persons = await client.getPersons();
-                    const assignee = persons.find(p => p._id === options.assignee);
-                    if (assignee) assigneeName = assignee.name || options.assignee;
-                }
-
-                const taskData = {
-                    title: title,
-                    projectId: realProjectId,
-                    priority: priorityLevel,
-                    dueDate: dueTimestamp,
-                    assigneeId: targetAssigneeId
-                };
-
-                const createdTask = await client.createTask(taskData);
-
-                let output = `✅ ĐÃ TẠO TASK MỚI\n\n`;
-                output += `📋 ${createdTask.identifier}: ${createdTask.title}\n\n`;
-                output += `🆔 Task ID: ${createdTask._id}\n`;
-                output += `📁 Dự án: ${projectId}\n`;
-                output += `🎯 Mức ưu tiên: ${PRIORITY_LABELS[createdTask.priority] || 'Trung bình'}\n`;
-                output += `📅 Ngày hết hạn: ${dueTimestamp ? formatDate(dueTimestamp) : 'Không có'}\n`;
-                output += `👤 Người thực hiện: ${assigneeName}\n`;
-                output += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-
-                printToConsole(output);
-
+                });
             } catch (e: any) {
-                console.error(`❌ Lỗi khi tạo task: ${e.message}`);
-            } finally {
-                await client.disconnect();
+                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                else console.error(`❌ Loi khi tao task: ${e.message}`);
+                process.exitCode = 1;
             }
         });
 }

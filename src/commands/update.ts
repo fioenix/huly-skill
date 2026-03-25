@@ -1,65 +1,53 @@
 import { Command } from 'commander';
-import { HulyClient } from '../client.js';
-import { printToConsole } from '../utils/logger.js';
+import { withClient } from '../client.js';
+import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
+import { parseRawFields, safeReadFile } from '../resolvers.js';
+import { updateIssue } from '../services/issues.js';
 
 export function updateTaskCommand() {
     return new Command('update')
         .arguments('task <taskId>')
         .description('Update a task by ID')
         .option('--status <statusName>', 'Set new status (e.g., Todo, In Progress, Done)')
+        .option('--priority <priority>', 'Set priority (0-4 or LOW, MEDIUM, HIGH, URGENT)')
+        .option('--due <dueDate>', 'Set due date (YYYY-MM-DD, "today", "tomorrow")')
+        .option('-a, --assignee <assigneeId>', 'Set assignee (ID, name, or "me")')
+        .option('--kind-id <kindId>', 'Set task type / kind ID')
+        .option('--component-id <componentId>', 'Set component ID')
+        .option('--milestone-id <milestoneId>', 'Set milestone ID')
+        .option('--set-field <fields...>', 'Set custom field (key=value, supports null/true/false/number)')
+        .option('--description-file <path>', 'Set description from a markdown file')
         .option('--add-comment <comment>', 'Add a comment to the task')
         .action(async (type, taskId, options) => {
-            // NOTE: We ignore type assuming it is purely 'task' syntax.
-            const client = new HulyClient();
             try {
-                await client.connect();
+                await withClient(async (client) => {
+                    const changes = await updateIssue(client, taskId, {
+                        status: options.status,
+                        priority: options.priority,
+                        due: options.due,
+                        assignee: options.assignee,
+                        kindId: options.kindId,
+                        componentId: options.componentId,
+                        milestoneId: options.milestoneId,
+                        rawFields: options.setField ? parseRawFields(options.setField) : undefined,
+                        descriptionMarkdown: options.descriptionFile ? safeReadFile(options.descriptionFile) : undefined,
+                        comment: options.addComment,
+                    });
 
-                const task = await client.getTask(taskId);
-                if (!task) {
-                    printToConsole(`❌ Không tìm thấy công việc: ${taskId}`);
-                    return;
-                }
-
-                let updated = false;
-
-                if (options.status) {
-                    const statuses = await client.getStatuses();
-                    const lowerName = options.status.toLowerCase();
-
-                    // Look for status in current space or global
-                    let matchedStatus = statuses.find(s =>
-                        (s.space === task.space && s.name?.toLowerCase() === lowerName)
-                    );
-
-                    if (!matchedStatus) {
-                        matchedStatus = statuses.find(s => s.name?.toLowerCase() === lowerName);
-                    }
-
-                    if (matchedStatus) {
-                        await client.updateTask(taskId, { statusId: matchedStatus._id });
-                        printToConsole(`✅ Đã cập nhật trạng thái của ${taskId} thành '${matchedStatus.name}'`);
-                        updated = true;
+                    if (isJsonMode()) {
+                        outputJson({ status: 'ok', taskId, changes });
+                    } else if (changes.length === 0) {
+                        printToConsole(`ℹ️ Khong co thong tin gi de cap nhat cho ${taskId}`);
                     } else {
-                        printToConsole(`⚠️ Không tìm thấy trạng thái: '${options.status}'. Vui lòng kiểm tra lại tên.`);
+                        let output = `✅ Cap nhat hoan tat cho ${taskId}:\n`;
+                        for (const c of changes) output += `  • ${c}\n`;
+                        printToConsole(output);
                     }
-                }
-
-                if (options.addComment) {
-                    await client.addComment(taskId, options.addComment);
-                    printToConsole(`💬 Đã bình luận vào task ${taskId}`);
-                    updated = true;
-                }
-
-                if (!updated) {
-                    printToConsole(`ℹ️ Không có thông tin gì để cập nhật cho ${taskId}`);
-                } else {
-                    printToConsole(`✅ Cập nhật hoàn tất.`);
-                }
-
+                });
             } catch (e: any) {
-                console.error(`❌ Lỗi cập nhật task: ${e.message}`);
-            } finally {
-                await client.disconnect();
+                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                else console.error(`❌ Loi cap nhat task: ${e.message}`);
+                process.exitCode = 1;
             }
         });
 }
