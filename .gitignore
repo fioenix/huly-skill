@@ -1,8 +1,9 @@
 # Dependencies
 node_modules/
 
-# Build output is committed for skill consumers who clone without building
-# dist/
+# Build output — only bundle.cjs is committed for zero-install consumers
+dist/*
+!dist/bundle.cjs
 
 # Environment files
 .env
