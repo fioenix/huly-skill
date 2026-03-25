@@ -1,6 +1,21 @@
-import pkg from '@hcengineering/api-client';
-const { connect } = pkg as any;
+import apiClient from '@hcengineering/api-client';
+import coreModule from '@hcengineering/core';
+
+// CJS interop: these packages use module.exports, named ESM imports don't work
+const { connect, NodeWebSocketFactory } = apiClient as any;
+const { SortingOrder, generateId } = coreModule as any;
+const core = coreModule as any;
+
+type ConnectOptions = any;
+type PlatformClient = any;
+type Ref<T> = string & { __ref: T };
+type Doc = any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
+import {
+    tracker, contact, document as hulyDocument, tags,
+    IssuePriority, MilestoneStatus, AvatarType,
+    makeRank,
+} from './huly-types.js';
 
 export interface TaskQueryOptions {
     assignee?: string;
@@ -17,7 +32,7 @@ export interface CreateTaskOptions {
     dueDate?: number; // timestamp
     assigneeId?: string; // Person ID
     statusId?: string; // Status ID
-    description?: string;
+    description?: string; // markdown content
     kindId?: string; // Task type / kind ref
     componentId?: string; // Component ref
     milestoneId?: string; // Milestone ref
@@ -39,17 +54,20 @@ export interface UpdateTaskOptions {
 }
 
 export class HulyClient {
-    private client: any = null;
+    private client: PlatformClient | null = null;
     private _persons: any[] | null = null;
     private _projects: any[] | null = null;
     private _statuses: any[] | null = null;
     private _account: any | null = null;
 
     async connect() {
-        this.client = await connect(getHost(), {
+        const options: ConnectOptions = {
             token: getApiKey(),
-            workspace: getWorkspaceId()
-        });
+            workspace: getWorkspaceId(),
+            socketFactory: NodeWebSocketFactory,
+            connectionTimeout: 30000,
+        };
+        this.client = await connect(getHost(), options);
         return this;
     }
 
@@ -60,29 +78,36 @@ export class HulyClient {
         }
     }
 
-    getRawClient() {
+    getRawClient(): PlatformClient {
+        if (!this.client) throw new Error('Client not connected');
         return this.client;
     }
 
     async getAccount() {
-        if (!this._account) this._account = await this.client.getAccount();
+        if (!this._account) this._account = await this.client!.getAccount();
         return this._account;
     }
 
     async getPersons(): Promise<any[]> {
-        if (!this._persons) this._persons = await this.client.findAll('contact:class:Person', {});
+        if (!this._persons) {
+            this._persons = await this.client!.findAll(contact.class.Person as any, {});
+        }
         return this._persons!;
     }
 
     async getProjects(): Promise<any[]> {
-        if (!this._projects) this._projects = await this.client.findAll('tracker:class:Project', {});
+        if (!this._projects) {
+            this._projects = await this.client!.findAll(tracker.class.Project as any, {});
+        }
         return this._projects!;
     }
 
     async getStatuses(): Promise<any[]> {
         if (this._statuses) return this._statuses;
         try {
-            this._statuses = await this.client.findAll('tracker:class:IssueStatus', {}, { limit: 500 });
+            this._statuses = await this.client!.findAll(
+                tracker.class.IssueStatus as any, {}, { limit: 500 }
+            );
             return this._statuses!;
         } catch (e: any) {
             if (e.message?.includes('domain not found') || e.message?.includes('class not found')) {
@@ -94,7 +119,10 @@ export class HulyClient {
     }
 
     async getTask(taskId: string): Promise<any | null> {
-        const issues = await this.client.findAll('tracker:class:Issue', { identifier: taskId });
+        const issues = await this.client!.findAll(
+            tracker.class.Issue as any,
+            { identifier: taskId }
+        );
         if (!issues || issues.length === 0) return null;
         return issues[0];
     }
@@ -114,16 +142,18 @@ export class HulyClient {
             query.dueDate = { $exists: true };
         }
 
-        // Notice: The array $in might need to be evaluated on the client side if the API server doesn't support it fully.
-        // However, the api-client translates it to standard Mongo queries.
         if (options.statusIds && options.statusIds.length > 0) {
             query.status = { $in: options.statusIds };
         }
 
-        const issues = await this.client.findAll('tracker:class:Issue', query, {
-            limit: 500,
-            sort: { dueDate: 1 }
-        });
+        const issues = await this.client!.findAll(
+            tracker.class.Issue as any,
+            query,
+            {
+                limit: 500,
+                sort: { dueDate: SortingOrder.Ascending },
+            }
+        );
 
         if (options.overdue || options.dueToday) {
             const today = new Date();
@@ -137,15 +167,8 @@ export class HulyClient {
                 dueDate.setHours(0, 0, 0, 0);
                 const dueTime = dueDate.getTime();
 
-                if (options.overdue && dueTime < todayTime) {
-                    // If filtering overdue, omit completed statuses.
-                    // This should be done strictly, but we return the filtered dates here.
-                    return true;
-                }
-
-                if (options.dueToday && dueTime === todayTime) {
-                    return true;
-                }
+                if (options.overdue && dueTime < todayTime) return true;
+                if (options.dueToday && dueTime === todayTime) return true;
 
                 return false;
             });
@@ -154,31 +177,93 @@ export class HulyClient {
         return issues;
     }
 
+    /**
+     * Create a task following the official Huly API pattern:
+     * 1. Increment project sequence to get issue number
+     * 2. Fetch last issue rank for ordering
+     * 3. Upload markdown description if provided
+     * 4. Create issue via addCollection with all required fields
+     */
     async createTask(options: CreateTaskOptions): Promise<any> {
-        const taskAttributes: any = {
-            title: options.title,
-        };
+        const project: any = await this.client!.findOne(
+            tracker.class.Project as any,
+            { _id: options.projectId } as any
+        );
+        if (!project) {
+            throw new Error(`Project not found: ${options.projectId}`);
+        }
 
-        if (options.priority !== undefined) taskAttributes.priority = options.priority;
-        if (options.dueDate !== undefined) taskAttributes.dueDate = options.dueDate;
-        if (options.assigneeId) taskAttributes.assignee = options.assigneeId;
-        if (options.statusId) taskAttributes.status = options.statusId;
-        if (options.description) taskAttributes.description = options.description;
-        if (options.kindId) taskAttributes.kind = options.kindId;
-        if (options.componentId) taskAttributes.component = options.componentId;
-        if (options.milestoneId) taskAttributes.milestone = options.milestoneId;
-        if (options.rawFields) Object.assign(taskAttributes, options.rawFields);
+        // Generate unique issue ID
+        const issueId: Ref<Doc> = generateId();
 
-        const createdTaskId = await this.client.addCollection(
-            'tracker:class:Issue',
-            options.projectId, // space
-            'tracker:ids:NoParent', // attachedTo
-            'tracker:class:Issue', // attachedToClass
-            'subIssues', // collection name
-            taskAttributes
+        // Increment project sequence to get next issue number
+        const incResult = await this.client!.updateDoc(
+            tracker.class.Project as any,
+            core.space.Space as any,
+            project._id,
+            { $inc: { sequence: 1 } } as any,
+            true
+        );
+        const sequence = (incResult as any).object.sequence;
+
+        // Fetch rank of the last issue for ordering
+        const lastOne: any = await this.client!.findOne(
+            tracker.class.Issue as any,
+            { space: project._id } as any,
+            { sort: { rank: SortingOrder.Descending } }
         );
 
-        return await this.client.findOne('tracker:class:Issue', { _id: createdTaskId });
+        // Upload markdown description if provided
+        let description: any = '';
+        if (options.description) {
+            description = await (this.client as any).uploadMarkup(
+                tracker.class.Issue,
+                issueId,
+                'description',
+                options.description,
+                'markdown'
+            );
+        }
+
+        // Build task attributes with all required fields (official pattern)
+        const taskAttributes: any = {
+            title: options.title,
+            description,
+            status: options.statusId || project.defaultIssueStatus,
+            number: sequence,
+            kind: options.kindId || tracker.taskTypes.Issue,
+            identifier: `${project.identifier}-${sequence}`,
+            priority: options.priority ?? IssuePriority.Medium,
+            assignee: options.assigneeId || null,
+            component: options.componentId || null,
+            milestone: options.milestoneId || null,
+            estimation: 0,
+            remainingTime: 0,
+            reportedTime: 0,
+            reports: 0,
+            subIssues: 0,
+            parents: [],
+            childInfo: [],
+            dueDate: options.dueDate || null,
+            rank: makeRank(lastOne?.rank, undefined),
+        };
+
+        // Apply custom raw fields
+        if (options.rawFields) Object.assign(taskAttributes, options.rawFields);
+
+        // Create issue via addCollection (official pattern: attach to project)
+        const c = this.client as any;
+        await c.addCollection(
+            tracker.class.Issue,
+            project._id,       // space
+            project._id,       // attachedTo (project)
+            project._class,    // attachedToClass
+            'issues',          // collection name
+            taskAttributes,
+            issueId
+        );
+
+        return await this.client!.findOne(tracker.class.Issue as any, { _id: issueId } as any);
     }
 
     async updateTask(taskId: string, options: UpdateTaskOptions): Promise<any> {
@@ -199,8 +284,8 @@ export class HulyClient {
         if (options.milestoneId !== undefined) updates.milestone = options.milestoneId;
         if (options.rawFields) Object.assign(updates, options.rawFields);
         if (options.descriptionMarkdown !== undefined) {
-            const uploaded = await this.client.uploadMarkup(
-                'tracker:class:Issue',
+            const uploaded = await (this.client as any).uploadMarkup(
+                tracker.class.Issue,
                 task._id,
                 'description',
                 options.descriptionMarkdown,
@@ -209,7 +294,13 @@ export class HulyClient {
             updates.description = uploaded;
         }
 
-        await this.client.updateDoc('tracker:class:Issue', task.space, task._id, updates, false);
+        await this.client!.updateDoc(
+            tracker.class.Issue as any,
+            task.space,
+            task._id,
+            updates,
+            false
+        );
         return await this.getTask(taskId);
     }
 
@@ -219,14 +310,13 @@ export class HulyClient {
             throw new Error(`Task ${taskId} not found`);
         }
 
-        // Creating comments might use addCollection as well
-        await this.client.addCollection(
-            'tracker:class:Comment',
+        await this.client!.addCollection(
+            'chunter:class:ChatMessage' as any,
             task.space,
             task._id,
-            'tracker:class:Issue',
+            tracker.class.Issue as any,
             'comments',
-            { text: commentText }
+            { message: commentText } as any
         );
     }
 
@@ -236,10 +326,219 @@ export class HulyClient {
             throw new Error(`Task ${taskId} not found`);
         }
 
-        await this.client.removeDoc(
-            'tracker:class:Issue',
+        await this.client!.removeDoc(
+            tracker.class.Issue as any,
             task.space,
             task._id
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Labels / Tags
+    // -----------------------------------------------------------------------
+
+    async createLabel(title: string, color: number = 11): Promise<any> {
+        const labelId: Ref<Doc> = generateId();
+        await this.client!.createDoc(
+            tags.class.TagElement as any,
+            core.space.Workspace as any,
+            {
+                title,
+                description: '',
+                targetClass: tracker.class.Issue,
+                color,
+                category: tracker.category.Other,
+            } as any,
+            labelId
+        );
+        return await this.client!.findOne(tags.class.TagElement as any, { _id: labelId });
+    }
+
+    async assignLabel(issueId: string, spaceId: string, labelId: string, title: string, color: number = 11): Promise<void> {
+        await this.client!.addCollection(
+            tags.class.TagReference as any,
+            spaceId as any,
+            issueId as any,
+            tracker.class.Issue as any,
+            'labels',
+            { title, color, tag: labelId } as any
+        );
+    }
+
+    async getLabels(issueId: string): Promise<any[]> {
+        return await this.client!.findAll(
+            tags.class.TagReference as any,
+            {
+                attachedTo: issueId,
+                attachedToClass: tracker.class.Issue,
+            } as any
+        );
+    }
+
+    async getAllLabels(): Promise<any[]> {
+        return await this.client!.findAll(
+            tags.class.TagElement as any,
+            { targetClass: tracker.class.Issue } as any
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Documents
+    // -----------------------------------------------------------------------
+
+    async getTeamspaces(): Promise<any[]> {
+        return await this.client!.findAll(
+            hulyDocument.class.Teamspace as any,
+            { archived: false } as any
+        );
+    }
+
+    async getDocuments(teamspaceId: string): Promise<any[]> {
+        return await this.client!.findAll(
+            hulyDocument.class.Document as any,
+            { space: teamspaceId } as any,
+            {
+                limit: 100,
+                sort: { name: SortingOrder.Ascending },
+            }
+        );
+    }
+
+    async createDocument(teamspaceId: string, title: string, markdownContent: string): Promise<any> {
+        const lastOne = await this.client!.findOne(
+            hulyDocument.class.Document as any,
+            { space: teamspaceId } as any,
+            { sort: { rank: SortingOrder.Descending } }
+        );
+
+        const documentId: Ref<Doc> = generateId();
+        const content = await (this.client as any).uploadMarkup(
+            hulyDocument.class.Document,
+            documentId,
+            'content',
+            markdownContent,
+            'markdown'
+        );
+
+        await this.client!.createDoc(
+            hulyDocument.class.Document as any,
+            teamspaceId as any,
+            {
+                title,
+                content,
+                parent: hulyDocument.ids.NoParent,
+                rank: makeRank((lastOne as any)?.rank, undefined),
+            } as any,
+            documentId
+        );
+
+        return await this.client!.findOne(hulyDocument.class.Document as any, { _id: documentId });
+    }
+
+    async getDocumentContent(doc: any): Promise<string | null> {
+        if (!doc.content) return null;
+        return await (this.client as any).fetchMarkup(
+            doc._class, doc._id, 'content', doc.content, 'markdown'
+        );
+    }
+
+    async createTeamspace(name: string, description: string = '', isPrivate: boolean = false): Promise<any> {
+        const account = await this.getAccount();
+        const teamspaceId = await this.client!.createDoc(
+            hulyDocument.class.Teamspace as any,
+            core.space.Space as any,
+            {
+                name,
+                description,
+                private: isPrivate,
+                archived: false,
+                members: [account._id],
+                owners: [account._id],
+                icon: hulyDocument.icon.Teamspace,
+                type: hulyDocument.spaceType.DefaultTeamspaceType,
+            } as any
+        );
+        return await this.client!.findOne(hulyDocument.class.Teamspace as any, { _id: teamspaceId });
+    }
+
+    // -----------------------------------------------------------------------
+    // Milestones
+    // -----------------------------------------------------------------------
+
+    async getMilestones(projectId: string): Promise<any[]> {
+        return await this.client!.findAll(
+            tracker.class.Milestone as any,
+            { space: projectId } as any
+        );
+    }
+
+    async createMilestone(projectId: string, label: string, targetDate: number): Promise<any> {
+        const milestoneId: Ref<Doc> = generateId();
+        await this.client!.createDoc(
+            tracker.class.Milestone as any,
+            projectId as any,
+            {
+                label,
+                status: MilestoneStatus.InProgress,
+                targetDate,
+                comments: 0,
+            } as any,
+            milestoneId
+        );
+        return await this.client!.findOne(tracker.class.Milestone as any, { _id: milestoneId });
+    }
+
+    async updateMilestone(projectId: string, milestoneId: string, updates: any): Promise<void> {
+        await this.client!.updateDoc(
+            tracker.class.Milestone as any,
+            projectId as any,
+            milestoneId as any,
+            updates,
+            false
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Persons / Contacts
+    // -----------------------------------------------------------------------
+
+    async createPerson(name: string, city?: string): Promise<any> {
+        const personId: Ref<Doc> = generateId();
+        await this.client!.createDoc(
+            contact.class.Person as any,
+            contact.space.Contacts as any,
+            {
+                name,
+                city: city || '',
+                avatarType: AvatarType.COLOR,
+            } as any,
+            personId
+        );
+        return await this.client!.findOne(contact.class.Person as any, { _id: personId });
+    }
+
+    async addPersonEmail(personId: string, email: string): Promise<void> {
+        await this.client!.addCollection(
+            contact.class.Channel as any,
+            contact.space.Contacts as any,
+            personId as any,
+            contact.class.Person as any,
+            'channels',
+            {
+                provider: contact.channelProvider.Email,
+                value: email,
+            } as any
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Markup helpers
+    // -----------------------------------------------------------------------
+
+    async fetchMarkup(doc: any, field: string): Promise<string | null> {
+        if (!doc[field]) return null;
+        return await (this.client as any).fetchMarkup(
+            doc._class, doc._id, field, doc[field], 'markdown'
         );
     }
 }

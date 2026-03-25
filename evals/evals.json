@@ -5,35 +5,154 @@
       "id": 1,
       "name": "list-my-tasks",
       "prompt": "Show me all my tasks in Huly that are due this week",
-      "expected_output": "A list of tasks assigned to the user with due dates within the current week, formatted in Vietnamese with emojis",
+      "expected_output": "Runs `huly tasks --assignee me` or `huly report weekly --assignee me` and returns a list of tasks with due dates",
       "files": []
     },
     {
       "id": 2,
       "name": "overdue-tasks",
       "prompt": "What tasks are overdue? I need to see which ones I'm late on",
-      "expected_output": "A list of overdue tasks with days late, formatted in Vietnamese",
+      "expected_output": "Runs `huly tasks --overdue --assignee me` and returns overdue tasks with days late",
       "files": []
     },
     {
       "id": 3,
       "name": "create-task",
       "prompt": "Create a new task in project DELTA titled 'Test API connection' with medium priority, due tomorrow",
-      "expected_output": "Confirmation of task creation with task ID and details",
+      "expected_output": "Runs `huly create task \"Test API connection\" --project DELTA --priority MEDIUM --due tomorrow` and confirms creation with task ID",
       "files": []
     },
     {
       "id": 4,
       "name": "task-details",
       "prompt": "Show me details for task DELTA-1",
-      "expected_output": "Full task details including title, status, priority, assignee, due date, estimation, project, formatted in Vietnamese",
+      "expected_output": "Runs `huly task DELTA-1` and returns full details: title, status, priority, assignee, due date, project",
       "files": []
     },
     {
       "id": 5,
       "name": "daily-report",
       "prompt": "Give me a daily report of my tasks",
-      "expected_output": "Summary of tasks: due today, overdue, in progress, completed, formatted in Vietnamese with emojis",
+      "expected_output": "Runs `huly report daily --assignee me` and returns: due today, overdue, in progress counts",
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "update-task-status",
+      "prompt": "Mark task DELTA-42 as done and add a comment saying it's been tested",
+      "expected_output": "Runs `huly update task DELTA-42 --status Done --add-comment \"Tested\"` and confirms changes",
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "list-projects",
+      "prompt": "What projects do we have in Huly?",
+      "expected_output": "Runs `huly projects` and returns list of projects with identifiers and names",
+      "files": []
+    },
+    {
+      "id": 8,
+      "name": "delete-task",
+      "prompt": "Delete task DELTA-99",
+      "expected_output": "Runs `huly delete task DELTA-99 --yes` and confirms deletion",
+      "files": []
+    },
+    {
+      "id": 9,
+      "name": "whoami",
+      "prompt": "Am I connected to Huly? Show me my account info",
+      "expected_output": "Runs `huly whoami` and returns host, workspace, account email",
+      "files": []
+    },
+    {
+      "id": 10,
+      "name": "json-mode",
+      "prompt": "Get my tasks in JSON format",
+      "expected_output": "Runs `huly tasks --assignee me --json` and returns structured JSON with status and data fields",
+      "files": []
+    },
+    {
+      "id": 11,
+      "name": "create-label",
+      "prompt": "Create a label called 'critical' in Huly",
+      "expected_output": "Runs `huly labels create \"critical\"` and returns the created label with ID",
+      "files": []
+    },
+    {
+      "id": 12,
+      "name": "assign-label",
+      "prompt": "Tag task DELTA-42 with the critical label",
+      "expected_output": "First runs `huly labels list` to find the label ID, then `huly labels assign DELTA-42 <labelId>`",
+      "files": []
+    },
+    {
+      "id": 13,
+      "name": "show-labels",
+      "prompt": "What labels are on task DELTA-42?",
+      "expected_output": "Runs `huly labels show DELTA-42` and returns list of assigned labels",
+      "files": []
+    },
+    {
+      "id": 14,
+      "name": "list-teamspaces",
+      "prompt": "Show me all document spaces in Huly",
+      "expected_output": "Runs `huly docs teamspaces` and returns list of teamspaces with names and IDs",
+      "files": []
+    },
+    {
+      "id": 15,
+      "name": "list-documents",
+      "prompt": "What documents are in the Engineering teamspace?",
+      "expected_output": "Runs `huly docs list \"Engineering\"` and returns list of documents",
+      "files": []
+    },
+    {
+      "id": 16,
+      "name": "create-document",
+      "prompt": "Create a document called 'Sprint Retro' in the Engineering teamspace with the content '# Sprint Retro\n\n## What went well'",
+      "expected_output": "Runs `huly docs create \"Sprint Retro\" -t Engineering --content \"# Sprint Retro...\"` and confirms creation",
+      "files": []
+    },
+    {
+      "id": 17,
+      "name": "read-document",
+      "prompt": "Show me the content of the Sprint Retro document",
+      "expected_output": "Runs `huly docs read \"Engineering\" \"Sprint Retro\"` and returns markdown content",
+      "files": []
+    },
+    {
+      "id": 18,
+      "name": "list-milestones",
+      "prompt": "What milestones does the DELTA project have?",
+      "expected_output": "Runs `huly milestones list --project DELTA` and returns milestones with status and target dates",
+      "files": []
+    },
+    {
+      "id": 19,
+      "name": "create-milestone",
+      "prompt": "Create a milestone called 'Beta Release' for project DELTA due April 15",
+      "expected_output": "Runs `huly milestones create \"Beta Release\" --project DELTA --target 2026-04-15` and confirms creation",
+      "files": []
+    },
+    {
+      "id": 20,
+      "name": "complete-milestone",
+      "prompt": "Mark the Beta Release milestone as completed",
+      "expected_output": "Runs `huly milestones complete <milestoneId> --project DELTA` and confirms completion",
+      "files": []
+    },
+    {
+      "id": 21,
+      "name": "create-teamspace",
+      "prompt": "Create a private teamspace called 'Architecture Docs' with description 'System design documents'",
+      "expected_output": "Runs `huly docs create-teamspace \"Architecture Docs\" --description \"System design documents\" --private` and confirms creation",
+      "files": []
+    },
+    {
+      "id": 22,
+      "name": "filter-by-project-and-status",
+      "prompt": "Show me all in-progress tasks in the DELTA project",
+      "expected_output": "Runs `huly tasks --project DELTA --status \"In Progress\"` and returns filtered task list",
       "files": []
     }
   ]

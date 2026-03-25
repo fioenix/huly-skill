@@ -1,62 +1,114 @@
-# Huly Assist Skill
+# Huly Assist
 
-> **Note:** This repository is structured as an [Anthropic-compatible Agent Skill](https://github.com/anthropics/skills) and aligns with the [Vercel Labs Skill Ecosystem](https://github.com/vercel-labs/skills). 
+A CLI tool and [agent skill](https://agentskills.io) for managing tasks, projects, labels, documents, and milestones in [Huly](https://huly.io) — built on the official [`@hcengineering/api-client`](https://github.com/hcengineering/huly-examples).
 
-It contains a standalone command-line tool (CLI) for reading, creating, updating, and reporting tasks & projects against the [Huly](https://huly.io) project management framework using their official [`@hcengineering/api-client`](https://github.com/hcengineering/huly.core/tree/main/packages/api-client).
+Works with Claude Code, Cursor, OpenCode, and any agent supporting the [Agent Skills](https://github.com/vercel-labs/skills) ecosystem.
 
----
+## Install as Agent Skill
 
-## 🙋‍♂️ For Human Readers
+```bash
+npx skills add fioenix/huly-skill
+```
 
-This section explains how you, as a developer or user, can securely set up and test the tool locally.
-
-### Prerequisites
-- Node.js 20+
-- The following environment variables (via `~/.openclaw/.env` or your shell):
-  - `HULY_API_KEY`
-  - `HULY_HOST`
-  - `HULY_WORKSPACE_ID`
-- `pnpm` package manager.
-
-### Setup & Compilation
-Clone the repository and build the TypeScript definitions. Finally, link the executable globally so your AI Agents can find it:
-
+Or manually:
 ```bash
 git clone https://github.com/fioenix/huly-skill.git
 cd huly-skill
-
-pnpm install
-pnpm run build
-pnpm link --global
+npm install
+npm run build
 ```
 
-### Manual Verification (CLI Usage)
-The `huly` command provides the main interface utilizing the Commander library. It formats output entirely in Vietnamese mapped with corresponding priority attributes and formatted dates.
+## Setup
 
-To test that everything is working, ensure your environment variable is loaded and run:
+### 1. Environment Variables
+
+Set these before using any command:
 
 ```bash
-# Load env vars (HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY)
-export $(grep -v '^#' ~/.openclaw/.env | xargs)
-
-# List available projects
-huly projects
-
-# List all tasks for the current user
-huly tasks --assignee me
+export HULY_HOST="https://huly.app"
+export HULY_WORKSPACE_ID="your-workspace-uuid"
+export HULY_API_KEY="your-api-token"
 ```
 
-*For more commands, see [AGENTS.md](./AGENTS.md).*
+- **HULY_HOST**: Your Huly instance URL
+- **HULY_WORKSPACE_ID**: Found in Huly Settings > Workspace
+- **HULY_API_KEY**: Create at Huly Settings > API Tokens
 
-### Technical Details & Polyfills
-The underlying `@hcengineering/api-client` presumes executions against browser DOM models `indexedDB`, and `window`. This project mitigates the library crashes via standard `fake-indexeddb` polyfills injected heavily within `src/index.ts`. No further setup or external browsers are necessary. 
+### 2. GitHub Packages Registry
 
-API documentation references:
-- **Core Platform:** [Huly Core Repository](https://github.com/hcengineering/huly.core)
-- **API Client Syntax:** [Huly API-Client Readme](https://github.com/hcengineering/huly.core/tree/main/packages/api-client)
+The `@hcengineering/api-client` package is hosted on GitHub Packages. You need a GitHub Personal Access Token with `read:packages` scope:
 
----
+```bash
+# Create .npmrc in project root (or ~/.npmrc for global)
+echo "@hcengineering:registry=https://npm.pkg.github.com" >> .npmrc
+echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT" >> .npmrc
+```
 
-## 🤖 For Agent Readers
+Create a PAT at: https://github.com/settings/tokens/new (select `read:packages` scope)
 
-Moved to: [AGENTS.md](./AGENTS.md)
+### 3. Verify
+
+```bash
+node dist/index.js whoami
+```
+
+## Usage
+
+### Tasks
+```bash
+huly tasks --assignee me              # My tasks
+huly tasks --project DELTA --overdue  # Overdue in project
+huly task DELTA-123                   # Task details
+huly create task "Title" --project DELTA --priority HIGH --due tomorrow
+huly update task DELTA-123 --status "Done" --add-comment "Completed"
+huly delete task DELTA-123 --yes      # Requires confirmation
+```
+
+### Reports
+```bash
+huly report daily --assignee me       # Today's summary
+huly report weekly                    # Week summary
+```
+
+### Labels
+```bash
+huly labels list                      # All labels
+huly labels create "bug" --color 3    # Create label
+huly labels assign DELTA-123 <id>     # Assign to task
+huly labels show DELTA-123            # Show task labels
+```
+
+### Documents
+```bash
+huly docs teamspaces                  # List teamspaces
+huly docs list "My Documents"         # List docs
+huly docs read "My Documents" "Notes" # Read as markdown
+huly docs create "Title" -t "My Documents" --file ./content.md
+huly docs create-teamspace "Engineering"
+```
+
+### Milestones
+```bash
+huly milestones list --project DELTA
+huly milestones create "Sprint 1" --project DELTA --target 2026-04-15
+huly milestones complete <id> --project DELTA
+```
+
+### JSON Mode
+
+Append `--json` to any command for structured output:
+```bash
+huly tasks --assignee me --json
+```
+
+## For AI Agents
+
+See [AGENTS.md](./AGENTS.md) for the full agent integration guide, or [skills/huly-assist/SKILL.md](./skills/huly-assist/SKILL.md) for the skill definition.
+
+## Technical Notes
+
+The `@hcengineering/api-client` expects browser APIs (`indexedDB`, `window`). This project polyfills them in `src/index.ts` using `fake-indexeddb` — no browser required.
+
+## License
+
+MIT

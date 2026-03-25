@@ -1,75 +1,124 @@
 ---
 name: huly-assist
-description: "Use this skill whenever the user wants to read, create, update, delete, or generate reports for tasks and projects in Huly. If the user asks to 'list my tasks', 'what's overdue?', 'create a task for...', or 'delete this task' in Huly, use this skill. The skill leverages a dedicated CLI tool to interact directly with the Huly API securely."
+description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, or work with milestones in Huly. Supports both human-readable Vietnamese output and structured JSON mode for programmatic agent use."
+license: MIT
+compatibility: "Node.js 20+. Requires environment variables: HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY. The @hcengineering/api-client package requires access to GitHub Packages registry."
+metadata:
+  author: fioenix
+  version: "1.1.0"
+  repository: https://github.com/fioenix/huly-skill
 ---
 
-# Huly Assist Skill
+# Huly Assist
 
-This skill allows you (the AI assistant) to interact with a Huly project management instance.
+Interact with a Huly project management workspace via the `huly` CLI.
 
 ## Environment Variables
 
-This skill requires the following environment variables:
-- `HULY_API_KEY`
-- `HULY_HOST`
-- `HULY_WORKSPACE_ID`
+Required before any command:
+- `HULY_HOST` — Huly instance URL (e.g. `https://huly.app`)
+- `HULY_WORKSPACE_ID` — workspace UUID from Huly Settings > Workspace
+- `HULY_API_KEY` — API token from Huly Settings > API Tokens
 
-## Tool Execution
+## Execution
 
-You can perform actions on Huly using the overarching `huly` CLI (if correctly linked globally via `pnpm link --global`). Alternatively, if operating directly within the repository, you can execute `node dist/index.js`. 
+Run commands via the `huly` binary. If not found globally, fall back to `node dist/index.js` from the repo root.
 
-*Assume `huly` is available globally in the environment unless you get a command not found error, in which case fallback to `node dist/index.js`.*
+All commands support `--json` for structured JSON output (preferred for programmatic agent use).
 
-### 1. Listing Projects
-To see all available projects in the workspace:
+## Commands
+
+### Connection
 ```bash
-huly projects
+huly whoami                    # Verify connection + show account info
 ```
 
-### 2. Querying Tasks
-You can query tasks using various filters.
-- **My Tasks**: Use `--assignee me` to show tasks assigned to the current user token.
-- **By Status**: Use `--status` (e.g., `--status "todo, in progress"`).
-- **By Project**: Use `--project` (e.g., `--project DELTA`).
-- **Due Dates**: Use `--due-today` or `--overdue`.
-
+### Projects
 ```bash
-huly tasks --assignee me
-huly tasks --project ITDXC --due-today
+huly projects                  # List all projects in the workspace
 ```
 
-### 3. Task Details
-To view comprehensive metadata for a single task:
+### Tasks
 ```bash
-huly task ITDXC-26
+huly tasks --assignee me                          # My active tasks
+huly tasks --project DELTA --status "In Progress" # Filter by project + status
+huly tasks --overdue                              # Overdue tasks only
+huly tasks --due-today                            # Due today only
+
+huly task DELTA-123                               # Full details for one task
+
+huly create task "Title" --project DELTA          # Create task (required: --project)
+  --priority HIGH --due tomorrow --assignee me    # Optional: priority, due date, assignee
+  --kind-id <id> --component-id <id>              # Optional: task type, component
+  --milestone-id <id>                             # Optional: milestone
+  --set-field "customKey=value"                   # Optional: custom fields
+
+huly update task DELTA-123                        # Update task
+  --status "Done" --priority URGENT               # Change status/priority
+  --due 2026-04-01 --assignee me                  # Change due date/assignee
+  --add-comment "Progress update"                 # Add comment
+  --description-file ./spec.md                    # Set description from file
+
+huly delete task DELTA-123 --yes                  # Delete (requires --yes)
 ```
 
-### 4. Creating Tasks
-Priority accepts numerical levels (0-4) or names (LOW, MEDIUM, HIGH, URGENT). Due date accepts `YYYY-MM-DD`, `today`, or `tomorrow`.
+### Reports
 ```bash
-huly create task "Update CLI Documentation" --project ITDXC --priority HIGH --due tomorrow --assignee me
+huly report daily --assignee me    # Tasks due today + overdue summary
+huly report weekly                 # Tasks due this week + overdue summary
 ```
 
-### 5. Updating Tasks
-You can modify the status or add new comments to existing tasks.
+### Labels / Tags
 ```bash
-huly update task ITDXC-26 --status "In Progress"
-huly update task ITDXC-26 --add-comment "Bắt đầu triển khai"
+huly labels list                                  # List all workspace labels
+huly labels create "bug" --color 3                # Create a label
+huly labels assign DELTA-123 <labelId>            # Assign label to issue
+huly labels show DELTA-123                        # Show labels on an issue
 ```
 
-### 6. Deleting Tasks
-To permanently delete a task from the workspace (requires explicit confirmation):
+### Documents
 ```bash
-huly delete task ITDXC-26 --yes
+huly docs teamspaces                              # List all teamspaces
+huly docs list "My Documents"                     # List docs in a teamspace
+huly docs read "My Documents" "Meeting Notes"     # Read doc as markdown
+huly docs create "New Doc" -t "My Documents"      # Create document
+  --content "# Hello" OR --file ./content.md      # Content: inline or file
+huly docs create-teamspace "Engineering"           # Create new teamspace
+  --description "Team docs" --private              # Optional: description, private
 ```
 
-### 7. Generating Reports
-Provides structured summaries of what is due or overdue today vs this week.
+### Milestones
 ```bash
-huly report daily --assignee me
-huly report weekly
+huly milestones list --project DELTA                   # List project milestones
+huly milestones create "Sprint 1" --project DELTA      # Create milestone
+  --target 2026-04-15                                  # Optional: target date
+huly milestones complete <milestoneId> --project DELTA # Mark as completed
+```
+
+## JSON Mode
+
+Append `--json` to any command for structured output. All JSON responses follow:
+```json
+{ "status": "ok", "data": {...} }
+{ "status": "error", "error": "message" }
 ```
 
 ## Error Handling
 
-If the CLI outputs an error (`❌ Lỗi:`), parse the Vietnamese output string and report the failure back to the human. Ensure your shell has the required environment variables loaded (`HULY_API_KEY`, `HULY_HOST`, `HULY_WORKSPACE_ID`) (if you're using OpenClaw, you can often run `export $(grep -v '^#' ~/.openclaw/.env | xargs)`). Do not attempt to guess or mock the API internal routes; rely purely on the CLI output as your source of truth.
+Errors display in Vietnamese (prefix `Loi:`). Parse the message and report failure to the user. Do not attempt to call Huly API routes directly — always use the CLI as the source of truth.
+
+## Priority Levels
+
+| Value | English | Vietnamese |
+|-------|---------|------------|
+| 0 | None | KHONG UU TIEN |
+| 1 | Low | THAP |
+| 2 | Medium | TRUNG BINH |
+| 3 | High | CAO |
+| 4 | Urgent | KHAN CAP |
+
+Input accepts: number (0-4), English name, or Vietnamese name.
+
+## Date Formats
+
+Due dates accept: `YYYY-MM-DD`, `today`, `tomorrow`.
