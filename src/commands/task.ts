@@ -14,7 +14,8 @@ export function getTaskCommand() {
 
                 const task = await client.getTask(taskId);
                 if (!task) {
-                    printToConsole(`❌ Khong tim thay cong viec: ${taskId}`);
+                    console.error(`❌ Khong tim thay cong viec: ${taskId}`);
+                    process.exitCode = 1;
                     return;
                 }
 
@@ -62,6 +63,7 @@ export function getTaskCommand() {
                 printToConsole(output);
             } catch (e: any) {
                 console.error(`❌ Loi: ${e.message}`);
+                process.exitCode = 1;
             } finally {
                 await client.disconnect();
             }

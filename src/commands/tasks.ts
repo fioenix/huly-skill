@@ -58,6 +58,7 @@ export function listTasksCommand() {
 
             } catch (e: any) {
                 console.error(`❌ Loi: ${e.message}`);
+                process.exitCode = 1;
             } finally {
                 await client.disconnect();
             }

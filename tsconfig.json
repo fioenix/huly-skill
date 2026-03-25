@@ -11,10 +11,7 @@
     "declaration": true
   },
   "include": [
-    "src/index.ts",
-    "src/client.ts",
-    "src/commands/**/*.ts",
-    "src/utils/**/*.ts"
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules",

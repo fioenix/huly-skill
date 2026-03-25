@@ -1,5 +1,5 @@
 import pkg from '@hcengineering/api-client';
-const { connect, MarkupContent } = pkg as any;
+const { connect } = pkg as any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 
 export interface TaskQueryOptions {
@@ -76,7 +76,10 @@ export class HulyClient {
         try {
             return await this.client.findAll('tracker:class:IssueStatus', {}, { limit: 500 });
         } catch (e: any) {
-            return [];
+            if (e.message?.includes('domain not found') || e.message?.includes('class not found')) {
+                return [];
+            }
+            throw e;
         }
     }
 
@@ -142,33 +145,8 @@ export class HulyClient {
     }
 
     async createTask(options: CreateTaskOptions): Promise<any> {
-        // Find next identifier
-        const existingIssues = await this.client.findAll('tracker:class:Issue', {
-            space: options.projectId
-        }, { limit: 100 });
-
-        let maxNum = 0;
-        const projectMatch = options.projectId; // Will use project abbreviation next step
-
-        // We need to fetch the project to know its identifier (e.g., DELTA)
-        const projects = await this.client.findAll('tracker:class:Project', { _id: options.projectId });
-        const projectIdentifier = projects && projects.length > 0 ? projects[0].identifier : 'TASK';
-
-        for (const issue of existingIssues) {
-            if (issue.identifier) {
-                const match = issue.identifier.match(new RegExp(`${projectIdentifier}-(\\d+)`));
-                if (match) {
-                    const num = parseInt(match[1], 10);
-                    if (num > maxNum) maxNum = num;
-                }
-            }
-        }
-        const nextNum = maxNum + 1;
-        const identifier = `${projectIdentifier}-${nextNum}`;
-
         const taskAttributes: any = {
             title: options.title,
-            identifier: identifier
         };
 
         if (options.priority !== undefined) taskAttributes.priority = options.priority;

@@ -1,12 +1,16 @@
-const DEFAULT_HOST = 'https://work.yody.io';
-const DEFAULT_WORKSPACE_ID = '098f54fd-611a-41f7-b817-b69282fe8d91';
-
 export function getHost(): string {
-    return process.env.HULY_HOST || DEFAULT_HOST;
+    const host = process.env.HULY_HOST;
+    if (!host) {
+        throw new Error(
+            'HULY_HOST chua duoc cau hinh.\n' +
+            '  → VD: export HULY_HOST="https://huly.io"'
+        );
+    }
+    return host;
 }
 
 export function getWorkspaceId(): string {
-    const workspaceId = process.env.HULY_WORKSPACE_ID || DEFAULT_WORKSPACE_ID;
+    const workspaceId = process.env.HULY_WORKSPACE_ID;
     if (!workspaceId) {
         throw new Error(
             'HULY_WORKSPACE_ID chua duoc cau hinh.\n' +

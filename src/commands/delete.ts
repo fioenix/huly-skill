@@ -26,7 +26,8 @@ export function deleteTaskCommand() {
 
                 const task = await client.getTask(taskId);
                 if (!task) {
-                    printToConsole(`❌ Không tìm thấy task với Identifier: ${taskId}`);
+                    console.error(`❌ Khong tim thay task voi Identifier: ${taskId}`);
+                    process.exitCode = 1;
                     return;
                 }
 
@@ -39,7 +40,8 @@ export function deleteTaskCommand() {
                 printToConsole(output);
 
             } catch (e: any) {
-                console.error(`❌ Lỗi khi xoá task: ${e.message}`);
+                console.error(`❌ Loi khi xoa task: ${e.message}`);
+                process.exitCode = 1;
             } finally {
                 await client.disconnect();
             }

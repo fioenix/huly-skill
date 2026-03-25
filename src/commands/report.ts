@@ -14,7 +14,8 @@ export function reportCommand() {
             const isWeekly = type.toLowerCase() === 'weekly';
 
             if (!isDaily && !isWeekly) {
-                console.log(`❌ Loai bao cao khong hop le. Vui long chon 'daily' hoac 'weekly'.`);
+                console.error(`❌ Loai bao cao khong hop le. Vui long chon 'daily' hoac 'weekly'.`);
+                process.exitCode = 1;
                 return;
             }
 
@@ -93,6 +94,7 @@ export function reportCommand() {
 
             } catch (e: any) {
                 console.error(`❌ Loi tao bao cao: ${e.message}`);
+                process.exitCode = 1;
             } finally {
                 await client.disconnect();
             }

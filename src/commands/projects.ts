@@ -32,7 +32,8 @@ export function projectsCommand() {
 
                 printToConsole(output);
             } catch (e: any) {
-                console.error(`❌ Lỗi khi tải danh sách dự án: ${e.message}`);
+                console.error(`❌ Loi khi tai danh sach du an: ${e.message}`);
+                process.exitCode = 1;
             } finally {
                 await client.disconnect();
             }

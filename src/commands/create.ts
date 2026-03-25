@@ -22,7 +22,8 @@ export function createTaskCommand() {
                 await client.connect();
 
                 if (!options.project) {
-                    console.log('❌ Phai co co --project (VD: --project DELTA)');
+                    console.error('❌ Phai co co --project (VD: --project DELTA)');
+                    process.exitCode = 1;
                     return;
                 }
 
@@ -54,6 +55,7 @@ export function createTaskCommand() {
 
             } catch (e: any) {
                 console.error(`❌ Loi khi tao task: ${e.message}`);
+                process.exitCode = 1;
             } finally {
                 await client.disconnect();
             }
