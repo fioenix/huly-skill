@@ -40,6 +40,10 @@ export interface UpdateTaskOptions {
 
 export class HulyClient {
     private client: any = null;
+    private _persons: any[] | null = null;
+    private _projects: any[] | null = null;
+    private _statuses: any[] | null = null;
+    private _account: any | null = null;
 
     async connect() {
         this.client = await connect(getHost(), {
@@ -61,23 +65,29 @@ export class HulyClient {
     }
 
     async getAccount() {
-        return await this.client.getAccount();
+        if (!this._account) this._account = await this.client.getAccount();
+        return this._account;
     }
 
     async getPersons(): Promise<any[]> {
-        return await this.client.findAll('contact:class:Person', {});
+        if (!this._persons) this._persons = await this.client.findAll('contact:class:Person', {});
+        return this._persons!;
     }
 
     async getProjects(): Promise<any[]> {
-        return await this.client.findAll('tracker:class:Project', {});
+        if (!this._projects) this._projects = await this.client.findAll('tracker:class:Project', {});
+        return this._projects!;
     }
 
     async getStatuses(): Promise<any[]> {
+        if (this._statuses) return this._statuses;
         try {
-            return await this.client.findAll('tracker:class:IssueStatus', {}, { limit: 500 });
+            this._statuses = await this.client.findAll('tracker:class:IssueStatus', {}, { limit: 500 });
+            return this._statuses!;
         } catch (e: any) {
             if (e.message?.includes('domain not found') || e.message?.includes('class not found')) {
-                return [];
+                this._statuses = [];
+                return this._statuses;
             }
             throw e;
         }
@@ -231,5 +241,15 @@ export class HulyClient {
             task.space,
             task._id
         );
+    }
+}
+
+export async function withClient<T>(fn: (client: HulyClient) => Promise<T>): Promise<T> {
+    const client = new HulyClient();
+    try {
+        await client.connect();
+        return await fn(client);
+    } finally {
+        await client.disconnect();
     }
 }

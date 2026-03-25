@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { HulyClient } from '../client.js';
+import { withClient } from '../client.js';
 import { printToConsole, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
 import { resolvePerson, getProjectMap, getStatusMap } from '../resolvers.js';
 import { isCompletedStatus } from '../services/issues.js';
@@ -19,96 +19,93 @@ export function reportCommand() {
                 return;
             }
 
-            const client = new HulyClient();
             try {
-                await client.connect();
+                await withClient(async (client) => {
+                    let assigneeId: string | undefined;
+                    let assigneeName = 'Ban';
 
-                let assigneeId: string | undefined;
-                let assigneeName = 'Ban';
-
-                if (options.assignee) {
-                    const person = await resolvePerson(client, options.assignee);
-                    assigneeId = person._id;
-                    assigneeName = person.name;
-                }
-
-                const tasks = await client.queryTasks({ assignee: assigneeId });
-                const projectMap = await getProjectMap(client);
-                const statusMap = await getStatusMap(client);
-
-                const now = new Date();
-                now.setHours(0, 0, 0, 0);
-                const todayTime = now.getTime();
-
-                const endOfWeek = new Date();
-                endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
-                endOfWeek.setHours(23, 59, 59, 999);
-                const endOfWeekTime = endOfWeek.getTime();
-
-                const overdue: any[] = [];
-                const dueTarget: any[] = [];
-                const inProgress = tasks.filter((task: any) => {
-                    const s = statusMap.get(task.status)?.name?.toLowerCase() || '';
-                    return s.includes('progress') || s.includes('doing');
-                }).length;
-
-                for (const task of tasks) {
-                    const statusName = statusMap.get(task.status)?.name || '';
-                    if (isCompletedStatus(statusName)) continue;
-                    if (!task.dueDate) continue;
-
-                    const due = new Date(task.dueDate);
-                    due.setHours(0, 0, 0, 0);
-                    const dueTime = due.getTime();
-
-                    if (dueTime < todayTime) {
-                        overdue.push(task);
-                    } else if (isDaily && dueTime === todayTime) {
-                        dueTarget.push(task);
-                    } else if (isWeekly && dueTime >= todayTime && dueTime <= endOfWeekTime) {
-                        dueTarget.push(task);
+                    if (options.assignee) {
+                        const person = await resolvePerson(client, options.assignee);
+                        assigneeId = person._id;
+                        assigneeName = person.name;
                     }
-                }
 
-                dueTarget.sort((a, b) => (b.priority || 0) - (a.priority || 0));
-                overdue.sort((a, b) => (a.dueDate || 0) - (b.dueDate || 0));
+                    const tasks = await client.queryTasks({ assignee: assigneeId });
+                    const projectMap = await getProjectMap(client);
+                    const statusMap = await getStatusMap(client);
 
-                let output = `📋 TASKS DUE ${isDaily ? 'TODAY' : 'THIS WEEK'} - ${now.toLocaleDateString('vi-VN')}\n\n`;
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    const todayTime = now.getTime();
 
-                output += `⏰ Due ${isDaily ? 'Today' : 'This Week'} (${dueTarget.length})\n`;
-                for (const task of dueTarget) {
-                    output += `• [${PRIORITY_LABELS[task.priority] || 'MED'}] ${task.title} — @${assigneeName} — Project: ${projectMap.get(task.space)?.name || 'Unknown'}\n`;
-                }
+                    const endOfWeek = new Date();
+                    endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
+                    endOfWeek.setHours(23, 59, 59, 999);
+                    const endOfWeekTime = endOfWeek.getTime();
 
-                if (overdue.length > 0) {
-                    output += `\n🚨 Overdue (${overdue.length})\n`;
-                    for (const task of overdue) {
-                        const daysLate = Math.floor((todayTime - new Date(task.dueDate).getTime()) / (1000 * 60 * 60 * 24));
-                        output += `• [${PRIORITY_LABELS[task.priority] || 'MED'}] ${task.title} — @${assigneeName} (${daysLate} days late)\n`;
+                    const overdue: any[] = [];
+                    const dueTarget: any[] = [];
+                    const inProgress = tasks.filter((task: any) => {
+                        const s = statusMap.get(task.status)?.name?.toLowerCase() || '';
+                        return s.includes('progress') || s.includes('doing');
+                    }).length;
+
+                    for (const task of tasks) {
+                        const statusName = statusMap.get(task.status)?.name || '';
+                        if (isCompletedStatus(statusName)) continue;
+                        if (!task.dueDate) continue;
+
+                        const due = new Date(task.dueDate);
+                        due.setHours(0, 0, 0, 0);
+                        const dueTime = due.getTime();
+
+                        if (dueTime < todayTime) {
+                            overdue.push(task);
+                        } else if (isDaily && dueTime === todayTime) {
+                            dueTarget.push(task);
+                        } else if (isWeekly && dueTime >= todayTime && dueTime <= endOfWeekTime) {
+                            dueTarget.push(task);
+                        }
                     }
-                }
 
-                output += `\n📊 Summary: ${dueTarget.length} due ${isDaily ? 'today' : 'this week'} | ${overdue.length} overdue | ${inProgress} in progress`;
+                    dueTarget.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+                    overdue.sort((a, b) => (a.dueDate || 0) - (b.dueDate || 0));
 
-                if (isJsonMode()) {
-                    outputJson({
-                        status: 'ok',
-                        type: isDaily ? 'daily' : 'weekly',
-                        assignee: assigneeName,
-                        due: dueTarget,
-                        overdue,
-                        inProgress,
-                    });
-                } else {
+                    if (isJsonMode()) {
+                        outputJson({
+                            status: 'ok',
+                            type: isDaily ? 'daily' : 'weekly',
+                            assignee: assigneeName,
+                            due: dueTarget,
+                            overdue,
+                            inProgress,
+                        });
+                        return;
+                    }
+
+                    let output = `📋 TASKS DUE ${isDaily ? 'TODAY' : 'THIS WEEK'} - ${now.toLocaleDateString('vi-VN')}\n\n`;
+
+                    output += `⏰ Due ${isDaily ? 'Today' : 'This Week'} (${dueTarget.length})\n`;
+                    for (const task of dueTarget) {
+                        output += `• [${PRIORITY_LABELS[task.priority] || 'MED'}] ${task.title} — @${assigneeName} — Project: ${projectMap.get(task.space)?.name || 'Unknown'}\n`;
+                    }
+
+                    if (overdue.length > 0) {
+                        output += `\n🚨 Overdue (${overdue.length})\n`;
+                        for (const task of overdue) {
+                            const daysLate = Math.floor((todayTime - new Date(task.dueDate).getTime()) / (1000 * 60 * 60 * 24));
+                            output += `• [${PRIORITY_LABELS[task.priority] || 'MED'}] ${task.title} — @${assigneeName} (${daysLate} days late)\n`;
+                        }
+                    }
+
+                    output += `\n📊 Summary: ${dueTarget.length} due ${isDaily ? 'today' : 'this week'} | ${overdue.length} overdue | ${inProgress} in progress`;
+
                     printToConsole(output);
-                }
-
+                });
             } catch (e: any) {
                 if (isJsonMode()) outputJson({ status: 'error', error: e.message });
                 else console.error(`❌ Loi tao bao cao: ${e.message}`);
                 process.exitCode = 1;
-            } finally {
-                await client.disconnect();
             }
         });
 }

@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { HulyClient } from '../client.js';
+import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
 import { parseRawFields, safeReadFile } from '../resolvers.js';
 import { updateIssue } from '../services/issues.js';
@@ -19,39 +19,35 @@ export function updateTaskCommand() {
         .option('--description-file <path>', 'Set description from a markdown file')
         .option('--add-comment <comment>', 'Add a comment to the task')
         .action(async (type, taskId, options) => {
-            const client = new HulyClient();
             try {
-                await client.connect();
+                await withClient(async (client) => {
+                    const changes = await updateIssue(client, taskId, {
+                        status: options.status,
+                        priority: options.priority,
+                        due: options.due,
+                        assignee: options.assignee,
+                        kindId: options.kindId,
+                        componentId: options.componentId,
+                        milestoneId: options.milestoneId,
+                        rawFields: options.setField ? parseRawFields(options.setField) : undefined,
+                        descriptionMarkdown: options.descriptionFile ? safeReadFile(options.descriptionFile) : undefined,
+                        comment: options.addComment,
+                    });
 
-                const changes = await updateIssue(client, taskId, {
-                    status: options.status,
-                    priority: options.priority,
-                    due: options.due,
-                    assignee: options.assignee,
-                    kindId: options.kindId,
-                    componentId: options.componentId,
-                    milestoneId: options.milestoneId,
-                    rawFields: options.setField ? parseRawFields(options.setField) : undefined,
-                    descriptionMarkdown: options.descriptionFile ? safeReadFile(options.descriptionFile) : undefined,
-                    comment: options.addComment,
+                    if (isJsonMode()) {
+                        outputJson({ status: 'ok', taskId, changes });
+                    } else if (changes.length === 0) {
+                        printToConsole(`ℹ️ Khong co thong tin gi de cap nhat cho ${taskId}`);
+                    } else {
+                        let output = `✅ Cap nhat hoan tat cho ${taskId}:\n`;
+                        for (const c of changes) output += `  • ${c}\n`;
+                        printToConsole(output);
+                    }
                 });
-
-                if (isJsonMode()) {
-                    outputJson({ status: 'ok', taskId, changes });
-                } else if (changes.length === 0) {
-                    printToConsole(`ℹ️ Khong co thong tin gi de cap nhat cho ${taskId}`);
-                } else {
-                    let output = `✅ Cap nhat hoan tat cho ${taskId}:\n`;
-                    for (const c of changes) output += `  • ${c}\n`;
-                    printToConsole(output);
-                }
-
             } catch (e: any) {
                 if (isJsonMode()) outputJson({ status: 'error', error: e.message });
                 else console.error(`❌ Loi cap nhat task: ${e.message}`);
                 process.exitCode = 1;
-            } finally {
-                await client.disconnect();
             }
         });
 }
