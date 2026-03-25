@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { HulyClient } from '../client.js';
+import { withClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
 import { queryIssues, isCompletedStatus } from '../services/issues.js';
 
@@ -12,61 +12,56 @@ export function listTasksCommand() {
         .option('--overdue', 'Show overdue tasks')
         .option('--due-today', 'Show tasks due today')
         .action(async (options) => {
-            const client = new HulyClient();
             try {
-                await client.connect();
+                await withClient(async (client) => {
+                    const { tasks, projectMap, statusMap } = await queryIssues(client, {
+                        assignee: options.assignee,
+                        project: options.project,
+                        status: options.status,
+                        overdue: options.overdue,
+                        dueToday: options.dueToday,
+                    });
 
-                const { tasks, projectMap, statusMap } = await queryIssues(client, {
-                    assignee: options.assignee,
-                    project: options.project,
-                    status: options.status,
-                    overdue: options.overdue,
-                    dueToday: options.dueToday,
+                    const activeTasks = tasks.filter(task => {
+                        if (options.status) return true;
+                        const statusName = statusMap.get(task.status)?.name || '';
+                        return !isCompletedStatus(statusName);
+                    });
+
+                    activeTasks.sort((a, b) => (a.dueDate || 0) - (b.dueDate || 0));
+
+                    if (isJsonMode()) {
+                        outputJson({ status: 'ok', count: activeTasks.length, data: activeTasks });
+                        return;
+                    }
+
+                    if (activeTasks.length === 0) {
+                        printToConsole('✅ Khong tim thay cong viec nao phu hop voi bo loc!');
+                        return;
+                    }
+
+                    let output = `📋 DANH SACH CONG VIEC (${activeTasks.length})\n`;
+                    output += '━'.repeat(60) + '\n';
+
+                    for (const task of activeTasks) {
+                        const project = projectMap.get(task.space);
+                        const statusName = statusMap.get(task.status)?.name || 'Unknown';
+                        const priorityLabel = PRIORITY_LABELS[task.priority] || 'NO';
+                        const projectName = project?.name || project?.identifier || 'Unknown';
+                        const dueStr = task.dueDate ? formatDate(task.dueDate) : 'N/A';
+
+                        output += `📌 [${priorityLabel}] ${task.identifier}: ${task.title}\n`;
+                        output += `   📁 Du an: ${projectName} | 📊 Trang thai: ${statusName}\n`;
+                        output += `   📅 Han chot: ${dueStr}\n`;
+                        output += `   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+                    }
+
+                    printToConsole(output);
                 });
-
-                // Filter out completed tasks unless caller specified status explicitly
-                const activeTasks = tasks.filter(task => {
-                    if (options.status) return true;
-                    const statusName = statusMap.get(task.status)?.name || '';
-                    return !isCompletedStatus(statusName);
-                });
-
-                activeTasks.sort((a, b) => (a.dueDate || 0) - (b.dueDate || 0));
-
-                if (isJsonMode()) {
-                    outputJson({ status: 'ok', count: activeTasks.length, data: activeTasks });
-                    return;
-                }
-
-                if (activeTasks.length === 0) {
-                    printToConsole('✅ Khong tim thay cong viec nao phu hop voi bo loc!');
-                    return;
-                }
-
-                let output = `📋 DANH SACH CONG VIEC (${activeTasks.length})\n`;
-                output += '━'.repeat(60) + '\n';
-
-                for (const task of activeTasks) {
-                    const project = projectMap.get(task.space);
-                    const statusName = statusMap.get(task.status)?.name || 'Unknown';
-                    const priorityLabel = PRIORITY_LABELS[task.priority] || 'NO';
-                    const projectName = project?.name || project?.identifier || 'Unknown';
-                    const dueStr = task.dueDate ? formatDate(task.dueDate) : 'N/A';
-
-                    output += `📌 [${priorityLabel}] ${task.identifier}: ${task.title}\n`;
-                    output += `   📁 Du an: ${projectName} | 📊 Trang thai: ${statusName}\n`;
-                    output += `   📅 Han chot: ${dueStr}\n`;
-                    output += `   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-                }
-
-                printToConsole(output);
-
             } catch (e: any) {
                 if (isJsonMode()) outputJson({ status: 'error', error: e.message });
                 else console.error(`❌ Loi: ${e.message}`);
                 process.exitCode = 1;
-            } finally {
-                await client.disconnect();
             }
         });
 }
