@@ -1,5 +1,5 @@
 ---
-name: huly-assist
+name: huly-skill
 description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, or work with milestones in Huly. Supports both human-readable Vietnamese output and structured JSON mode for programmatic agent use."
 license: MIT
 compatibility: "Node.js 20+. Requires environment variables: HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY. Zero-install: all dependencies are bundled."
@@ -9,7 +9,7 @@ metadata:
   repository: https://github.com/fioenix/huly-skill
 ---
 
-# Huly Assist
+# Huly Skill
 
 Interact with a Huly project management workspace via the `huly` CLI.
 
