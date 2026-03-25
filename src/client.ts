@@ -24,6 +24,9 @@ export interface UpdateTaskOptions {
     statusId?: string;
     priority?: number;
     dueDate?: number;
+    assigneeId?: string;
+    title?: string;
+    description?: string;
 }
 
 export class HulyClient {
@@ -189,6 +192,9 @@ export class HulyClient {
         if (options.statusId !== undefined) updates.status = options.statusId;
         if (options.priority !== undefined) updates.priority = options.priority;
         if (options.dueDate !== undefined) updates.dueDate = options.dueDate;
+        if (options.assigneeId !== undefined) updates.assignee = options.assigneeId;
+        if (options.title !== undefined) updates.title = options.title;
+        if (options.description !== undefined) updates.description = options.description;
 
         await this.client.update('tracker:class:Issue', task._id, updates);
         return await this.getTask(taskId);

@@ -1,18 +1,20 @@
 import { Command } from 'commander';
 import { HulyClient } from '../client.js';
-import { printToConsole, formatDate, PRIORITY_LABELS } from '../utils/logger.js';
+import { printToConsole, PRIORITY_LABELS } from '../utils/logger.js';
+import { resolvePerson, getProjectMap, getStatusMap } from '../resolvers.js';
+import { isCompletedStatus } from '../services/issues.js';
 
 export function reportCommand() {
     return new Command('report')
         .arguments('<type>')
         .description('Generate daily or weekly task report')
-        .option('-a, --assignee <assignee>', 'Filter by assignee ID or "me"', 'me')
+        .option('-a, --assignee <assignee>', 'Filter by assignee ID, name, or "me"', 'me')
         .action(async (type, options) => {
             const isDaily = type.toLowerCase() === 'daily';
             const isWeekly = type.toLowerCase() === 'weekly';
 
             if (!isDaily && !isWeekly) {
-                console.log(`❌ Loại báo cáo không hợp lệ. Vui lòng chọn 'daily' hoặc 'weekly'.`);
+                console.log(`❌ Loai bao cao khong hop le. Vui long chon 'daily' hoac 'weekly'.`);
                 return;
             }
 
@@ -20,40 +22,18 @@ export function reportCommand() {
             try {
                 await client.connect();
 
-                let targetAssigneeId: string | undefined;
-                let assigneeName = 'Bạn';
+                let assigneeId: string | undefined;
+                let assigneeName = 'Ban';
 
-                if (options.assignee?.toLowerCase() === 'me') {
-                    const account = await client.getAccount();
-                    const personUuid = account.fullSocialIds?.[0]?.personUuid || account.uuid;
-
-                    const persons = await client.getPersons();
-                    const me = persons.find(p => p.personUuid === personUuid);
-                    if (me) {
-                        targetAssigneeId = me._id;
-                        assigneeName = me.name || 'Bạn';
-                    } else {
-                        console.log('❌ Không thể xác minh được tài khoản của bạn (me) trên hệ thống.');
-                        return;
-                    }
-                } else if (options.assignee) {
-                    targetAssigneeId = options.assignee;
-                    const persons = await client.getPersons();
-                    const assignee = persons.find(p => p._id === options.assignee);
-                    if (assignee) assigneeName = assignee.name || options.assignee;
+                if (options.assignee) {
+                    const person = await resolvePerson(client, options.assignee);
+                    assigneeId = person._id;
+                    assigneeName = person.name;
                 }
 
-                const tasks = await client.queryTasks({
-                    assignee: targetAssigneeId
-                });
-
-                const projects = await client.getProjects();
-                const projectMap = new Map();
-                for (const p of projects) projectMap.set(p._id, p);
-
-                let statuses = await client.getStatuses();
-                let statusMap = new Map();
-                for (const s of statuses) statusMap.set(s._id, s);
+                const tasks = await client.queryTasks({ assignee: assigneeId });
+                const projectMap = await getProjectMap(client);
+                const statusMap = await getStatusMap(client);
 
                 const now = new Date();
                 now.setHours(0, 0, 0, 0);
@@ -65,18 +45,15 @@ export function reportCommand() {
                 const endOfWeekTime = endOfWeek.getTime();
 
                 const overdue: any[] = [];
-                const dueTarget: any[] = []; // Today for daily, this week for weekly
-                const inProgress: number = tasks.filter(task => { // just counting
+                const dueTarget: any[] = [];
+                const inProgress = tasks.filter((task: any) => {
                     const s = statusMap.get(task.status)?.name?.toLowerCase() || '';
                     return s.includes('progress') || s.includes('doing');
                 }).length;
 
                 for (const task of tasks) {
-                    const statusName = statusMap.get(task.status)?.name?.toLowerCase() || '';
-                    if (statusName.includes('done') || statusName.includes('resolved') || statusName.includes('closed') || statusName.includes('completed')) {
-                        continue; // Skip finished
-                    }
-
+                    const statusName = statusMap.get(task.status)?.name || '';
+                    if (isCompletedStatus(statusName)) continue;
                     if (!task.dueDate) continue;
 
                     const due = new Date(task.dueDate);
@@ -115,7 +92,7 @@ export function reportCommand() {
                 printToConsole(output);
 
             } catch (e: any) {
-                console.error(`❌ Lỗi tạo báo cáo: ${e.message}`);
+                console.error(`❌ Loi tao bao cao: ${e.message}`);
             } finally {
                 await client.disconnect();
             }

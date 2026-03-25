@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { HulyClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS } from '../utils/logger.js';
+import { getProjectMap, getStatusMap, resolvePerson } from '../resolvers.js';
 
 export function getTaskCommand() {
     return new Command('task')
@@ -13,55 +14,54 @@ export function getTaskCommand() {
 
                 const task = await client.getTask(taskId);
                 if (!task) {
-                    printToConsole(`❌ Không tìm thấy công việc: ${taskId}`);
+                    printToConsole(`❌ Khong tim thay cong viec: ${taskId}`);
                     return;
                 }
 
-                const projects = await client.getProjects();
-                const project = projects.find(p => p._id === task.space);
+                const projectMap = await getProjectMap(client);
+                const statusMap = await getStatusMap(client);
+                const project = projectMap.get(task.space);
+                const status = statusMap.get(task.status);
 
-                const statuses = await client.getStatuses();
-                const status = statuses.find(s => s._id === task.status);
-
-                let assigneeName = 'Chưa giao';
+                let assigneeName = 'Chua giao';
                 if (task.assignee) {
                     const persons = await client.getPersons();
-                    const assignee = persons.find(p => p._id === task.assignee);
+                    const assignee = persons.find((p: any) => p._id === task.assignee);
                     if (assignee) {
                         assigneeName = assignee.name || assignee.displayName || task.assignee;
                     }
                 }
 
-                let output = `📋 CHI TIẾT CÔNG VIỆC: ${task.identifier}\n\n`;
-                output += `📌 Tiêu đề: ${task.title || 'N/A'}\n`;
-                output += `📁 Dự án: ${project?.identifier || 'Unknown'} - ${project?.name || 'Unknown'}\n`;
-                output += `📊 Trạng thái: ${status?.name || 'Unknown'}\n`;
-                output += `🎯 Mức ưu tiên: ${PRIORITY_LABELS[task.priority] || 'KHÔNG ƯU TIÊN'}\n`;
-                output += `👤 Người thực hiện: ${assigneeName}\n\n`;
+                let output = `📋 CHI TIET CONG VIEC: ${task.identifier}\n\n`;
+                output += `📌 Tieu de: ${task.title || 'N/A'}\n`;
+                output += `📁 Du an: ${project?.identifier || 'Unknown'} - ${project?.name || 'Unknown'}\n`;
+                output += `📊 Trang thai: ${status?.name || 'Unknown'}\n`;
+                output += `🎯 Muc uu tien: ${PRIORITY_LABELS[task.priority] || 'KHONG UU TIEN'}\n`;
+                output += `👤 Nguoi thuc hien: ${assigneeName}\n\n`;
 
-                output += `📅 Ngày tạo: ${formatDate(task.createdOn, true)}\n`;
-                output += `📅 Cập nhật: ${formatDate(task.modifiedOn, true)}\n`;
-                output += `⏰ Hạn chót: ${task.dueDate ? formatDate(task.dueDate) : 'N/A'}\n\n`;
+                output += `📅 Ngay tao: ${formatDate(task.createdOn, true)}\n`;
+                output += `📅 Cap nhat: ${formatDate(task.modifiedOn, true)}\n`;
+                output += `⏰ Han chot: ${task.dueDate ? formatDate(task.dueDate) : 'N/A'}\n\n`;
 
                 if (task.description) {
-                    output += `📝 ID Mô tả: ${task.description}\n`;
+                    output += `📝 ID Mo ta: ${task.description}\n`;
                 }
 
                 if (task.labels && task.labels.length > 0) {
-                    output += `🏷️ Nhãn: ${task.labels.join(', ')}\n`;
+                    output += `🏷️ Nhan: ${task.labels.join(', ')}\n`;
                 }
 
                 if (task.attachments && task.attachments > 0) {
-                    output += `📎 Đính kèm: ${task.attachments}\n`;
+                    output += `📎 Dinh kem: ${task.attachments}\n`;
                 }
 
                 if (task.comments && task.comments > 0) {
-                    output += `💬 Bình luận: ${task.comments}\n`;
+                    output += `💬 Binh luan: ${task.comments}\n`;
                 }
 
                 printToConsole(output);
             } catch (e: any) {
-                console.error(`❌ Lỗi: ${e.message}`);
+                console.error(`❌ Loi: ${e.message}`);
             } finally {
                 await client.disconnect();
             }
