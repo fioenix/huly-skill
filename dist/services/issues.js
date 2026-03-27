@@ -77,6 +77,22 @@ export async function updateIssue(client, taskId, input) {
     if (Object.keys(updates).length > 0) {
         await client.updateTask(taskId, updates);
     }
+    // Verify description update actually persisted
+    if (input.descriptionMarkdown) {
+        const updated = await client.getTask(taskId);
+        if (updated) {
+            const actual = await client.fetchMarkup(updated, 'description');
+            if (actual) {
+                const expectedSnippet = input.descriptionMarkdown.trim().substring(0, 50);
+                const actualSnippet = actual.trim().substring(0, 50);
+                if (actualSnippet !== expectedSnippet) {
+                    throw new Error(`Description update verification failed!\n` +
+                        `  Expected: "${expectedSnippet}..."\n` +
+                        `  Actual:   "${actualSnippet}..."`);
+                }
+            }
+        }
+    }
     if (input.comment) {
         await client.addComment(taskId, input.comment);
         changes.push('Binh luan da them');

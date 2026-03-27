@@ -1,9 +1,13 @@
 import apiClient from '@hcengineering/api-client';
 import coreModule from '@hcengineering/core';
+import textModule from '@hcengineering/text';
+import textMarkdownModule from '@hcengineering/text-markdown';
 // CJS interop: these packages use module.exports, named ESM imports don't work
-const { connect, NodeWebSocketFactory, MarkupContent, markdown: markdownContent } = apiClient;
-const { SortingOrder, generateId } = coreModule;
+const { connect, NodeWebSocketFactory } = apiClient;
+const { SortingOrder, generateId, makeCollabId } = coreModule;
 const core = coreModule;
+const { jsonToMarkup } = textModule;
+const { markdownToMarkup } = textMarkdownModule;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 import { tracker, contact, document as hulyDocument, tags, IssuePriority, MilestoneStatus, AvatarType, makeRank, } from './huly-types.js';
 export class HulyClient {
@@ -193,8 +197,22 @@ export class HulyClient {
         if (options.rawFields)
             Object.assign(updates, options.rawFields);
         if (options.descriptionMarkdown !== undefined) {
-            // Use MarkupContent so SDK's processMarkup handles upload+update atomically
-            updates.description = new MarkupContent(options.descriptionMarkdown, 'markdown');
+            // SDK's uploadMarkup uses collaborator.createMarkup which only creates a blob
+            // but does NOT update the collaborative document state that getMarkup reads.
+            // Fix: use collaborator.updateMarkup to update the collab doc in-place.
+            const c = this.client;
+            const markupOps = c.markup;
+            const collabClient = markupOps.collaborator;
+            // Convert markdown → internal markup (same pipeline as SDK)
+            const internalMarkup = jsonToMarkup(markdownToMarkup(options.descriptionMarkdown, {
+                refUrl: markupOps.refUrl,
+                imageUrl: markupOps.imageUrl,
+            }));
+            const collabId = makeCollabId(tracker.class.Issue, task._id, 'description');
+            // Update collaborative document state (what getMarkup/fetchMarkup reads)
+            await collabClient.updateMarkup(collabId, internalMarkup);
+            // Do NOT call createMarkup — it may overwrite collab state.
+            // Just keep existing description ref; the collab doc is now updated.
         }
         await this.client.updateDoc(tracker.class.Issue, task.space, task._id, updates, false);
         return await this.getTask(taskId);

@@ -184,10 +184,6 @@ const ALLOWED_FILE_EXTENSIONS = new Set(['.md', '.txt', '.markdown']);
 
 export function safeReadFile(filePath: string): string {
     const resolved = path.resolve(filePath);
-    const cwd = process.cwd();
-    if (!resolved.startsWith(cwd + path.sep) && resolved !== cwd) {
-        throw new Error(`--description-file phai nam trong thu muc hien tai.\n  Path: ${resolved}\n  CWD: ${cwd}`);
-    }
     const ext = path.extname(resolved).toLowerCase();
     if (ext && !ALLOWED_FILE_EXTENSIONS.has(ext)) {
         throw new Error(`--description-file chi chap nhan file .md, .txt, .markdown (nhan: ${ext})`);
