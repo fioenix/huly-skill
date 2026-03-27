@@ -273,7 +273,7 @@ Try polyfilling it using "@formatjs/intl-pluralrules"
 `,s+=`   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 `}ce(s)})}catch(e){Y()?Q({status:"error",error:e.message}):console.error(`\u274C Loi: ${e.message}`),process.exitCode=1}})}Ta();function pne(){return new Ke("task").description("Get task details by ID").argument("<taskId>","Task identifier (e.g., DELTA-123)").action(async t=>{try{await Me(async e=>{let r=await e.getTask(t);if(!r){Y()?Q({status:"error",error:`Task not found: ${t}`}):console.error(`\u274C Khong tim thay cong viec: ${t}`),process.exitCode=1;return}if(Y()){Q({status:"ok",data:r});return}let n=await Yu(e),i=await Qu(e),o=n.get(r.space),s=i.get(r.status),a="Chua giao";if(r.assignee){let l=(await e.getPersons()).find(f=>f._id===r.assignee);l&&(a=l.name||l.displayName||r.assignee)}let u=`\u{1F4CB} CHI TIET CONG VIEC: ${r.identifier}
 
-`;u+=`\u{1F4CC} Tieu de: ${r.title||"N/A"}
+`;if(u+=`\u{1F4CC} Tieu de: ${r.title||"N/A"}
 `,u+=`\u{1F4C1} Du an: ${o?.identifier||"Unknown"} - ${o?.name||"Unknown"}
 `,u+=`\u{1F4CA} Trang thai: ${s?.name||"Unknown"}
 `,u+=`\u{1F3AF} Muc uu tien: ${bo[r.priority]||"KHONG UU TIEN"}
@@ -283,8 +283,11 @@ Try polyfilling it using "@formatjs/intl-pluralrules"
 `,u+=`\u{1F4C5} Cap nhat: ${an(r.modifiedOn,!0)}
 `,u+=`\u23F0 Han chot: ${r.dueDate?an(r.dueDate):"N/A"}
 
-`,r.description&&(u+=`\u{1F4DD} ID Mo ta: ${r.description}
-`),r.labels&&r.labels.length>0&&(u+=`\u{1F3F7}\uFE0F Nhan: ${r.labels.join(", ")}
+`,r.description)try{let c=await e.fetchMarkup(r,"description");c?u+=`\u{1F4DD} Mo ta:
+${c}
+`:u+=`\u{1F4DD} Mo ta: (khong doc duoc noi dung)
+`}catch{u+=`\u{1F4DD} Mo ta: (khong doc duoc noi dung)
+`}r.labels&&r.labels.length>0&&(u+=`\u{1F3F7}\uFE0F Nhan: ${r.labels.join(", ")}
 `),r.attachments&&r.attachments>0&&(u+=`\u{1F4CE} Dinh kem: ${r.attachments}
 `),r.comments&&r.comments>0&&(u+=`\u{1F4AC} Binh luan: ${r.comments}
 `),ce(u)})}catch(e){Y()?Q({status:"error",error:e.message}):console.error(`\u274C Loi: ${e.message}`),process.exitCode=1}})}Ta();function mne(){return new Ke("create").arguments("task <title>").description("Create a new task").option("-p, --project <projectId>","Project identifier (e.g., DELTA, required)").option("--priority <priority>","Priority level (0-4 or LOW, MEDIUM, HIGH, URGENT)","2").option("--due <dueDate>",'Due date (YYYY-MM-DD or "today", "tomorrow")').option("-a, --assignee <assigneeId>",'Assignee ID, name, or "me"').option("--kind-id <kindId>","Task type / kind ID").option("--component-id <componentId>","Component ID").option("--milestone-id <milestoneId>","Milestone ID").option("--set-field <fields...>","Set custom field (key=value, supports null/true/false/number)").action(async(t,e,r)=>{if(!r.project){console.error("\u274C Phai co co --project (VD: --project DELTA)"),process.exitCode=1;return}try{await Me(async n=>{let i=r.setField?Qh(r.setField):void 0,o=await lne(n,{title:e,project:r.project,priority:r.priority,due:r.due,assignee:r.assignee,kindId:r.kindId,componentId:r.componentId,milestoneId:r.milestoneId,rawFields:i}),s=o.task;if(Y())Q({status:"ok",data:s});else{let a=`\u2705 DA TAO TASK MOI

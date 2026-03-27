@@ -22,7 +22,9 @@ if (typeof globalAny.window === 'undefined') {
         globalAny.navigator = { userAgent: 'node' };
     }
 }
-import { createRequire } from 'module';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { Command } from 'commander';
 import { setJsonMode } from './utils/logger.js';
 import { listTasksCommand } from './commands/tasks.js';
@@ -36,8 +38,16 @@ import { whoamiCommand } from './commands/whoami.js';
 import { labelsCommand } from './commands/labels.js';
 import { documentsCommand } from './commands/documents.js';
 import { milestonesCommand } from './commands/milestones.js';
-const require = createRequire(import.meta.url);
-const { version } = require('../package.json');
+let version = '1.1.0';
+try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
+    version = pkg.version;
+}
+catch {
+    // Bundled mode — use hardcoded version
+}
 const program = new Command();
 program
     .name('huly')

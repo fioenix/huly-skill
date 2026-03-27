@@ -44,7 +44,16 @@ export function getTaskCommand() {
                 output += `📅 Cap nhat: ${formatDate(task.modifiedOn, true)}\n`;
                 output += `⏰ Han chot: ${task.dueDate ? formatDate(task.dueDate) : 'N/A'}\n\n`;
                 if (task.description) {
-                    output += `📝 ID Mo ta: ${task.description}\n`;
+                    try {
+                        const descContent = await client.fetchMarkup(task, 'description');
+                        if (descContent)
+                            output += `📝 Mo ta:\n${descContent}\n`;
+                        else
+                            output += `📝 Mo ta: (khong doc duoc noi dung)\n`;
+                    }
+                    catch {
+                        output += `📝 Mo ta: (khong doc duoc noi dung)\n`;
+                    }
                 }
                 if (task.labels && task.labels.length > 0) {
                     output += `🏷️ Nhan: ${task.labels.join(', ')}\n`;

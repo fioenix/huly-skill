@@ -50,8 +50,9 @@ export function getTaskCommand() {
 
                     if (task.description) {
                         try {
-                            const descContent = await client.fetchMarkup('tracker:class:Issue', task._id, 'description', task.description, 'markdown');
-                            output += `📝 Mo ta:\n${descContent}\n`;
+                            const descContent = await client.fetchMarkup(task, 'description');
+                            if (descContent) output += `📝 Mo ta:\n${descContent}\n`;
+                            else output += `📝 Mo ta: (khong doc duoc noi dung)\n`;
                         } catch {
                             output += `📝 Mo ta: (khong doc duoc noi dung)\n`;
                         }
