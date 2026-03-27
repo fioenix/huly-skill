@@ -2,7 +2,7 @@ import apiClient from '@hcengineering/api-client';
 import coreModule from '@hcengineering/core';
 
 // CJS interop: these packages use module.exports, named ESM imports don't work
-const { connect, NodeWebSocketFactory } = apiClient as any;
+const { connect, NodeWebSocketFactory, MarkupContent, markdown: markdownContent } = apiClient as any;
 const { SortingOrder, generateId } = coreModule as any;
 const core = coreModule as any;
 
@@ -284,14 +284,8 @@ export class HulyClient {
         if (options.milestoneId !== undefined) updates.milestone = options.milestoneId;
         if (options.rawFields) Object.assign(updates, options.rawFields);
         if (options.descriptionMarkdown !== undefined) {
-            const uploaded = await (this.client as any).uploadMarkup(
-                tracker.class.Issue,
-                task._id,
-                'description',
-                options.descriptionMarkdown,
-                'markdown'
-            );
-            updates.description = uploaded;
+            // Use MarkupContent so SDK's processMarkup handles upload+update atomically
+            updates.description = new MarkupContent(options.descriptionMarkdown, 'markdown');
         }
 
         await this.client!.updateDoc(
