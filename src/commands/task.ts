@@ -49,7 +49,12 @@ export function getTaskCommand() {
                     output += `⏰ Han chot: ${task.dueDate ? formatDate(task.dueDate) : 'N/A'}\n\n`;
 
                     if (task.description) {
-                        output += `📝 ID Mo ta: ${task.description}\n`;
+                        try {
+                            const descContent = await client.fetchMarkup('tracker:class:Issue', task._id, 'description', task.description, 'markdown');
+                            output += `📝 Mo ta:\n${descContent}\n`;
+                        } catch {
+                            output += `📝 Mo ta: (khong doc duoc noi dung)\n`;
+                        }
                     }
 
                     if (task.labels && task.labels.length > 0) {
