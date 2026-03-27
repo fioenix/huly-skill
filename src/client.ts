@@ -320,6 +320,10 @@ export class HulyClient {
         );
     }
 
+    async fetchMarkup(objectClass: string, objectId: string, objectAttr: string, markup: string, format: string = 'markdown'): Promise<string> {
+        return await this.client.fetchMarkup(objectClass, objectId, objectAttr, markup, format);
+    }
+
     async deleteTask(taskId: string): Promise<void> {
         const task = await this.getTask(taskId);
         if (!task) {
