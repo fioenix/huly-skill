@@ -21,6 +21,7 @@ function createSocketFactory() {
     const agent = new HttpsProxyAgent(proxyUrl);
 
     return (url: string) => {
+        process.stderr.write(`[huly-ws] connecting: ${url} via proxy ${proxyUrl}\n`);
         const ws = new WS(url, { agent });
         const client: any = {
             get readyState() { return ws.readyState; },
@@ -37,13 +38,19 @@ function createSocketFactory() {
             client.onmessage?.({ data, type: 'message', target: undefined });
         });
         ws.on('close', (code: number, reason: string) => {
+            process.stderr.write(`[huly-ws] closed: code=${code} reason=${reason}\n`);
             client.onclose?.({ code, reason, wasClean: code === 1000, type: 'close', target: undefined });
         });
         ws.on('open', () => {
+            process.stderr.write(`[huly-ws] connected!\n`);
             client.onopen?.({ type: 'open', target: undefined });
         });
         ws.on('error', (error: any) => {
+            process.stderr.write(`[huly-ws] error: ${error.message || error}\n`);
             client.onerror?.({ type: 'error', target: undefined, error });
+        });
+        ws.on('unexpected-response', (_req: any, res: any) => {
+            process.stderr.write(`[huly-ws] unexpected-response: status=${res.statusCode}\n`);
         });
         return client;
     };
