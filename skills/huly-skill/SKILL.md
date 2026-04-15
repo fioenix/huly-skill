@@ -61,9 +61,13 @@ All commands support `--json` for structured JSON output (preferred for programm
 
 ## Cowork Sandbox Compatibility
 
-This skill is compatible with Claude Cowork out of the box.
+This skill is compatible with Claude Cowork.
 
-**Network proxy:** Cowork sandbox routes traffic through `127.0.0.1:3128`. The CLI auto-detects this and sets `HTTPS_PROXY`/`NODE_USE_ENV_PROXY` accordingly — no manual configuration needed.
+**Network proxy:** Cowork sandbox routes all traffic through `127.0.0.1:3128`. You MUST set `HTTPS_PROXY` before running any command:
+```bash
+export HTTPS_PROXY=http://127.0.0.1:3128
+```
+The CLI detects `HTTPS_PROXY` and patches both fetch (via `undici.ProxyAgent`) and WebSocket (via `https-proxy-agent`) to route through the proxy. Do NOT rely on `NODE_USE_ENV_PROXY` — it still attempts local DNS which fails in sandbox.
 
 **`.env` file location:** The skills directory is read-only in Cowork. Write your `.env` to `~/.huly/.env` instead:
 ```bash
