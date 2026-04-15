@@ -15,11 +15,15 @@ Interact with a Huly project management workspace via the `huly` CLI.
 
 ## Setup (first-time) — MANDATORY
 
-The CLI needs 3 environment variables. It auto-loads them from a `.env` file in this skill's directory.
+The CLI needs 3 environment variables. It auto-loads them from a `.env` file, searching these locations in order:
+1. Skill directory (same dir as this SKILL.md) — works in Claude Desktop / direct install
+2. `~/.huly/.env` — writable in Cowork sandbox (skill dir is read-only)
+3. Working directory
 
 **CRITICAL: You MUST persist credentials to `.env`. NEVER pass env vars inline in commands.** Inline env vars expose secrets in process argument lists and don't persist across sessions.
 
-**Check if `.env` exists** in this SKILL.md's directory before every command:
+**Check if `.env` exists** before every command:
+- Check skill directory first, then `~/.huly/.env`
 - If `.env` exists and contains all 3 vars → proceed to run the command
 - If `.env` is missing or incomplete → run the setup flow below
 
@@ -28,7 +32,10 @@ The CLI needs 3 environment variables. It auto-loads them from a `.env` file in 
    - `HULY_HOST` — Huly instance URL (e.g. `https://huly.app`)
    - `HULY_WORKSPACE_ID` — workspace UUID (Huly Settings → Workspace)
    - `HULY_API_KEY` — API token (Huly Settings → API Tokens)
-2. **Write a `.env` file** in the same directory as this SKILL.md with exactly this format:
+2. **Write a `.env` file.** Try the skill directory first. If it's read-only (Cowork sandbox), write to `~/.huly/.env` instead:
+   ```bash
+   mkdir -p ~/.huly
+   ```
    ```
    HULY_HOST=https://huly.app
    HULY_WORKSPACE_ID=<uuid>
@@ -51,6 +58,22 @@ node <skill-dir>/bin/huly.cjs <command> [args]
 If the binary is missing, inform the user to reinstall the skill from https://github.com/fioenix/huly-skill
 
 All commands support `--json` for structured JSON output (preferred for programmatic agent use).
+
+## Cowork Sandbox Compatibility
+
+This skill is compatible with Claude Cowork out of the box.
+
+**Network proxy:** Cowork sandbox routes traffic through `127.0.0.1:3128`. The CLI auto-detects this and sets `HTTPS_PROXY`/`NODE_USE_ENV_PROXY` accordingly — no manual configuration needed.
+
+**`.env` file location:** The skills directory is read-only in Cowork. Write your `.env` to `~/.huly/.env` instead:
+```bash
+mkdir -p ~/.huly
+cat > ~/.huly/.env << 'ENVEOF'
+HULY_HOST=https://your-instance.huly.io
+HULY_WORKSPACE_ID=<uuid>
+HULY_API_KEY=<token>
+ENVEOF
+```
 
 ## Commands
 

@@ -31,26 +31,36 @@ if (typeof globalAny.window === 'undefined') {
 import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { homedir } from 'os';
 import { Command } from 'commander';
 import { setJsonMode } from './utils/logger.js';
 
-// Auto-load .env from skill directory (next to binary) if present.
-// Only sets vars not already in process.env (env vars take precedence).
+// Auto-load .env file. Search order:
+// 1. __dirname/.env        (skill dir — works in Claude Desktop / direct install)
+// 2. ~/.huly/.env           (user home — writable in Cowork sandbox)
+// 3. cwd/.env               (working directory)
+// First file found wins. Existing env vars always take precedence.
 function loadEnvFile() {
-    // In bundled mode, __dirname resolves to the bin/ directory
-    const candidates = [
-        join(process.cwd(), '.env'),
-        // Look relative to the binary location
-    ];
+    const candidates: string[] = [];
 
-    // Try to resolve binary directory for bundled mode
+    // 1. Skill directory (next to binary)
     try {
         const binDir = __dirname ?? dirname(process.argv[1]);
-        candidates.unshift(join(binDir, '.env'));
+        candidates.push(join(binDir, '.env'));
         candidates.push(join(binDir, '..', '.env'));
     } catch {
-        // Ignore — fallback to cwd
+        // Ignore — bundled mode may not resolve __dirname
     }
+
+    // 2. ~/.huly/.env (Cowork sandbox: skill dir is read-only, home is writable)
+    try {
+        candidates.push(join(homedir(), '.huly', '.env'));
+    } catch {
+        // Ignore — homedir() can fail in exotic envs
+    }
+
+    // 3. Working directory
+    candidates.push(join(process.cwd(), '.env'));
 
     for (const envPath of candidates) {
         if (existsSync(envPath)) {
@@ -68,7 +78,6 @@ function loadEnvFile() {
                         (value.startsWith("'") && value.endsWith("'"))) {
                         value = value.slice(1, -1);
                     }
-                    // Don't override existing env vars
                     if (!(key in process.env)) {
                         process.env[key] = value;
                     }
