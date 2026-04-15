@@ -20,11 +20,29 @@ Required before any command:
 - `HULY_WORKSPACE_ID` — workspace UUID from Huly Settings > Workspace
 - `HULY_API_KEY` — API token from Huly Settings > API Tokens
 
+**IMPORTANT:** Claude Code subprocesses do NOT inherit shell profile env vars (`.zshrc`, `.bashrc`). You MUST pass env vars inline with every command. Always use this pattern:
+
+```bash
+HULY_HOST="..." HULY_WORKSPACE_ID="..." HULY_API_KEY="..." node <binary-path> <command>
+```
+
+If env vars are not available, ask the user to provide them or check their Claude Code settings (`.claude/settings.json` → `env` block).
+
 ## Execution
 
-Run commands via `node <skill-dir>/bin/huly.cjs` where `<skill-dir>` is the directory containing this SKILL.md file.
+**Binary location:** This SKILL.md is at `skills/huly-skill/SKILL.md` relative to the repo root. The binary is at the repo root level: `bin/huly.cjs`.
 
-**Finding the skill directory:** Use the path of this SKILL.md file to resolve the binary location. For example, if this file is at `/path/to/huly-skill/SKILL.md`, the binary is at `/path/to/huly-skill/bin/huly.cjs`.
+To resolve the binary path from this file's location:
+```
+<this-file-dir>/../../bin/huly.cjs
+```
+
+For example, if this file is at `/home/user/.claude/skills/fioenix-huly-skill/skills/huly-skill/SKILL.md`, the binary is at `/home/user/.claude/skills/fioenix-huly-skill/bin/huly.cjs`.
+
+**Full execution pattern:**
+```bash
+HULY_HOST="https://huly.app" HULY_WORKSPACE_ID="<uuid>" HULY_API_KEY="<token>" node /path/to/bin/huly.cjs <command> [args]
+```
 
 If the binary is missing, inform the user to reinstall the skill from https://github.com/fioenix/huly-skill
 
