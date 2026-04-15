@@ -6,6 +6,12 @@ import { ProxyAgent, setGlobalDispatcher, fetch as undiciFetch } from 'undici';
 
 const _proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
 if (_proxyUrl) {
+    // Proxy environments (Cowork sandbox) use TLS interception — disable
+    // certificate verification only when proxy is active.
+    if (!process.env.NODE_TLS_REJECT_UNAUTHORIZED) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    }
+
     const _agent = new ProxyAgent(_proxyUrl);
     setGlobalDispatcher(_agent);
     // Monkey-patch globalThis.fetch — Node.js built-in fetch uses its own

@@ -18,11 +18,11 @@ function createSocketFactory() {
     const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
     if (!proxyUrl) return NodeWebSocketFactory;
 
-    const agent = new HttpsProxyAgent(proxyUrl);
+    const agent = new HttpsProxyAgent(proxyUrl, { rejectUnauthorized: false });
 
     return (url: string) => {
         process.stderr.write(`[huly-ws] connecting: ${url} via proxy ${proxyUrl}\n`);
-        const ws = new WS(url, { agent });
+        const ws = new WS(url, { agent, rejectUnauthorized: false });
         const client: any = {
             get readyState() { return ws.readyState; },
             send(data: any) {
