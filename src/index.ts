@@ -28,11 +28,59 @@ if (typeof globalAny.window === 'undefined') {
     }
 }
 
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { Command } from 'commander';
 import { setJsonMode } from './utils/logger.js';
+
+// Auto-load .env from skill directory (next to binary) if present.
+// Only sets vars not already in process.env (env vars take precedence).
+function loadEnvFile() {
+    // In bundled mode, __dirname resolves to the bin/ directory
+    const candidates = [
+        join(process.cwd(), '.env'),
+        // Look relative to the binary location
+    ];
+
+    // Try to resolve binary directory for bundled mode
+    try {
+        const binDir = __dirname ?? dirname(process.argv[1]);
+        candidates.unshift(join(binDir, '.env'));
+        candidates.push(join(binDir, '..', '.env'));
+    } catch {
+        // Ignore — fallback to cwd
+    }
+
+    for (const envPath of candidates) {
+        if (existsSync(envPath)) {
+            try {
+                const content = readFileSync(envPath, 'utf-8');
+                for (const line of content.split('\n')) {
+                    const trimmed = line.trim();
+                    if (!trimmed || trimmed.startsWith('#')) continue;
+                    const eqIndex = trimmed.indexOf('=');
+                    if (eqIndex === -1) continue;
+                    const key = trimmed.slice(0, eqIndex).trim();
+                    let value = trimmed.slice(eqIndex + 1).trim();
+                    // Strip surrounding quotes
+                    if ((value.startsWith('"') && value.endsWith('"')) ||
+                        (value.startsWith("'") && value.endsWith("'"))) {
+                        value = value.slice(1, -1);
+                    }
+                    // Don't override existing env vars
+                    if (!(key in process.env)) {
+                        process.env[key] = value;
+                    }
+                }
+                return;
+            } catch {
+                // Ignore read errors, try next candidate
+            }
+        }
+    }
+}
+loadEnvFile();
 import { listTasksCommand } from './commands/tasks.js';
 import { getTaskCommand } from './commands/task.js';
 import { createTaskCommand } from './commands/create.js';

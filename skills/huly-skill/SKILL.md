@@ -13,20 +13,26 @@ metadata:
 
 Interact with a Huly project management workspace via the `huly` CLI.
 
-## Environment Variables
+## Setup (first-time)
 
-Required before any command:
+The CLI needs 3 environment variables to connect to Huly:
 - `HULY_HOST` — Huly instance URL (e.g. `https://huly.app`)
 - `HULY_WORKSPACE_ID` — workspace UUID from Huly Settings > Workspace
 - `HULY_API_KEY` — API token from Huly Settings > API Tokens
 
-**IMPORTANT:** Claude Code subprocesses do NOT inherit shell profile env vars (`.zshrc`, `.bashrc`). You MUST pass env vars inline with every command. Always use this pattern:
+**The CLI auto-loads a `.env` file** from its own directory (next to `bin/huly.cjs`). This is the recommended setup method for Claude Desktop and Claude Code.
 
-```bash
-HULY_HOST="..." HULY_WORKSPACE_ID="..." HULY_API_KEY="..." node <binary-path> <command>
-```
+**First-time setup flow:**
+1. Ask the user for the 3 values above
+2. Create a `.env` file in the skill directory (same directory as this SKILL.md):
+   ```
+   HULY_HOST=https://huly.app
+   HULY_WORKSPACE_ID=<uuid>
+   HULY_API_KEY=<token>
+   ```
+3. Run `node <skill-dir>/bin/huly.cjs whoami` to verify connection
 
-If env vars are not available, ask the user to provide them or check their Claude Code settings (`.claude/settings.json` → `env` block).
+The `.env` file is read once at startup. Existing env vars take precedence over `.env` values.
 
 ## Execution
 
@@ -34,9 +40,8 @@ If env vars are not available, ask the user to provide them or check their Claud
 
 For example, if this file is at `/path/to/huly-skill/SKILL.md`, run `node /path/to/huly-skill/bin/huly.cjs`.
 
-**Full execution pattern:**
 ```bash
-HULY_HOST="https://huly.app" HULY_WORKSPACE_ID="<uuid>" HULY_API_KEY="<token>" node <skill-dir>/bin/huly.cjs <command> [args]
+node <skill-dir>/bin/huly.cjs <command> [args]
 ```
 
 If the binary is missing, inform the user to reinstall the skill from https://github.com/fioenix/huly-skill
