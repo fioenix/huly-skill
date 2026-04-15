@@ -2,29 +2,38 @@
 
 // Proxy support for sandboxed environments (Cowork, etc.)
 //
-// Node.js 22 built-in fetch with NODE_USE_ENV_PROXY still resolves DNS
-// locally before routing through proxy → fails in sandbox (no DNS).
-// Fix: undici.ProxyAgent + setGlobalDispatcher sends CONNECT directly
-// to proxy (proxy resolves DNS).
+// Problem: Node.js built-in fetch doesn't route through HTTPS_PROXY reliably.
+// NODE_USE_ENV_PROXY resolves DNS locally first → fails when no DNS available.
+// setGlobalDispatcher may not affect built-in fetch if undici versions differ.
 //
-// HTTPS_PROXY is also read by the bundled ws/https-proxy-agent for
-// WebSocket connections (Huly Transactor).
+// Solution: monkey-patch globalThis.fetch to use undici.fetch with ProxyAgent.
 
 const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
 
 if (proxyUrl) {
-  // Ensure both casings are set (ws reads lowercase, Node reads uppercase)
   process.env.HTTPS_PROXY = proxyUrl;
   process.env.https_proxy = proxyUrl;
 
-  // Patch global fetch dispatcher — the critical fix for sandboxed fetch
   try {
-    const { ProxyAgent, setGlobalDispatcher } = require('undici');
-    setGlobalDispatcher(new ProxyAgent(proxyUrl));
+    const undici = require('undici');
+    const proxyAgent = new undici.ProxyAgent(proxyUrl);
+
+    // Also set global dispatcher (may help some code paths)
+    undici.setGlobalDispatcher(proxyAgent);
+
+    // Monkey-patch globalThis.fetch to force proxy usage
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = function(url, opts = {}) {
+      return undici.fetch(url, { ...opts, dispatcher: proxyAgent });
+    };
+
+    process.stderr.write(`[huly] proxy patched: fetch + dispatcher → ${proxyUrl}\n`);
   } catch (e) {
-    // undici not available (Node <18), fall back to NODE_USE_ENV_PROXY
+    process.stderr.write(`[huly] proxy patch failed: ${e.message}\n`);
     process.env.NODE_USE_ENV_PROXY = '1';
   }
+} else {
+  process.stderr.write('[huly] no proxy\n');
 }
 
 require('./bundle.cjs');
