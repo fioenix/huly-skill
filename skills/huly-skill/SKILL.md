@@ -22,7 +22,11 @@ Required before any command:
 
 ## Execution
 
-Run commands via the `huly` binary. If not found globally, fall back to `./bin/huly.cjs` or `node dist/bundle.cjs` from the repo root.
+Run commands via `node <skill-dir>/bin/huly.cjs` where `<skill-dir>` is the directory containing this SKILL.md file.
+
+**Finding the skill directory:** Use the path of this SKILL.md file to resolve the binary location. For example, if this file is at `/path/to/huly-skill/SKILL.md`, the binary is at `/path/to/huly-skill/bin/huly.cjs`.
+
+If the binary is missing, inform the user to reinstall the skill from https://github.com/fioenix/huly-skill
 
 All commands support `--json` for structured JSON output (preferred for programmatic agent use).
 
