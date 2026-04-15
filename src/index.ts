@@ -1,5 +1,20 @@
 #!/usr/bin/env node
 
+// Proxy support — must run before any network calls.
+// Bundled into bundle.cjs by esbuild so undici is always available.
+import { ProxyAgent, setGlobalDispatcher, fetch as undiciFetch } from 'undici';
+
+const _proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
+if (_proxyUrl) {
+    const _agent = new ProxyAgent(_proxyUrl);
+    setGlobalDispatcher(_agent);
+    // Monkey-patch globalThis.fetch — Node.js built-in fetch uses its own
+    // internal undici instance which setGlobalDispatcher may not reach.
+    (globalThis as any).fetch = (url: any, opts: any = {}) => {
+        return undiciFetch(url, { ...opts, dispatcher: _agent });
+    };
+}
+
 import 'fake-indexeddb/auto';
 
 // Polyfill minimal browser APIs required by @hcengineering/api-client and client-resources
