@@ -13,26 +13,30 @@ metadata:
 
 Interact with a Huly project management workspace via the `huly` CLI.
 
-## Setup (first-time)
+## Setup (first-time) — MANDATORY
 
-The CLI needs 3 environment variables to connect to Huly:
-- `HULY_HOST` — Huly instance URL (e.g. `https://huly.app`)
-- `HULY_WORKSPACE_ID` — workspace UUID from Huly Settings > Workspace
-- `HULY_API_KEY` — API token from Huly Settings > API Tokens
+The CLI needs 3 environment variables. It auto-loads them from a `.env` file in this skill's directory.
 
-**The CLI auto-loads a `.env` file** from its own directory (next to `bin/huly.cjs`). This is the recommended setup method for Claude Desktop and Claude Code.
+**CRITICAL: You MUST persist credentials to `.env`. NEVER pass env vars inline in commands.** Inline env vars expose secrets in process argument lists and don't persist across sessions.
 
-**First-time setup flow:**
-1. Ask the user for the 3 values above
-2. Create a `.env` file in the skill directory (same directory as this SKILL.md):
+**Check if `.env` exists** in this SKILL.md's directory before every command:
+- If `.env` exists and contains all 3 vars → proceed to run the command
+- If `.env` is missing or incomplete → run the setup flow below
+
+**Setup flow (only when `.env` is missing):**
+1. Ask the user for these 3 values:
+   - `HULY_HOST` — Huly instance URL (e.g. `https://huly.app`)
+   - `HULY_WORKSPACE_ID` — workspace UUID (Huly Settings → Workspace)
+   - `HULY_API_KEY` — API token (Huly Settings → API Tokens)
+2. **Write a `.env` file** in the same directory as this SKILL.md with exactly this format:
    ```
    HULY_HOST=https://huly.app
    HULY_WORKSPACE_ID=<uuid>
    HULY_API_KEY=<token>
    ```
-3. Run `node <skill-dir>/bin/huly.cjs whoami` to verify connection
+3. Verify: run `node <skill-dir>/bin/huly.cjs whoami` (no inline env vars needed — the CLI reads `.env` automatically)
 
-The `.env` file is read once at startup. Existing env vars take precedence over `.env` values.
+**Security:** The `.env` file stays local on disk. This is safer than passing secrets as command-line arguments (visible via `ps aux`).
 
 ## Execution
 
