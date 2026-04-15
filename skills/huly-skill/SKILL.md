@@ -61,11 +61,11 @@ All commands support `--json` for structured JSON output (preferred for programm
 
 ## Cowork Sandbox Compatibility
 
-This skill is compatible with Claude Cowork. **Each Cowork session runs in a fresh sandbox** — credentials and `.env` files do NOT persist across sessions.
+This skill is compatible with Claude Cowork.
 
-**IMPORTANT — Every new Cowork session:**
-1. Set proxy: `export HTTPS_PROXY=http://127.0.0.1:3128`
-2. Create `~/.huly/.env` with credentials (skill dir is read-only):
+### One-time setup (user does this once on local machine)
+
+1. Create `~/.huly/` directory and `.env` file on local machine:
    ```bash
    mkdir -p ~/.huly
    cat > ~/.huly/.env << 'ENVEOF'
@@ -74,11 +74,23 @@ This skill is compatible with Claude Cowork. **Each Cowork session runs in a fre
    HULY_API_KEY=<token>
    ENVEOF
    ```
-3. Run commands normally: `node <skill-dir>/bin/huly.cjs whoami`
+2. In Cowork UI, **add `~/.huly` as a mounted folder** before starting the session. This makes the directory (and `.env` inside it) available and persistent across all future Cowork sessions.
 
-**If you don't have credentials saved from a previous conversation:** Ask the user to provide HULY_HOST, HULY_WORKSPACE_ID, and HULY_API_KEY.
+### Every Cowork session (automatic)
 
-**Network proxy details:** The CLI detects `HTTPS_PROXY` and patches both fetch (via `undici.ProxyAgent` monkey-patch on `globalThis.fetch`) and WebSocket (via `https-proxy-agent`) to route through the proxy. Do NOT rely on `NODE_USE_ENV_PROXY` — Node.js 22 still attempts local DNS resolution which fails in sandbox.
+When running in Cowork, you MUST set the proxy before any command:
+```bash
+export HTTPS_PROXY=http://127.0.0.1:3128
+```
+
+Then check if `~/.huly/.env` exists (it should, if the user mounted the folder). If it does, run commands directly — the CLI auto-loads it. If it doesn't exist:
+- Check if `~/.huly` directory is mounted (writable)
+- If mounted: ask user for credentials, write `~/.huly/.env`
+- If not mounted: tell user to mount `~/.huly` folder in Cowork UI settings, then restart the session
+
+### Network proxy details
+
+The CLI detects `HTTPS_PROXY` and patches both fetch (via `undici.ProxyAgent` monkey-patch on `globalThis.fetch`) and WebSocket (via `https-proxy-agent`) to route through the proxy. Do NOT rely on `NODE_USE_ENV_PROXY` — Node.js 22 still attempts local DNS resolution which fails in sandbox.
 
 ## Commands
 
