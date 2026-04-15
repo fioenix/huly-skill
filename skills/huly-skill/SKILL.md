@@ -30,18 +30,13 @@ If env vars are not available, ask the user to provide them or check their Claud
 
 ## Execution
 
-**Binary location:** This SKILL.md is at `skills/huly-skill/SKILL.md` relative to the repo root. The binary is at the repo root level: `bin/huly.cjs`.
+**Binary location:** `bin/huly.cjs` is in the same directory as this SKILL.md file.
 
-To resolve the binary path from this file's location:
-```
-<this-file-dir>/../../bin/huly.cjs
-```
-
-For example, if this file is at `/home/user/.claude/skills/fioenix-huly-skill/skills/huly-skill/SKILL.md`, the binary is at `/home/user/.claude/skills/fioenix-huly-skill/bin/huly.cjs`.
+For example, if this file is at `/path/to/huly-skill/SKILL.md`, run `node /path/to/huly-skill/bin/huly.cjs`.
 
 **Full execution pattern:**
 ```bash
-HULY_HOST="https://huly.app" HULY_WORKSPACE_ID="<uuid>" HULY_API_KEY="<token>" node /path/to/bin/huly.cjs <command> [args]
+HULY_HOST="https://huly.app" HULY_WORKSPACE_ID="<uuid>" HULY_API_KEY="<token>" node <skill-dir>/bin/huly.cjs <command> [args]
 ```
 
 If the binary is missing, inform the user to reinstall the skill from https://github.com/fioenix/huly-skill

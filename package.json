@@ -4,12 +4,12 @@
   "type": "module",
   "description": "CLI tool and agent skill for managing tasks, projects, labels, documents, and milestones in Huly",
   "license": "MIT",
-  "main": "dist/bundle.cjs",
+  "main": "bin/bundle.cjs",
   "bin": {
     "huly": "./bin/huly.cjs"
   },
   "scripts": {
-    "build": "tsc && esbuild dist/index.js --bundle --platform=node --target=node20 --format=cjs --outfile=dist/bundle.cjs --minify --define:import.meta.url='\"file:///bundle\"'",
+    "build": "tsc && esbuild dist/index.js --bundle --platform=node --target=node20 --format=cjs --outfile=bin/bundle.cjs --minify --define:import.meta.url='\"file:///bundle\"'",
     "dev": "tsc --watch",
     "test": "node -e \"console.log('No tests configured yet')\"",
     "start": "node dist/bundle.cjs"
