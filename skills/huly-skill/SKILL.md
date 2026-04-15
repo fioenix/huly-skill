@@ -61,32 +61,36 @@ All commands support `--json` for structured JSON output (preferred for programm
 
 ## Cowork Sandbox Compatibility
 
-This skill is compatible with Claude Cowork.
+This skill is compatible with Claude Cowork. Follow this setup flow automatically every session.
 
-### One-time setup (user does this once on local machine)
+### Step 1: Set proxy (every session)
 
-1. Create `~/.huly/` directory and `.env` file on local machine:
-   ```bash
-   mkdir -p ~/.huly
-   cat > ~/.huly/.env << 'ENVEOF'
-   HULY_HOST=https://your-instance.huly.io
-   HULY_WORKSPACE_ID=<uuid>
-   HULY_API_KEY=<token>
-   ENVEOF
-   ```
-2. In Cowork UI, **add `~/.huly` as a mounted folder** before starting the session. This makes the directory (and `.env` inside it) available and persistent across all future Cowork sessions.
-
-### Every Cowork session (automatic)
-
-When running in Cowork, you MUST set the proxy before any command:
 ```bash
 export HTTPS_PROXY=http://127.0.0.1:3128
 ```
 
-Then check if `~/.huly/.env` exists (it should, if the user mounted the folder). If it does, run commands directly — the CLI auto-loads it. If it doesn't exist:
-- Check if `~/.huly` directory is mounted (writable)
-- If mounted: ask user for credentials, write `~/.huly/.env`
-- If not mounted: tell user to mount `~/.huly` folder in Cowork UI settings, then restart the session
+### Step 2: Mount `~/.huly` and load credentials
+
+1. **Request mount of `~/.huly` directory** from the user's local machine into the sandbox. Use the Cowork directory mount tool (e.g. `request_cowork_directory` or equivalent folder picker). The user will see a prompt to approve — they just need to select or create `~/.huly` on their machine.
+
+2. **Check if `~/.huly/.env` exists** after mounting:
+   - If `.env` exists with all 3 vars → proceed to run commands
+   - If `.env` is missing or incomplete → ask user for credentials and write them:
+     ```bash
+     mkdir -p ~/.huly
+     cat > ~/.huly/.env << 'ENVEOF'
+     HULY_HOST=https://your-instance.huly.io
+     HULY_WORKSPACE_ID=<uuid>
+     HULY_API_KEY=<token>
+     ENVEOF
+     ```
+   - The file persists on the user's local machine — future sessions will find it automatically after mounting.
+
+### Step 3: Run commands
+
+```bash
+node <skill-dir>/bin/huly.cjs whoami
+```
 
 ### Network proxy details
 
