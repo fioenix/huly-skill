@@ -1,9 +1,11 @@
 # Dependencies
 node_modules/
 
-# Build output — only bundle.cjs is committed for zero-install consumers
-dist/*
-!dist/bundle.cjs
+# Build output — tsc intermediate files only, bundle goes to bin/
+dist/
+
+# bin/bundle.cjs is committed for zero-install consumers
+!bin/bundle.cjs
 
 # Environment files
 .env
