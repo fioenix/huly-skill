@@ -61,23 +61,24 @@ All commands support `--json` for structured JSON output (preferred for programm
 
 ## Cowork Sandbox Compatibility
 
-This skill is compatible with Claude Cowork.
+This skill is compatible with Claude Cowork. **Each Cowork session runs in a fresh sandbox** — credentials and `.env` files do NOT persist across sessions.
 
-**Network proxy:** Cowork sandbox routes all traffic through `127.0.0.1:3128`. You MUST set `HTTPS_PROXY` before running any command:
-```bash
-export HTTPS_PROXY=http://127.0.0.1:3128
-```
-The CLI detects `HTTPS_PROXY` and patches both fetch (via `undici.ProxyAgent`) and WebSocket (via `https-proxy-agent`) to route through the proxy. Do NOT rely on `NODE_USE_ENV_PROXY` — it still attempts local DNS which fails in sandbox.
+**IMPORTANT — Every new Cowork session:**
+1. Set proxy: `export HTTPS_PROXY=http://127.0.0.1:3128`
+2. Create `~/.huly/.env` with credentials (skill dir is read-only):
+   ```bash
+   mkdir -p ~/.huly
+   cat > ~/.huly/.env << 'ENVEOF'
+   HULY_HOST=https://your-instance.huly.io
+   HULY_WORKSPACE_ID=<uuid>
+   HULY_API_KEY=<token>
+   ENVEOF
+   ```
+3. Run commands normally: `node <skill-dir>/bin/huly.cjs whoami`
 
-**`.env` file location:** The skills directory is read-only in Cowork. Write your `.env` to `~/.huly/.env` instead:
-```bash
-mkdir -p ~/.huly
-cat > ~/.huly/.env << 'ENVEOF'
-HULY_HOST=https://your-instance.huly.io
-HULY_WORKSPACE_ID=<uuid>
-HULY_API_KEY=<token>
-ENVEOF
-```
+**If you don't have credentials saved from a previous conversation:** Ask the user to provide HULY_HOST, HULY_WORKSPACE_ID, and HULY_API_KEY.
+
+**Network proxy details:** The CLI detects `HTTPS_PROXY` and patches both fetch (via `undici.ProxyAgent` monkey-patch on `globalThis.fetch`) and WebSocket (via `https-proxy-agent`) to route through the proxy. Do NOT rely on `NODE_USE_ENV_PROXY` — Node.js 22 still attempts local DNS resolution which fails in sandbox.
 
 ## Commands
 
