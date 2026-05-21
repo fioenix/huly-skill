@@ -1,6 +1,6 @@
 {
   "name": "@fioenix/huly-mcp",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "MCP server for Huly project management — manage tasks, projects, labels, documents, and milestones over stdio or HTTP.",
   "license": "MIT",
   "bin": {
