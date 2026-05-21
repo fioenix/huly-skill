@@ -12,7 +12,7 @@
   "scripts": {
     "build": "npm run build:cli && npm run build:mcp",
     "build:cli": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=bin/bundle.cjs --minify --define:import.meta.url='\"file:///bundle\"'",
-    "build:mcp": "esbuild src/mcp/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=bin/mcp.cjs --minify --define:import.meta.url='\"file:///bundle\"' && cp bin/mcp.cjs npm-package/huly-mcp.cjs",
+    "build:mcp": "esbuild src/mcp/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=bin/mcp.cjs --minify --define:import.meta.url='\"file:///bundle\"' && node -e \"require('fs').copyFileSync('bin/mcp.cjs','npm-package/huly-mcp.cjs')\"",
     "typecheck": "tsc --noEmit",
     "test": "node -e \"console.log('No tests configured yet')\"",
     "start:mcp": "node bin/mcp.cjs"
