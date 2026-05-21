@@ -218,3 +218,78 @@ export function isCompletedStatus(statusName: string): boolean {
     const lower = statusName.toLowerCase();
     return lower.includes('done') || lower.includes('closed') || lower.includes('completed') || lower.includes('resolved');
 }
+
+export interface ReportInput {
+    type: 'daily' | 'weekly';
+    assignee?: string;       // "me", name, or _id
+}
+
+export interface ReportResult {
+    type: 'daily' | 'weekly';
+    assigneeName: string;
+    due: any[];
+    overdue: any[];
+    inProgress: number;
+    projectMap: Map<string, any>;
+    statusMap: Map<string, any>;
+}
+
+/**
+ * Build a daily or weekly report: tasks due in the target window plus
+ * any overdue tasks. Shared by the CLI `report` command and the MCP
+ * `report` tool so the date-bucketing logic lives in exactly one place.
+ */
+export async function reportIssues(client: HulyClient, input: ReportInput): Promise<ReportResult> {
+    let assigneeId: string | undefined;
+    let assigneeName = 'Ban';
+    if (input.assignee) {
+        const person = await resolvePerson(client, input.assignee);
+        assigneeId = person._id;
+        assigneeName = person.name;
+    }
+
+    const tasks = await client.queryTasks({ assignee: assigneeId });
+    const projectMap = await getProjectMap(client);
+    const statusMap = await getStatusMap(client);
+
+    const isDaily = input.type === 'daily';
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const todayTime = now.getTime();
+
+    const endOfWeek = new Date();
+    endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
+    endOfWeek.setHours(23, 59, 59, 999);
+    const endOfWeekTime = endOfWeek.getTime();
+
+    const overdue: any[] = [];
+    const due: any[] = [];
+    const inProgress = tasks.filter((task: any) => {
+        const s = statusMap.get(task.status)?.name?.toLowerCase() || '';
+        return s.includes('progress') || s.includes('doing');
+    }).length;
+
+    for (const task of tasks) {
+        const statusName = statusMap.get(task.status)?.name || '';
+        if (isCompletedStatus(statusName)) continue;
+        if (!task.dueDate) continue;
+
+        const d = new Date(task.dueDate);
+        d.setHours(0, 0, 0, 0);
+        const dueTime = d.getTime();
+
+        if (dueTime < todayTime) {
+            overdue.push(task);
+        } else if (isDaily && dueTime === todayTime) {
+            due.push(task);
+        } else if (!isDaily && dueTime >= todayTime && dueTime <= endOfWeekTime) {
+            due.push(task);
+        }
+    }
+
+    due.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    overdue.sort((a, b) => (a.dueDate || 0) - (b.dueDate || 0));
+
+    return { type: input.type, assigneeName, due, overdue, inProgress, projectMap, statusMap };
+}
