@@ -85,6 +85,46 @@ Append `--json` to any command for structured output:
 huly tasks --assignee me --json
 ```
 
+## MCP Server
+
+Besides the CLI skill, the same Huly operations are exposed as an **MCP server** — a better fit for Claude Cowork and any MCP-capable client. It is published to npm as [`@fioenix/huly-mcp`](https://www.npmjs.com/package/@fioenix/huly-mcp) and runs via `npx` with no install step.
+
+A single entry point picks its transport from `HULY_MCP_TRANSPORT` (`stdio` default, or `http`). The server is **single-workspace**: one set of Huly credentials, shared by all callers.
+
+### stdio (local — Claude Code / Desktop)
+
+```json
+{
+  "mcpServers": {
+    "huly": {
+      "command": "npx",
+      "args": ["-y", "@fioenix/huly-mcp@latest"],
+      "env": {
+        "HULY_MCP_TRANSPORT": "stdio",
+        "HULY_HOST": "https://huly.app",
+        "HULY_WORKSPACE_ID": "your-workspace-uuid",
+        "HULY_API_KEY": "your-api-token"
+      }
+    }
+  }
+}
+```
+
+### HTTP (remote — Claude Cowork)
+
+```bash
+HULY_MCP_TRANSPORT=http \
+HULY_HOST=https://huly.app \
+HULY_WORKSPACE_ID=your-workspace-uuid \
+HULY_API_KEY=your-api-token \
+HULY_MCP_AUTH_TOKEN=your-shared-secret \
+npx -y @fioenix/huly-mcp@latest
+```
+
+Serves `POST /mcp` (default port 3000, override with `PORT`) and `GET /health`. When `HULY_MCP_AUTH_TOKEN` is set, callers must send `Authorization: Bearer <token>` — because the server holds Huly credentials, always set it for any non-local deployment.
+
+Building from source instead of npm: `pnpm build` produces `bin/mcp.cjs` (run with `node bin/mcp.cjs`). See [`npm-package/`](./npm-package) for the published package.
+
 ## For AI Agents
 
 See [AGENTS.md](./AGENTS.md) for the full agent integration guide, or [skills/huly-skill/SKILL.md](./skills/huly-skill/SKILL.md) for the skill definition.

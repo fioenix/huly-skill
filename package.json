@@ -6,13 +6,16 @@
   "license": "MIT",
   "main": "bin/bundle.cjs",
   "bin": {
-    "huly": "./bin/huly.cjs"
+    "huly": "./bin/huly.cjs",
+    "huly-mcp": "./bin/mcp.cjs"
   },
   "scripts": {
-    "build": "tsc && esbuild dist/index.js --bundle --platform=node --target=node20 --format=cjs --outfile=bin/bundle.cjs --minify --define:import.meta.url='\"file:///bundle\"'",
-    "dev": "tsc --watch",
+    "build": "npm run build:cli && npm run build:mcp",
+    "build:cli": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=bin/bundle.cjs --minify --define:import.meta.url='\"file:///bundle\"'",
+    "build:mcp": "esbuild src/mcp/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=bin/mcp.cjs --minify --define:import.meta.url='\"file:///bundle\"' && node -e \"require('fs').copyFileSync('bin/mcp.cjs','npm-package/huly-mcp.cjs')\"",
+    "typecheck": "tsc --noEmit",
     "test": "node -e \"console.log('No tests configured yet')\"",
-    "start": "node dist/bundle.cjs"
+    "start:mcp": "node bin/mcp.cjs"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -32,11 +35,16 @@
   "dependencies": {
     "@hcengineering/api-client": "^0.7.19",
     "@hcengineering/core": "^0.7.26",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^12.0.0",
-    "fake-indexeddb": "^6.2.5"
+    "express": "^5.2.1",
+    "fake-indexeddb": "^6.2.5",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/node": "^20.0.0",
+    "esbuild": "^0.27.3",
     "ts-node": "^10.9.0",
     "tsx": "^4.21.0",
     "typescript": "^5.0.0"
