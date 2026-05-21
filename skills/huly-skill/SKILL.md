@@ -13,88 +13,60 @@ metadata:
 
 Interact with a Huly project management workspace via the `huly` CLI.
 
-## Setup (first-time) — MANDATORY
+## Setup
 
-The CLI needs 3 environment variables. It auto-loads them from a `.env` file, searching these locations in order:
-1. Skill directory (same dir as this SKILL.md) — works in Claude Desktop / direct install
-2. `~/.huly/.env` — writable in Cowork sandbox (skill dir is read-only)
+The CLI reads 3 environment variables from a `.env` file (it never needs them passed inline):
+
+- `HULY_HOST` — Huly instance URL, e.g. `https://huly.app`
+- `HULY_WORKSPACE_ID` — workspace UUID (Huly Settings → Workspace)
+- `HULY_API_KEY` — API token (Huly Settings → API Tokens)
+
+It searches for `.env` in this order, first match wins:
+
+1. `~/.huly/.env` — primary; works everywhere and survives the Cowork sandbox
+2. Skill directory (next to this SKILL.md) — fallback for Claude Desktop / direct install
 3. Working directory
 
-**CRITICAL: You MUST persist credentials to `.env`. NEVER pass env vars inline in commands.** Inline env vars expose secrets in process argument lists and don't persist across sessions.
+Before running any command, check that `~/.huly/.env` exists with all 3 vars. If it does, go straight to Execution. If not, ask the user for the 3 values and write them:
 
-**Check if `.env` exists** before every command:
-- Check skill directory first, then `~/.huly/.env`
-- If `.env` exists and contains all 3 vars → proceed to run the command
-- If `.env` is missing or incomplete → run the setup flow below
+```bash
+mkdir -p ~/.huly
+cat > ~/.huly/.env << 'ENVEOF'
+HULY_HOST=https://huly.app
+HULY_WORKSPACE_ID=<uuid>
+HULY_API_KEY=<token>
+ENVEOF
+```
 
-**Setup flow (only when `.env` is missing):**
-1. Ask the user for these 3 values:
-   - `HULY_HOST` — Huly instance URL (e.g. `https://huly.app`)
-   - `HULY_WORKSPACE_ID` — workspace UUID (Huly Settings → Workspace)
-   - `HULY_API_KEY` — API token (Huly Settings → API Tokens)
-2. **Write a `.env` file.** Try the skill directory first. If it's read-only (Cowork sandbox), write to `~/.huly/.env` instead:
-   ```bash
-   mkdir -p ~/.huly
-   ```
-   ```
-   HULY_HOST=https://huly.app
-   HULY_WORKSPACE_ID=<uuid>
-   HULY_API_KEY=<token>
-   ```
-3. Verify: run `node <skill-dir>/bin/huly.cjs whoami` (no inline env vars needed — the CLI reads `.env` automatically)
-
-**Security:** The `.env` file stays local on disk. This is safer than passing secrets as command-line arguments (visible via `ps aux`).
+Write credentials to `.env` rather than passing them inline on the command line: inline values are visible to anything that can read the process list (`ps aux`) and don't persist across sessions. `~/.huly/` is the right home because it stays writable even when the skill directory is read-only.
 
 ## Execution
 
-**Binary location:** `bin/huly.cjs` is in the same directory as this SKILL.md file.
-
-For example, if this file is at `/path/to/huly-skill/SKILL.md`, run `node /path/to/huly-skill/bin/huly.cjs`.
+`bin/huly.cjs` sits in the same directory as this SKILL.md. Run:
 
 ```bash
 node <skill-dir>/bin/huly.cjs <command> [args]
 ```
 
-If the binary is missing, inform the user to reinstall the skill from https://github.com/fioenix/huly-skill
+Verify the connection first with `node <skill-dir>/bin/huly.cjs whoami`. If the binary is missing the install is incomplete — ask the user to reinstall from https://github.com/fioenix/huly-skill
 
-All commands support `--json` for structured JSON output (preferred for programmatic agent use).
+Every command accepts `--json` for structured output; prefer it for programmatic use.
 
-## Cowork Sandbox Compatibility
+## Running in the Claude Cowork sandbox
 
-This skill is compatible with Claude Cowork. Follow this setup flow automatically every session.
+The Cowork sandbox routes network traffic through a local proxy and wipes its filesystem when the session ends. Two adjustments cover both:
 
-### Step 1: Set proxy (every session)
+**Proxy** — export it once per session so the CLI routes through it:
 
 ```bash
 export HTTPS_PROXY=http://127.0.0.1:3128
 ```
 
-### Step 2: Mount `~/.huly` and load credentials
+The CLI detects `HTTPS_PROXY` and patches both `fetch` and the WebSocket connection to use it. Don't rely on `NODE_USE_ENV_PROXY` — Node still does a local DNS lookup that fails inside the sandbox.
 
-1. **Request mount of `~/.huly` directory** from the user's local machine into the sandbox. Use the Cowork directory mount tool (e.g. `request_cowork_directory` or equivalent folder picker). The user will see a prompt to approve — they just need to select or create `~/.huly` on their machine.
+**Persisting credentials** — because the sandbox filesystem is ephemeral, `~/.huly/.env` must live on a directory mounted from the user's machine, or the credentials vanish with the session. Before the first command, mount `~/.huly` with the Cowork directory tool (`mcp__ccd_directory__request_directory`), wait for confirmation, then check or create `.env` there exactly as in Setup. Once mounted, later sessions only need to re-mount — the credentials are already saved.
 
-2. **Check if `~/.huly/.env` exists** after mounting:
-   - If `.env` exists with all 3 vars → proceed to run commands
-   - If `.env` is missing or incomplete → ask user for credentials and write them:
-     ```bash
-     mkdir -p ~/.huly
-     cat > ~/.huly/.env << 'ENVEOF'
-     HULY_HOST=https://your-instance.huly.io
-     HULY_WORKSPACE_ID=<uuid>
-     HULY_API_KEY=<token>
-     ENVEOF
-     ```
-   - The file persists on the user's local machine — future sessions will find it automatically after mounting.
-
-### Step 3: Run commands
-
-```bash
-node <skill-dir>/bin/huly.cjs whoami
-```
-
-### Network proxy details
-
-The CLI detects `HTTPS_PROXY` and patches both fetch (via `undici.ProxyAgent` monkey-patch on `globalThis.fetch`) and WebSocket (via `https-proxy-agent`) to route through the proxy. Do NOT rely on `NODE_USE_ENV_PROXY` — Node.js 22 still attempts local DNS resolution which fails in sandbox.
+> For heavy Cowork use, the Huly MCP server is a smoother fit than this CLI skill: its HTTP transport runs outside the sandbox, so there is no proxy to fight and no directory to mount. See the repo README for MCP setup. This skill remains the zero-install option for Claude Code and Claude Desktop.
 
 ## Commands
 
