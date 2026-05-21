@@ -23,7 +23,7 @@ import { labelsCommand } from './commands/labels.js';
 import { documentsCommand } from './commands/documents.js';
 import { milestonesCommand } from './commands/milestones.js';
 
-let version = '1.1.0';
+let version = '1.2.0';
 try {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
