@@ -96,6 +96,10 @@ huly sub-issues LAMBD-568                         # Sub-issue tree (recursive by
 huly sub-issues LAMBD-568 --no-recursive          # Direct children only
 huly sub-issues LAMBD-568 --json --flat           # Flat list, JSON output
 
+huly activity LAMBD-568                           # Activity feed (changes + comments)
+huly activity LAMBD-568 --updates-only            # Field changes only
+huly activity LAMBD-568 --comments-only --json    # Comments only, JSON
+
 huly create task "Title" --project DELTA          # Create task (required: --project)
   --priority HIGH --due tomorrow --assignee me    # Optional: priority, due date, assignee
   --kind-id <id> --component-id <id>              # Optional: task type, component

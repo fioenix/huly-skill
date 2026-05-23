@@ -67,6 +67,7 @@ type Doc = any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 import {
     tracker, contact, document as hulyDocument, tags,
+    activity, chunter,
     IssuePriority, MilestoneStatus, AvatarType,
     makeRank,
 } from './huly-types.js';
@@ -645,6 +646,37 @@ export class HulyClient {
                 provider: contact.channelProvider.Email,
                 value: email,
             } as any
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Activity feed
+    // -----------------------------------------------------------------------
+
+    /**
+     * Fetch DocUpdateMessage events (status/assignee/label/etc changes)
+     * for a given issue, newest first. We query the concrete class instead
+     * of the abstract `ActivityMessage` so we can rely on the
+     * `attributeUpdates` shape without polymorphic branching.
+     */
+    async getIssueDocUpdates(issueInternalId: string, limit: number = 200): Promise<any[]> {
+        return await this.client!.findAll(
+            activity.class.DocUpdateMessage as any,
+            { attachedTo: issueInternalId, attachedToClass: tracker.class.Issue } as any,
+            { sort: { modifiedOn: SortingOrder.Descending }, limit }
+        );
+    }
+
+    /**
+     * Fetch human comments (ChatMessage) attached to an issue.
+     * Stored separately from DocUpdateMessage because their shape diverges:
+     * comments carry `message: Markup`, updates carry `attributeUpdates`.
+     */
+    async getIssueComments(issueInternalId: string, limit: number = 200): Promise<any[]> {
+        return await this.client!.findAll(
+            chunter.class.ChatMessage as any,
+            { attachedTo: issueInternalId, attachedToClass: tracker.class.Issue } as any,
+            { sort: { modifiedOn: SortingOrder.Descending }, limit }
         );
     }
 

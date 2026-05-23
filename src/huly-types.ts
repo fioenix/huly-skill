@@ -87,6 +87,26 @@ export const tags = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Activity / Chunter — class references for the issue activity feed
+// ---------------------------------------------------------------------------
+export const activity = {
+  class: {
+    ActivityMessage: 'activity:class:ActivityMessage' as Ref<Class<Doc>>,
+    DocUpdateMessage: 'activity:class:DocUpdateMessage' as Ref<Class<Doc>>,
+    ActivityInfoMessage: 'activity:class:ActivityInfoMessage' as Ref<Class<Doc>>,
+    ActivityReference: 'activity:class:ActivityReference' as Ref<Class<Doc>>,
+    Reaction: 'activity:class:Reaction' as Ref<Class<Doc>>,
+  },
+} as const;
+
+export const chunter = {
+  class: {
+    ChatMessage: 'chunter:class:ChatMessage' as Ref<Class<Doc>>,
+    ThreadMessage: 'chunter:class:ThreadMessage' as Ref<Class<Doc>>,
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
 // Issue priority enum (matches @hcengineering/tracker IssuePriority)
 // ---------------------------------------------------------------------------
 export enum IssuePriority {

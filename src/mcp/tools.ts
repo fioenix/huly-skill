@@ -11,6 +11,7 @@ import {
 import { resolveProject, parseDate } from '../resolvers.js';
 import { MilestoneStatus } from '../huly-types.js';
 import { getSubIssueTree, getMilestoneReport } from '../services/sub-issues.js';
+import { getIssueActivity } from '../services/activity.js';
 
 // --- result helpers --------------------------------------------------------
 
@@ -454,6 +455,30 @@ export function registerHulyTools(server: McpServer): void {
             const task = await client.getTaskByInternalId(internalId);
             if (!task) throw new Error(`Task not found for _id: ${internalId}`);
             return { task };
+        }),
+    );
+
+    server.registerTool(
+        'huly_get_activity',
+        {
+            title: 'Get task activity feed',
+            description: 'Return the activity timeline of an issue: DocUpdateMessage events (status/assignee/label changes with from→to) plus ChatMessage comments. Sorted newest first.',
+            inputSchema: {
+                taskId: z.string().describe('Task identifier, e.g. LAMBD-568'),
+                limit: z.number().int().min(1).max(1000).optional().describe('Max events per kind (default 200)'),
+                kind: z.enum(['all', 'updates', 'comments']).optional().describe('Filter feed kind (default all)'),
+            },
+        },
+        async ({ taskId, limit, kind }) => withHuly(async (client) => {
+            const result = await getIssueActivity(client, taskId, limit ?? 200);
+            let events = result.events;
+            if (kind === 'updates') events = events.filter((e) => e.kind === 'update');
+            else if (kind === 'comments') events = events.filter((e) => e.kind === 'comment');
+            return {
+                task: result.taskIdentifier,
+                count: events.length,
+                events,
+            };
         }),
     );
 
