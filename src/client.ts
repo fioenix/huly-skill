@@ -67,6 +67,7 @@ type Doc = any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 import {
     tracker, contact, document as hulyDocument, tags,
+    activity, chunter,
     IssuePriority, MilestoneStatus, AvatarType,
     makeRank,
 } from './huly-types.js';
@@ -77,6 +78,8 @@ export interface TaskQueryOptions {
     projectId?: string;
     overdue?: boolean;
     dueToday?: boolean;
+    parentInternalId?: string;
+    milestoneId?: string;
 }
 
 export interface CreateTaskOptions {
@@ -181,6 +184,46 @@ export class HulyClient {
         return issues[0];
     }
 
+    /**
+     * Fetch an issue by its internal Mongo-style `_id`. Used when we already
+     * hold an internal id (e.g. from another issue's `childInfo[].childId`)
+     * and want to skip the identifier→_id round-trip.
+     */
+    async getTaskByInternalId(internalId: string): Promise<any | null> {
+        const issue = await this.client!.findOne(
+            tracker.class.Issue as any,
+            { _id: internalId } as any
+        );
+        return issue || null;
+    }
+
+    /**
+     * Batch-resolve a set of internal ids in one round-trip.
+     * Used by the sub-issue tree builder to avoid N findOne calls when
+     * walking `childInfo[].childId`.
+     */
+    async findIssuesByInternalIds(internalIds: string[]): Promise<any[]> {
+        if (!internalIds || internalIds.length === 0) return [];
+        return await this.client!.findAll(
+            tracker.class.Issue as any,
+            { _id: { $in: internalIds } } as any,
+            { limit: internalIds.length }
+        );
+    }
+
+    /**
+     * List direct sub-issues of a parent by its internal `_id`.
+     * Mirrors how Huly's tracker stores nested issues (`attachedTo` points
+     * at the parent issue, `collection` is the `subIssues` collection).
+     */
+    async findSubIssues(parentInternalId: string): Promise<any[]> {
+        return await this.client!.findAll(
+            tracker.class.Issue as any,
+            { attachedTo: parentInternalId, collection: 'subIssues' } as any,
+            { sort: { rank: SortingOrder.Ascending }, limit: 500 }
+        );
+    }
+
     async queryTasks(options: TaskQueryOptions): Promise<any[]> {
         const query: any = {};
 
@@ -190,6 +233,15 @@ export class HulyClient {
 
         if (options.projectId) {
             query.space = options.projectId;
+        }
+
+        if (options.parentInternalId) {
+            query.attachedTo = options.parentInternalId;
+            query.collection = 'subIssues';
+        }
+
+        if (options.milestoneId) {
+            query.milestone = options.milestoneId;
         }
 
         if (options.overdue || options.dueToday) {
@@ -594,6 +646,37 @@ export class HulyClient {
                 provider: contact.channelProvider.Email,
                 value: email,
             } as any
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Activity feed
+    // -----------------------------------------------------------------------
+
+    /**
+     * Fetch DocUpdateMessage events (status/assignee/label/etc changes)
+     * for a given issue, newest first. We query the concrete class instead
+     * of the abstract `ActivityMessage` so we can rely on the
+     * `attributeUpdates` shape without polymorphic branching.
+     */
+    async getIssueDocUpdates(issueInternalId: string, limit: number = 200): Promise<any[]> {
+        return await this.client!.findAll(
+            activity.class.DocUpdateMessage as any,
+            { attachedTo: issueInternalId, attachedToClass: tracker.class.Issue } as any,
+            { sort: { modifiedOn: SortingOrder.Descending }, limit }
+        );
+    }
+
+    /**
+     * Fetch human comments (ChatMessage) attached to an issue.
+     * Stored separately from DocUpdateMessage because their shape diverges:
+     * comments carry `message: Markup`, updates carry `attributeUpdates`.
+     */
+    async getIssueComments(issueInternalId: string, limit: number = 200): Promise<any[]> {
+        return await this.client!.findAll(
+            chunter.class.ChatMessage as any,
+            { attachedTo: issueInternalId, attachedToClass: tracker.class.Issue } as any,
+            { sort: { modifiedOn: SortingOrder.Descending }, limit }
         );
     }
 

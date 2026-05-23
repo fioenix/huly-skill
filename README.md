@@ -42,11 +42,32 @@ export HULY_API_KEY="your-api-token"
 ```bash
 huly tasks --assignee me              # My tasks
 huly tasks --project DELTA --overdue  # Overdue in project
-huly task DELTA-123                   # Task details
+huly tasks --parent LAMBD-568         # Direct children of a parent (Epic / sub-issue group)
+huly tasks --milestone-id <id>        # All tasks attached to a milestone
+huly task DELTA-123                   # Task details by identifier
+huly task-by-id <internalId>          # Lookup by internal _id (e.g. from childInfo)
 huly create task "Title" --project DELTA --priority HIGH --due tomorrow
 huly update task DELTA-123 --status "Done" --add-comment "Completed"
 huly delete task DELTA-123 --yes      # Requires confirmation
 ```
+
+### Sub-issue tree
+```bash
+huly sub-issues LAMBD-568             # Recursive tree (default)
+huly sub-issues LAMBD-568 --no-recursive   # Direct children only
+huly sub-issues LAMBD-568 --json --flat    # Flat list for programmatic use
+```
+
+Solves the "`tasks` only returns top-level" pain — walks `attachedTo` one `findAll` per level, no per-child round-trip.
+
+### Activity feed
+```bash
+huly activity LAMBD-568                # Field changes + comments, newest first
+huly activity LAMBD-568 --updates-only # Only status/assignee/label changes
+huly activity LAMBD-568 --comments-only --json
+```
+
+Reads `activity:class:DocUpdateMessage` + `chunter:class:ChatMessage`, resolves status and assignee refs to human names.
 
 ### Reports
 ```bash
@@ -76,6 +97,7 @@ huly docs create-teamspace "Engineering"
 huly milestones list --project DELTA
 huly milestones create "Sprint 1" --project DELTA --target 2026-04-15
 huly milestones complete <id> --project DELTA
+huly milestones report <milestoneId>            # Issues grouped by Epic with sub-trees
 ```
 
 ### JSON Mode
