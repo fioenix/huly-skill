@@ -42,6 +42,8 @@ export interface QueryIssuesInput {
     status?: string;         // comma-separated names
     overdue?: boolean;
     dueToday?: boolean;
+    parent?: string;         // identifier (LAMBD-568) or internal _id
+    milestoneId?: string;    // internal milestone _id
 }
 
 export interface IssueResult {
@@ -203,12 +205,29 @@ export async function queryIssues(client: HulyClient, input: QueryIssuesInput): 
 
     const projectMap = await getProjectMap(client);
 
+    // Resolve parent: accepts an identifier (e.g. LAMBD-568) or a raw internal _id.
+    // Identifiers always contain a hyphen and an alphanumeric prefix, internal
+    // ids are 24-char hex-ish opaque strings, so a hyphen check is a reliable
+    // discriminator without an extra round-trip.
+    let parentInternalId: string | undefined;
+    if (input.parent) {
+        if (input.parent.includes('-') && /[A-Za-z]/.test(input.parent)) {
+            const parent = await client.getTask(input.parent);
+            if (!parent) throw new Error(`Khong tim thay task cha: ${input.parent}`);
+            parentInternalId = parent._id;
+        } else {
+            parentInternalId = input.parent;
+        }
+    }
+
     const tasks = await client.queryTasks({
         assignee: assigneeId,
         projectId,
         statusIds,
         overdue: input.overdue,
         dueToday: input.dueToday,
+        parentInternalId,
+        milestoneId: input.milestoneId,
     });
 
     return { tasks, projectMap, statusMap };

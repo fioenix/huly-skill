@@ -22,8 +22,9 @@ import { whoamiCommand } from './commands/whoami.js';
 import { labelsCommand } from './commands/labels.js';
 import { documentsCommand } from './commands/documents.js';
 import { milestonesCommand } from './commands/milestones.js';
+import { listSubIssuesCommand, getTaskByIdCommand } from './commands/sub-issues.js';
 
-let version = '1.2.0';
+let version = '1.3.0';
 try {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
@@ -57,5 +58,7 @@ program.addCommand(whoamiCommand());
 program.addCommand(labelsCommand());
 program.addCommand(documentsCommand());
 program.addCommand(milestonesCommand());
+program.addCommand(listSubIssuesCommand());
+program.addCommand(getTaskByIdCommand());
 
 program.parse(process.argv);

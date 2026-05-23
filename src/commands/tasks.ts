@@ -11,6 +11,8 @@ export function listTasksCommand() {
         .option('-p, --project <project>', 'Filter by project identifier (e.g., DELTA)')
         .option('--overdue', 'Show overdue tasks')
         .option('--due-today', 'Show tasks due today')
+        .option('--parent <parent>', 'Filter by parent task identifier (e.g., LAMBD-568) or internal _id — direct children only')
+        .option('--milestone-id <id>', 'Filter by milestone internal _id')
         .action(async (options) => {
             try {
                 await withClient(async (client) => {
@@ -20,6 +22,8 @@ export function listTasksCommand() {
                         status: options.status,
                         overdue: options.overdue,
                         dueToday: options.dueToday,
+                        parent: options.parent,
+                        milestoneId: options.milestoneId,
                     });
 
                     const activeTasks = tasks.filter(task => {

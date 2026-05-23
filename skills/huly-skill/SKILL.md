@@ -5,7 +5,7 @@ license: MIT
 compatibility: "Node.js 20+. Requires environment variables: HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY. Zero-install: all dependencies are bundled."
 metadata:
   author: fioenix
-  version: "1.2.0"
+  version: "1.3.0"
   repository: https://github.com/fioenix/huly-skill
 ---
 
@@ -86,8 +86,15 @@ huly tasks --assignee me                          # My active tasks
 huly tasks --project DELTA --status "In Progress" # Filter by project + status
 huly tasks --overdue                              # Overdue tasks only
 huly tasks --due-today                            # Due today only
+huly tasks --parent LAMBD-568                     # Direct children of a parent task
+huly tasks --milestone-id <id>                    # All tasks in a milestone
 
 huly task DELTA-123                               # Full details for one task
+huly task-by-id <internalId>                      # Look up by internal _id (not identifier)
+
+huly sub-issues LAMBD-568                         # Sub-issue tree (recursive by default)
+huly sub-issues LAMBD-568 --no-recursive          # Direct children only
+huly sub-issues LAMBD-568 --json --flat           # Flat list, JSON output
 
 huly create task "Title" --project DELTA          # Create task (required: --project)
   --priority HIGH --due tomorrow --assignee me    # Optional: priority, due date, assignee
@@ -135,6 +142,7 @@ huly milestones list --project DELTA                   # List project milestones
 huly milestones create "Sprint 1" --project DELTA      # Create milestone
   --target 2026-04-15                                  # Optional: target date
 huly milestones complete <milestoneId> --project DELTA # Mark as completed
+huly milestones report <milestoneId>                   # Report grouped by Epic with sub-issue trees
 ```
 
 ## JSON Mode

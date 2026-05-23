@@ -10,6 +10,7 @@ import {
 } from '../services/issues.js';
 import { resolveProject, parseDate } from '../resolvers.js';
 import { MilestoneStatus } from '../huly-types.js';
+import { getSubIssueTree, getMilestoneReport } from '../services/sub-issues.js';
 
 // --- result helpers --------------------------------------------------------
 
@@ -88,17 +89,22 @@ export function registerHulyTools(server: McpServer): void {
         'huly_list_tasks',
         {
             title: 'List tasks',
-            description: 'List tasks with optional filters. By default completed tasks are excluded unless a status filter is given.',
+            description: 'List tasks with optional filters. By default completed tasks are excluded unless a status filter is given. Pass `parentId` to fetch only direct children of a parent task.',
             inputSchema: {
                 assignee: z.string().optional().describe('Assignee ID, name, or "me"'),
                 project: z.string().optional().describe('Project identifier, name, or _id'),
                 status: z.string().optional().describe('Comma-separated status names or IDs'),
                 overdue: z.boolean().optional().describe('Only tasks past their due date'),
                 dueToday: z.boolean().optional().describe('Only tasks due today'),
+                parentId: z.string().optional().describe('Parent task identifier (e.g. LAMBD-568) or internal _id — returns direct children only'),
+                milestoneId: z.string().optional().describe('Filter by milestone internal _id'),
             },
         },
         async (args) => withHuly(async (client) => {
-            const { tasks, projectMap, statusMap } = await queryIssues(client, args);
+            const { tasks, projectMap, statusMap } = await queryIssues(client, {
+                ...args,
+                parent: args.parentId,
+            });
             const active = tasks.filter((task: any) => {
                 if (args.status) return true;
                 const statusName = statusMap.get(task.status)?.name || '';
@@ -410,6 +416,59 @@ export function registerHulyTools(server: McpServer): void {
             const targetDate = parseDate(target) || (Date.now() + 14 * 24 * 60 * 60 * 1000);
             const milestone = await client.createMilestone(resolved._id, label, targetDate);
             return { milestone };
+        }),
+    );
+
+    server.registerTool(
+        'huly_list_sub_issues',
+        {
+            title: 'List sub-issues (tree)',
+            description: 'Recursively list all sub-issues of a parent task by identifier. Returns a tree by default; set flat=true for a flat list. Solves the "huly_list_tasks only returns top-level" pain.',
+            inputSchema: {
+                taskId: z.string().describe('Parent task identifier, e.g. LAMBD-568'),
+                recursive: z.boolean().optional().describe('Walk grandchildren (default true)'),
+                flat: z.boolean().optional().describe('Return a flat list instead of a tree (default false)'),
+            },
+        },
+        async ({ taskId, recursive, flat }) => withHuly(async (client) => {
+            const result = await getSubIssueTree(client, taskId, recursive !== false);
+            return {
+                parent: result.parent,
+                totalCount: result.totalCount,
+                directChildren: result.directChildren,
+                data: flat ? result.flat : result.data,
+            };
+        }),
+    );
+
+    server.registerTool(
+        'huly_get_task_by_id',
+        {
+            title: 'Get task by internal _id',
+            description: 'Look up a task by its internal _id (the kind of id stored in childInfo[].childId), not by human identifier like LAMBD-568.',
+            inputSchema: {
+                internalId: z.string().describe('Internal task _id'),
+            },
+        },
+        async ({ internalId }) => withHuly(async (client) => {
+            const task = await client.getTaskByInternalId(internalId);
+            if (!task) throw new Error(`Task not found for _id: ${internalId}`);
+            return { task };
+        }),
+    );
+
+    server.registerTool(
+        'huly_milestone_report',
+        {
+            title: 'Milestone report (grouped by Epic)',
+            description: 'List every issue in a milestone, group by Epic, walk sub-issues recursively. Output is shaped for KPI checkin and pitstop reviews.',
+            inputSchema: {
+                milestoneId: z.string().describe('Internal milestone _id (use huly_list_milestones to discover)'),
+            },
+        },
+        async ({ milestoneId }) => withHuly(async (client) => {
+            const report = await getMilestoneReport(client, milestoneId);
+            return { report };
         }),
     );
 
