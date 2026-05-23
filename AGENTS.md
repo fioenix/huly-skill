@@ -34,7 +34,10 @@ Response format:
 | Command | Purpose |
 |---------|---------|
 | `huly tasks [options]` | Query tasks with filters |
-| `huly task <id>` | Get full task details |
+| `huly task <id>` | Get full task details by identifier |
+| `huly task-by-id <internalId>` | Get task by internal _id (e.g. from childInfo) |
+| `huly sub-issues <id>` | Recursive sub-issue tree of a parent task |
+| `huly activity <id>` | Activity timeline (changes + comments) |
 | `huly create task <title> --project <id> [options]` | Create a new task |
 | `huly update task <id> [options]` | Update task fields |
 | `huly delete task <id> --yes` | Permanently delete a task |
@@ -46,6 +49,8 @@ Response format:
 - `--status "In Progress"` — by status name (comma-separated)
 - `--overdue` — overdue tasks only
 - `--due-today` — due today only
+- `--parent <id>` — direct children of a parent task (identifier or internal _id)
+- `--milestone-id <id>` — only tasks attached to a milestone
 
 #### Create Task Options
 - `--project <id>` — **required**, project identifier
@@ -105,6 +110,7 @@ Response format:
 | `huly milestones list --project <id>` | List milestones in a project |
 | `huly milestones create <label> --project <id>` | Create a milestone |
 | `huly milestones complete <milestoneId> --project <id>` | Mark milestone completed |
+| `huly milestones report <milestoneId>` | Issues grouped by Epic with recursive sub-issue trees |
 
 #### Milestone Create Options
 - `--project <id>` — **required**, project identifier
