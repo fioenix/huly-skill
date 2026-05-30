@@ -56,7 +56,11 @@ function createSocketFactory() {
     };
 }
 const { SortingOrder, generateId, makeCollabId } = coreModule as any;
-const core = coreModule as any;
+// CJS interop: the `core` plugin object (with .space, .class) lives on the
+// default export, while generateId/SortingOrder are top-level named exports.
+// Without `.default`, core.space is undefined → write paths throw
+// "Cannot read properties of undefined (reading 'Workspace'/'Space')".
+const core = ((coreModule as any).default ?? coreModule) as any;
 const { jsonToMarkup } = textModule as any;
 const { markdownToMarkup } = textMarkdownModule as any;
 
