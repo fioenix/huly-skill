@@ -72,6 +72,20 @@ Response format:
 - `--kind-id`, `--component-id`, `--milestone-id` — update references
 - `--set-field "key=value"` — update custom fields
 
+### Comments
+| Command | Purpose |
+|---------|---------|
+| `huly comments list <objectId> [--class <c>] [--limit <n>]` | List comments on any object by internal _id (issue, milestone, doc, …); thread replies nested in `replies` |
+| `huly comments get <messageId>` | Get one comment by its `_id` (the `message` param in a chunter link) |
+
+- `--class` accepts a friendly alias (`issue`/`milestone`/`component`/`project`/`document`) or a raw ref (`tracker:class:Milestone`); omit to match any class on that `_id`.
+- For comments on an issue, `huly activity <identifier>` is friendlier (takes `LAMBD-568`, merges changes + comments).
+
+**Resolving a link → comments.** Extract ids from the URL, never call `milestones list`/`tasks` to re-find an id the URL already has. URL-decode (`%7C`→`|`, `%3A`→`:`). The object is the `<24-hex>` next to a `<plugin>:class:<Name>` token; that hex is `<objectId>`, the token is `--class`. A `?message=<id>` param is a specific comment.
+- Chunter link `…/chunter/<id>|<class>?message=<msgId>` → `comments get <msgId>`.
+- Tracker milestone link `…/tracker/<projectId>/milestones#…|<id>|tracker:class:Milestone|…` → `comments list <id> --class milestone` (the `<projectId>` early in the path is **not** the milestone).
+- Token-optimal: prefer `comments get <msgId>` over listing when a `message=` id exists; always `--json`; add `--limit` for "latest few"; bodies come back as markdown — no re-fetch.
+
 ### Reports
 | Command | Purpose |
 |---------|---------|

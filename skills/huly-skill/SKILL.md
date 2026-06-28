@@ -1,11 +1,11 @@
 ---
 name: huly-skill
-description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, or work with milestones in Huly. Supports both human-readable Vietnamese output and structured JSON mode for programmatic agent use."
+description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, work with milestones, or read comments/activity (on issues, milestones, or any object — including thread replies) in Huly. Supports both human-readable Vietnamese output and structured JSON mode for programmatic agent use."
 license: MIT
 compatibility: "Node.js 20+. Requires environment variables: HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY. Zero-install: all dependencies are bundled."
 metadata:
   author: fioenix
-  version: "1.3.0"
+  version: "1.4.0"
   repository: https://github.com/fioenix/huly-skill
 ---
 
@@ -114,6 +114,34 @@ huly update task DELTA-123                        # Update task
 
 huly delete task DELTA-123 --yes                  # Delete (requires --yes)
 ```
+
+### Comments
+Read comments on **any** object — issues, milestones, documents, components — not just issues. Thread replies are nested under their parent comment in `replies`.
+
+```bash
+huly comments list <objectId>                     # All comments on an object (by internal _id)
+huly comments list <milestoneId> --class milestone # Filter by parent class (issue|milestone|component|project|document or a raw ref)
+huly comments list <objectId> --limit 50 --json   # Cap count, JSON output
+huly comments get <messageId>                      # One comment by its _id (the "message" param in a chunter link)
+```
+
+- For comments on an **issue**, prefer `huly activity <identifier>` — it accepts the friendly identifier (e.g. `LAMBD-568`) and merges changes + comments in one call.
+
+#### Resolving a Huly link → comments (do this, don't guess)
+
+The user usually pastes a UI link, not an `_id`. Extract identifiers **from the link itself** — never call `milestones list` / `tasks` to "find" an id that the URL already contains (wasted round-trip + tokens). URL-decode first: `%7C`→`|`, `%3A`→`:`.
+
+**Rule:** the object is the `<24-hex-id>` segment sitting next to a `<plugin>:class:<Name>` token. That hex is `<objectId>`; the class token is `--class`. A `?message=<id>` query param, when present, is a specific comment's `_id`.
+
+| Link shape (after decode) | What you have | Run |
+|---|---|---|
+| `…/chunter/<id>\|<class>?message=<msgId>` | a specific comment | `comments get <msgId>` |
+| `…/tracker/<projectId>/milestones#…\|<id>\|tracker:class:Milestone\|…` | the milestone, no comment id | `comments list <id> --class milestone` |
+| any link with `…\|<id>\|<plugin>:class:<Name>\|…` and no `message=` | the object, no comment id | `comments list <id> --class <Name lowercased, or raw ref>` |
+
+Worked example — `…/tracker/694cc03d6911b0939c277716/milestones#view:component:EditDoc|6a1e51134b85263b0ae0092e|tracker:class:Milestone|content` → milestone `_id` is `6a1e51134b85263b0ae0092e` (the hex next to `tracker:class:Milestone`; `694cc03d…` is the project, ignore it) → `huly comments list 6a1e51134b85263b0ae0092e --class milestone --json`.
+
+**Token-optimal defaults:** always pass `--json`; use `comments get <msgId>` (one comment) whenever a `message=` id exists instead of listing a whole thread; add `--limit` when you only need the latest few. Comment bodies are returned as markdown already — don't re-fetch them.
 
 ### Reports
 ```bash

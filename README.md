@@ -67,7 +67,16 @@ huly activity LAMBD-568 --updates-only # Only status/assignee/label changes
 huly activity LAMBD-568 --comments-only --json
 ```
 
-Reads `activity:class:DocUpdateMessage` + `chunter:class:ChatMessage`, resolves status and assignee refs to human names.
+Reads `activity:class:DocUpdateMessage` + `chunter:class:ChatMessage`, resolves status and assignee refs to human names, and renders each comment body to markdown.
+
+### Comments
+```bash
+huly comments list <objectId>                 # Comments on any object (issue, milestone, doc, …)
+huly comments list <milestoneId> --class milestone
+huly comments get <messageId>                 # One comment by _id (the "message" param in a chunter link)
+```
+
+Generalises comment reading beyond issues: queries `chunter:class:ChatMessage` by `attachedTo` (not hard-wired to `Issue`), so it works on milestones, documents, and any `Doc`. Thread replies (`chunter:class:ThreadMessage`) are nested under their parent in `replies`. Bodies are inline markup-JSON, converted to markdown locally. For issues, `huly activity <identifier>` is friendlier (accepts `LAMBD-568`, merges changes + comments).
 
 ### Reports
 ```bash

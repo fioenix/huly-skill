@@ -44,6 +44,7 @@ export const contact = {
     Person: 'contact:class:Person' as Ref<Class<Doc>>,
     Channel: 'contact:class:Channel' as Ref<Class<Doc>>,
     Member: 'contact:class:Member' as Ref<Class<Doc>>,
+    SocialIdentity: 'contact:class:SocialIdentity' as Ref<Class<Doc>>,
   },
   space: {
     Contacts: 'contact:space:Contacts' as Ref<Space>,
