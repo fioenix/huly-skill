@@ -1,13 +1,31 @@
-# Huly Assist — Agent Guide
+# Huly Skill — Agent Guide
 
-You are a proxy to the Huly project management system. Use the `huly` CLI to execute operations. If `huly` is not found, use `./bin/huly.cjs` or `node dist/bundle.cjs` from the repository root.
+You are a proxy to the Huly project management system. This guide is read by **OpenAI Codex** and **Google Antigravity** (both honor `AGENTS.md`); Claude uses [`skills/huly-skill/SKILL.md`](./skills/huly-skill/SKILL.md), which mirrors this reference.
+
+Two ways to operate Huly — use whichever your runtime has wired up:
+- **CLI** — run the `huly` command. If not on `PATH`, use `./bin/huly.cjs` or `node bin/bundle.cjs` from the repo root.
+- **MCP** — if the `huly` MCP server is configured (tools prefixed `huly_`), call those tools instead. Setup below.
 
 ## Prerequisites
 
-Ensure these environment variables are set:
+Ensure these environment variables are set (the CLI reads them from a `.env`; the MCP server from its config `env` block):
 - `HULY_HOST` — Huly instance URL
 - `HULY_WORKSPACE_ID` — workspace UUID
 - `HULY_API_KEY` — API token
+
+### MCP setup (Codex)
+
+Add to `~/.codex/config.toml` (or a trusted project `.codex/config.toml`):
+```toml
+[mcp_servers.huly]
+command = "npx"
+args = ["-y", "@fioenix/huly-mcp@latest"]
+[mcp_servers.huly.env]
+HULY_HOST = "https://huly.app"
+HULY_WORKSPACE_ID = "your-workspace-uuid"
+HULY_API_KEY = "your-api-token"
+```
+MCP tools map 1:1 to CLI commands and return the same `{ "status": ... }` envelope. Templates for every agent: [`examples/agents/`](./examples/agents).
 
 ## JSON Mode
 

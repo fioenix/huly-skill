@@ -13,6 +13,8 @@ metadata:
 
 Interact with a Huly project management workspace via the `huly` CLI.
 
+This is a file-based skill loaded by **Claude** (`.claude/skills/huly-skill/`, or `npx skills add fioenix/huly-skill`) and **Google Antigravity** (`<project>/.agents/skills/huly-skill/`). **Codex** has no skill system — it uses [`AGENTS.md`](../../AGENTS.md) + the `@fioenix/huly-mcp` MCP server, which exposes the same operations as `huly_*` tools. Per-agent MCP config templates: [`examples/agents/`](../../examples/agents).
+
 ## Setup
 
 The CLI reads 3 environment variables from a `.env` file (it never needs them passed inline):

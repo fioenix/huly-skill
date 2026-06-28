@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "huly": {
+      "command": "npx",
+      "args": ["-y", "@fioenix/huly-mcp@latest"],
+      "env": {
+        "HULY_MCP_TRANSPORT": "stdio",
+        "HULY_HOST": "https://huly.app",
+        "HULY_WORKSPACE_ID": "your-workspace-uuid",
+        "HULY_API_KEY": "your-api-token"
+      }
+    }
+  }
+}

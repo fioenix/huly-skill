@@ -1,6 +1,6 @@
 # @fioenix/huly-mcp
 
-MCP server for [Huly](https://huly.io) project management. Exposes tasks, projects, labels, documents, and milestones as MCP tools — usable from any MCP client (Claude Code, Claude Desktop, Claude Cowork).
+MCP server for [Huly](https://huly.io) project management. Exposes tasks, projects, labels, documents, milestones, and comments as MCP tools — usable from any MCP client (Claude, Google Antigravity, OpenAI Codex, and Claude Cowork).
 
 The package is a single self-contained bundle: `npx` runs it with no install step.
 

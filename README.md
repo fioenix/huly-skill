@@ -1,20 +1,26 @@
-# Huly Assist
+# Huly Skill
 
-A CLI tool and [agent skill](https://agentskills.io) for managing tasks, projects, labels, documents, and milestones in [Huly](https://huly.io) — built on the official [`@hcengineering/api-client`](https://github.com/hcengineering/huly-examples).
+A CLI + MCP server for managing tasks, projects, labels, documents, milestones, and comments in [Huly](https://huly.io) — built on the official [`@hcengineering/api-client`](https://github.com/hcengineering/huly-examples).
 
-Works with Claude Code, Cursor, OpenCode, and any agent supporting the [Agent Skills](https://github.com/vercel-labs/skills) ecosystem.
+A portable integration for **Claude** (Code / Desktop), **Google Antigravity**, and **OpenAI Codex**. The same capabilities ship two ways:
 
-## Install as Agent Skill
+- **Skill** — a file-based `SKILL.md` + zero-install bundled CLI. Loaded directly by Claude and Antigravity.
+- **MCP server** — [`@fioenix/huly-mcp`](https://www.npmjs.com/package/@fioenix/huly-mcp), the universal interface. Works for all three (Codex has no skill system, so it uses MCP + `AGENTS.md`).
 
+## Install per agent
+
+| Agent | Recommended | How |
+|-------|-------------|-----|
+| **Claude Code / Desktop** | Skill | `npx skills add fioenix/huly-skill` (drops `SKILL.md` into `.claude/skills/`). MCP also works — see below. |
+| **Google Antigravity** | Skill | Copy `skills/huly-skill/` → `<project>/.agents/skills/huly-skill/` (or the global skills dir). MCP also works. |
+| **OpenAI Codex** | MCP + `AGENTS.md` | Add the server to `~/.codex/config.toml` (snippet below); Codex reads [`AGENTS.md`](./AGENTS.md) for usage. |
+
+Zero-install clone (any agent, no `npm install` needed):
 ```bash
-npx skills add fioenix/huly-skill
+git clone https://github.com/fioenix/huly-skill.git && cd huly-skill
 ```
 
-Or manually (zero-install — no `npm install` needed):
-```bash
-git clone https://github.com/fioenix/huly-skill.git
-cd huly-skill
-```
+All three use the same credentials (see [Setup](#setup)). Ready-to-paste MCP config templates per agent live in [`examples/agents/`](./examples/agents).
 
 ## Setup
 
@@ -120,9 +126,11 @@ huly tasks --assignee me --json
 
 Besides the CLI skill, the same Huly operations are exposed as an **MCP server** — a better fit for Claude Cowork and any MCP-capable client. It is published to npm as [`@fioenix/huly-mcp`](https://www.npmjs.com/package/@fioenix/huly-mcp) and runs via `npx` with no install step.
 
-A single entry point picks its transport from `HULY_MCP_TRANSPORT` (`stdio` default, or `http`). The server is **single-workspace**: one set of Huly credentials, shared by all callers.
+A single entry point picks its transport from `HULY_MCP_TRANSPORT` (`stdio` default, or `http`). The server is **single-workspace**: one set of Huly credentials, shared by all callers. Full templates: [`examples/agents/`](./examples/agents).
 
-### stdio (local — Claude Code / Desktop)
+### stdio — Claude (`.mcp.json`) and Antigravity (`~/.gemini/config/mcp_config.json`)
+
+Both use the same `mcpServers` JSON shape:
 
 ```json
 {
@@ -140,6 +148,24 @@ A single entry point picks its transport from `HULY_MCP_TRANSPORT` (`stdio` defa
   }
 }
 ```
+
+Claude: `claude mcp add` or a project `.mcp.json`. Antigravity: place under `~/.gemini/config/mcp_config.json`.
+
+### stdio — Codex (`~/.codex/config.toml`)
+
+```toml
+[mcp_servers.huly]
+command = "npx"
+args = ["-y", "@fioenix/huly-mcp@latest"]
+
+[mcp_servers.huly.env]
+HULY_MCP_TRANSPORT = "stdio"
+HULY_HOST = "https://huly.app"
+HULY_WORKSPACE_ID = "your-workspace-uuid"
+HULY_API_KEY = "your-api-token"
+```
+
+Or via CLI: `codex mcp add huly --env HULY_HOST=… --env HULY_WORKSPACE_ID=… --env HULY_API_KEY=… -- npx -y @fioenix/huly-mcp@latest`.
 
 ### HTTP (remote — Claude Cowork)
 
@@ -162,7 +188,7 @@ See [AGENTS.md](./AGENTS.md) for the full agent integration guide, or [skills/hu
 
 ## Technical Notes
 
-All dependencies are bundled into a single `dist/bundle.cjs` via esbuild — no `npm install` or GitHub PAT required. The `@hcengineering/api-client` expects browser APIs (`indexedDB`, `window`), which are polyfilled automatically.
+All dependencies are bundled into a single `bin/bundle.cjs` via esbuild — no `npm install` or GitHub PAT required. The `@hcengineering/api-client` expects browser APIs (`indexedDB`, `window`), which are polyfilled automatically.
 
 ## License
 

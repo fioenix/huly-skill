@@ -1,0 +1,12 @@
+# Append to ~/.codex/config.toml (or a trusted project .codex/config.toml).
+# Codex reads AGENTS.md for usage; these tools map 1:1 to the CLI commands.
+
+[mcp_servers.huly]
+command = "npx"
+args = ["-y", "@fioenix/huly-mcp@latest"]
+
+[mcp_servers.huly.env]
+HULY_MCP_TRANSPORT = "stdio"
+HULY_HOST = "https://huly.app"
+HULY_WORKSPACE_ID = "your-workspace-uuid"
+HULY_API_KEY = "your-api-token"
