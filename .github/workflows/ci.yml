@@ -15,10 +15,13 @@ jobs:
         with:
           version: 9
 
+      # No `cache: pnpm` — the cache step runs `pnpm store path`, which fails
+      # because pnpm-workspace.yaml here carries only `allowBuilds` and no
+      # `packages` field. Install is small enough that the cache is not worth
+      # changing the workspace file for.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
