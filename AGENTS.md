@@ -31,6 +31,13 @@ HULY_API_KEY = "your-api-token"
 ```
 MCP tools map 1:1 to CLI commands and return the same `{ "status": ... }` envelope. Templates for every agent: [`examples/agents/`](./examples/agents).
 
+**Tool arguments are strict.** An unrecognised argument is rejected with
+`unrecognized_keys` rather than ignored, so a call that fails that way means a
+wrong argument *name*, not a wrong value — read the tool's schema instead of
+retrying with a different value. Argument names do not always match the CLI
+flag: notably `huly_create_task` takes `parentId` (with `parent` as an alias)
+where the CLI takes `--parent`.
+
 ## JSON Mode
 
 Always prefer `--json` for programmatic use. All commands support it:
