@@ -14,6 +14,7 @@ import { getSubIssueTree, getMilestoneReport } from '../services/sub-issues.js';
 import { getIssueActivity } from '../services/activity.js';
 import { listComments, getCommentById } from '../services/comments.js';
 import { DEFAULT_LIST_LIMIT, LIST_FIELDS, shapeList, type ListEntity } from '../utils/projection.js';
+import { describeContext } from '../utils/context.js';
 
 // --- result helpers --------------------------------------------------------
 
@@ -72,6 +73,16 @@ async function resolveTeamspace(client: HulyClient, input: string): Promise<any>
  * consistent across the CLI and MCP adapters.
  */
 export function registerHulyTools(server: McpServer): void {
+    server.registerTool(
+        'huly_context',
+        {
+            title: 'Inspect configuration (no connection)',
+            description: 'Report how this server is configured — version, host origin, workspace, masked token with the account and workspace it is bound to, actor, proxy — and any problem detectable without reaching Huly. Use this first when a call fails to connect or writes land under the wrong name. Never returns the token itself.',
+            inputSchema: z.object({}).strict(),
+        },
+        async () => toResult({ status: 'ok', ...describeContext() }),
+    );
+
     server.registerTool(
         'huly_whoami',
         {

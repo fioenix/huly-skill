@@ -19,6 +19,18 @@ which are released together under the same number.
 - Milestone listings omit `description`, which holds raw ProseMirror JSON rather
   than prose; request it explicitly through `fields` when needed.
 
+### Added — offline diagnostics
+- `huly_context` (MCP) and `huly whoami --offline` (CLI) report how the tool is
+  configured without connecting: version, host origin, workspace, the masked
+  token plus the account and workspace it is bound to, actor, proxy. They also
+  name the problems that a connection error hides — a token that does not parse,
+  a token bound to a different workspace than `HULY_WORKSPACE_ID`, an expired
+  token, and the case where an unbound token needs a workspace URL slug rather
+  than a UUID. The token itself is never returned.
+- `huly whoami` warns when `HULY_ACTOR` resolves to someone other than the token
+  owner: Huly attributes the write to the token owner regardless, so the two
+  names disagreeing means every task is authored by the wrong person.
+
 ### Added
 - `huly tasks --limit <n>` and `--fields <list>`. Both are opt-in: the CLI still
   returns every match with all fields by default, so existing shell pipelines are

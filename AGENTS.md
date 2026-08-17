@@ -62,7 +62,8 @@ Listings wrap rows in `data`; reports put their payload at the top level, with n
 ### Connection & Setup
 | Command | Purpose |
 |---------|---------|
-| `huly whoami` | Verify connection, show account info |
+| `huly whoami` | Verify connection, show account info; warns when `HULY_ACTOR` is not the token owner |
+| `huly whoami --offline` | Configuration check with no connection — host, workspace, masked token and the account it is bound to, plus detectable problems (MCP: `huly_context`) |
 | `huly projects` | List all workspace projects |
 | `huly kinds --project <id>` | List task types (kinds) in a project — source of `--kind-id` |
 | `huly users [--active-only]` | List workspace people — source of `--assignee` ids |

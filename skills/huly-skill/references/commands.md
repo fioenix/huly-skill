@@ -7,7 +7,19 @@ command accepts `--json`.
 
 ```bash
 huly whoami                    # verify connection, show account + effective identity
+huly whoami --offline          # configuration only, no connection: host, workspace,
+                               # masked token with the account it is bound to, warnings
 ```
+
+`--offline` is the first thing to run when a call cannot connect or a write lands
+under the wrong name: it catches a missing variable, a token that does not parse, a
+token bound to a different workspace, and the UUID-vs-slug trap, without waiting on
+a network round-trip. The MCP equivalent is the `huly_context` tool. Neither ever
+returns the token itself.
+
+When `HULY_ACTOR` names someone other than the token owner, `huly whoami` now says
+so — Huly records the token owner as author regardless, so the actor only shows up
+in the `Requested by` line.
 
 ## Projects, task types, people
 
