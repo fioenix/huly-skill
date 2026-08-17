@@ -12,9 +12,16 @@ The server needs 3 environment variables and is **single-workspace** (one Huly w
 |---|---|
 | `HULY_HOST` | Huly instance URL, e.g. `https://huly.app` |
 | `HULY_WORKSPACE_ID` | Workspace UUID (Huly Settings → Workspace) |
-| `HULY_API_KEY` | API token (Huly Settings → API Tokens) |
+| `HULY_API_KEY` | API token — a JWT binding one account to one workspace; see note below |
 
 Transport is selected by `HULY_MCP_TRANSPORT` — `stdio` (default) or `http`.
+
+The token's payload carries `account` and `workspace`, so it acts as one specific
+person: everything created through it is attributed to that account and runs with
+that account's role, and `me` resolves to the token's owner rather than whoever is
+asking. It has no `exp` claim, so it stays valid until the server's signing secret
+changes — treat it like a password. Huly has no API-token management screen; a
+token is what authentication returns, so one per person is the normal case.
 
 ## Usage — stdio (local clients)
 
