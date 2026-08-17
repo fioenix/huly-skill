@@ -14,12 +14,20 @@ numbers.
 Nothing here is automated — each step is a place a release has actually been
 left half-finished before.
 
-1. **Bump the version in all four places.** They drift independently:
+1. **Bump the version in all five places.** They drift independently:
    - `package.json`
    - `npm-package/package.json`
    - `src/mcp/server.ts` — reported in the MCP `initialize` handshake. This one
      sat at `1.2.0` through three releases because nothing reads it back.
+   - `src/index.ts` — the fallback constant behind `huly --version`. It reads
+     `package.json` first, but esbuild rewrites `import.meta.url` to
+     `file:///bundle`, so that read always throws in the shipped bundle and the
+     constant is what users actually see. It was still `1.6.0` during the 1.6.1
+     release.
    - `skills/huly-skill/SKILL.md` frontmatter
+
+   Verify by asking the binaries, not by grepping — `node bin/bundle.cjs
+   --version` and the MCP `initialize` handshake are what clients see.
 2. **Write the `CHANGELOG.md` entry.** Give any behaviour that can break an
    existing caller its own heading saying so, e.g. `### Changed — may reject
    calls that previously succeeded`.

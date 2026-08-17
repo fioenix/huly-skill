@@ -28,7 +28,7 @@ import { commentsCommand } from './commands/comments.js';
 import { kindsCommand } from './commands/kinds.js';
 import { usersCommand } from './commands/users.js';
 
-let version = '1.6.0';
+let version = '1.6.1';
 try {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
