@@ -19,6 +19,18 @@ which are released together under the same number.
 - Milestone listings omit `description`, which holds raw ProseMirror JSON rather
   than prose; request it explicitly through `fields` when needed.
 
+### Added — per-caller Huly credentials over HTTP
+- The HTTP transport accepts `x-huly-token`, `x-huly-url` and `x-huly-workspace`
+  per request, so several people can share one deployment and still have their
+  writes attributed to them. Huly records the token's owner as author, which is
+  why a shared token makes every task look like one person's.
+- The process environment remains the default and unchanged: omit the headers
+  and the server behaves exactly as before. `HULY_REQUIRE_CALLER_TOKEN=true`
+  turns the fallback off and answers `401` when `x-huly-token` is missing, so a
+  deployment that cares about attribution cannot silently write as the server.
+- `huly_context` reports `credentialSource` (`request` or `environment`) and
+  describes the credentials actually in scope.
+
 ### Added — offline diagnostics
 - `huly_context` (MCP) and `huly whoami --offline` (CLI) report how the tool is
   configured without connecting: version, host origin, workspace, the masked

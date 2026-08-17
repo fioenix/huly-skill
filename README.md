@@ -254,6 +254,21 @@ npx -y @fioenix/huly-mcp@latest
 
 Serves `POST /mcp` (default port 3000, override with `PORT`) and `GET /health`. When `HULY_MCP_AUTH_TOKEN` is set, callers must send `Authorization: Bearer <token>` — because the server holds Huly credentials, always set it for any non-local deployment.
 
+**Per-caller Huly credentials.** A caller can bring its own token so Huly attributes
+its writes to it rather than to whoever owns the server's token:
+
+| Header | Overrides |
+|--------|-----------|
+| `x-huly-token` | `HULY_API_KEY` |
+| `x-huly-url` | `HULY_HOST` |
+| `x-huly-workspace` | `HULY_WORKSPACE_ID` |
+
+The process environment stays the default, so a shared token keeps working
+unchanged. Set `HULY_REQUIRE_CALLER_TOKEN=true` to reject requests that omit
+`x-huly-token` with `401` instead of quietly falling back to the server's token —
+worth doing on any deployment where attribution matters. `huly_context` reports
+which source is in effect.
+
 Building from source instead of npm: `pnpm build` produces `bin/mcp.cjs` (run with `node bin/mcp.cjs`). See [`npm-package/`](./npm-package) for the published package, and [RELEASING.md](./RELEASING.md) for the release checklist.
 
 ## For AI Agents
