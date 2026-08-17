@@ -64,6 +64,21 @@ export async function resolveProject(client: HulyClient, input: string): Promise
 }
 
 /**
+ * Resolve a task reference to its internal _id. Accepts an identifier
+ * (e.g. LAMBD-568) or a raw internal _id. Identifiers always contain a hyphen
+ * and an alphanumeric prefix, internal ids are opaque hex-ish strings, so a
+ * hyphen check discriminates them without an extra round-trip.
+ */
+export async function resolveTaskId(client: HulyClient, input: string): Promise<string> {
+    if (input.includes('-') && /[A-Za-z]/.test(input)) {
+        const task = await client.getTask(input);
+        if (!task) throw new Error(`Khong tim thay task: ${input}`);
+        return task._id;
+    }
+    return input;
+}
+
+/**
  * Resolve status by name (case-insensitive) or _id.
  * Optionally scope to a specific space first.
  */

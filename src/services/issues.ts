@@ -4,6 +4,7 @@ import {
     resolveProject,
     resolveStatus,
     resolveStatusIds,
+    resolveTaskId,
     parsePriority,
     parseDate,
     getProjectMap,
@@ -20,6 +21,7 @@ export interface CreateIssueInput {
     kindId?: string;
     componentId?: string;
     milestoneId?: string;
+    parent?: string;         // identifier (OMEGA-588) or internal _id
     rawFields?: Record<string, any>;
 }
 
@@ -64,9 +66,12 @@ export async function createIssue(client: HulyClient, input: CreateIssueInput): 
         assigneeName = person.name;
     }
 
+    const parentId = input.parent ? await resolveTaskId(client, input.parent) : undefined;
+
     const taskData: CreateTaskOptions = {
         title: input.title,
         projectId: project._id,
+        parentId,
         priority: parsePriority(input.priority),
         dueDate: parseDate(input.due),
         assigneeId,
@@ -205,19 +210,9 @@ export async function queryIssues(client: HulyClient, input: QueryIssuesInput): 
 
     const projectMap = await getProjectMap(client);
 
-    // Resolve parent: accepts an identifier (e.g. LAMBD-568) or a raw internal _id.
-    // Identifiers always contain a hyphen and an alphanumeric prefix, internal
-    // ids are 24-char hex-ish opaque strings, so a hyphen check is a reliable
-    // discriminator without an extra round-trip.
     let parentInternalId: string | undefined;
     if (input.parent) {
-        if (input.parent.includes('-') && /[A-Za-z]/.test(input.parent)) {
-            const parent = await client.getTask(input.parent);
-            if (!parent) throw new Error(`Khong tim thay task cha: ${input.parent}`);
-            parentInternalId = parent._id;
-        } else {
-            parentInternalId = input.parent;
-        }
+        parentInternalId = await resolveTaskId(client, input.parent);
     }
 
     const tasks = await client.queryTasks({

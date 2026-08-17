@@ -12,6 +12,7 @@ export function createTaskCommand() {
         .option('--priority <priority>', 'Priority level (0-4 or LOW, MEDIUM, HIGH, URGENT)', '2')
         .option('--due <dueDate>', 'Due date (YYYY-MM-DD or "today", "tomorrow")')
         .option('-a, --assignee <assigneeId>', 'Assignee ID, name, or "me"')
+        .option('--parent <parent>', 'Parent task identifier (e.g. OMEGA-588) — create as a sub-issue')
         .option('--kind-id <kindId>', 'Task type / kind ID')
         .option('--component-id <componentId>', 'Component ID')
         .option('--milestone-id <milestoneId>', 'Milestone ID')
@@ -33,6 +34,7 @@ export function createTaskCommand() {
                         priority: options.priority,
                         due: options.due,
                         assignee: options.assignee,
+                        parent: options.parent,
                         kindId: options.kindId,
                         componentId: options.componentId,
                         milestoneId: options.milestoneId,

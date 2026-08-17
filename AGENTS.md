@@ -48,6 +48,7 @@ Response format:
 | `huly whoami` | Verify connection, show account info |
 | `huly projects` | List all workspace projects |
 | `huly kinds --project <id>` | List task types (kinds) in a project — source of `--kind-id` |
+| `huly users [--active-only]` | List workspace people — source of `--assignee` ids |
 
 ### Task Management
 | Command | Purpose |
@@ -58,6 +59,7 @@ Response format:
 | `huly sub-issues <id>` | Recursive sub-issue tree of a parent task |
 | `huly activity <id>` | Activity timeline (changes + comments) |
 | `huly create task <title> --project <id> [options]` | Create a new task |
+| `huly create task <title> --project <id> --parent <id>` | Create it as a sub-issue of an existing task |
 | `huly update task <id> [options]` | Update task fields |
 | `huly delete task <id> --yes` | Permanently delete a task |
 
@@ -76,6 +78,7 @@ Response format:
 - `--priority <level>` — 0-4 or LOW/MEDIUM/HIGH/URGENT (default: 2)
 - `--due <date>` — YYYY-MM-DD, "today", "tomorrow"
 - `--assignee <person>` — name, ID, or "me"
+- `--parent <id>` — parent task identifier (e.g. OMEGA-588); creates a sub-issue in the same project
 - `--kind-id <id>` — task type, from `huly kinds --project <id>`
 - `--component-id <id>` — component
 - `--milestone-id <id>` — milestone

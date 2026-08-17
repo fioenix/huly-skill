@@ -53,6 +53,7 @@ huly tasks --milestone-id <id>        # All tasks attached to a milestone
 huly task DELTA-123                   # Task details by identifier
 huly task-by-id <internalId>          # Lookup by internal _id (e.g. from childInfo)
 huly create task "Title" --project DELTA --priority HIGH --due tomorrow
+huly create task "Sub-task" --project DELTA --parent DELTA-16   # as a sub-issue
 huly update task DELTA-123 --status "Done" --add-comment "Completed"
 huly delete task DELTA-123 --yes      # Requires confirmation
 ```
@@ -64,6 +65,12 @@ huly kinds --project OMEGA            # Task types in a project → IDs for --ki
 
 Kinds are scoped by project type, so the same name (e.g. `KPI`) can carry a
 different ID in another project. Read the ID from the project you write to.
+
+### People
+```bash
+huly users                            # Everyone in the workspace → IDs for --assignee
+huly users --active-only              # Active members only
+```
 
 ### Sub-issue tree
 ```bash

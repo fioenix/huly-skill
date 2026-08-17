@@ -26,6 +26,7 @@ import { listSubIssuesCommand, getTaskByIdCommand } from './commands/sub-issues.
 import { activityCommand } from './commands/activity.js';
 import { commentsCommand } from './commands/comments.js';
 import { kindsCommand } from './commands/kinds.js';
+import { usersCommand } from './commands/users.js';
 
 let version = '1.5.0';
 try {
@@ -66,5 +67,6 @@ program.addCommand(getTaskByIdCommand());
 program.addCommand(activityCommand());
 program.addCommand(commentsCommand());
 program.addCommand(kindsCommand());
+program.addCommand(usersCommand());
 
 program.parse(process.argv);

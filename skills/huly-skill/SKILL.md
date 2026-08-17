@@ -81,6 +81,7 @@ huly whoami                    # Verify connection + show account info
 ```bash
 huly projects                  # List all projects in the workspace
 huly kinds --project OMEGA     # Task types (kinds) in a project → IDs for --kind-id
+huly users [--active-only]     # Workspace people → IDs for --assignee
 ```
 
 Task types are scoped by project type, not by project: the same name (e.g. `KPI`)
@@ -108,6 +109,7 @@ huly activity LAMBD-568 --updates-only            # Field changes only
 huly activity LAMBD-568 --comments-only --json    # Comments only, JSON
 
 huly create task "Title" --project DELTA          # Create task (required: --project)
+  --parent DELTA-16                               # Optional: create as a sub-issue
   --priority HIGH --due tomorrow --assignee me    # Optional: priority, due date, assignee
   --kind-id <id> --component-id <id>              # Optional: task type (see `huly kinds`), component
   --milestone-id <id>                             # Optional: milestone
