@@ -23,10 +23,10 @@ The CLI reads 3 environment variables from a `.env` file (it never needs them pa
 - `HULY_WORKSPACE_ID` — workspace UUID (Huly Settings → Workspace)
 - `HULY_API_KEY` — API token; a JWT binding one account to one workspace
 
-Huly has no API-token management screen, so there is nothing for the user to
-"create" — the token is what authentication returns, and it acts as whoever
-authenticated. If the user asks where to get one, say that, rather than sending
-them to a settings page that does not exist.
+Tokens are issued from the Huly workbench's workspace settings (Settings →
+General), which is restricted to workspace admins. If the user is not an admin,
+they cannot mint one themselves — say so and tell them to ask an admin, rather
+than sending them to a screen they cannot open.
 
 It searches for `.env` in this order, first match wins:
 

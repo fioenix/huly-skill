@@ -20,8 +20,9 @@ The token's payload carries `account` and `workspace`, so it acts as one specifi
 person: everything created through it is attributed to that account and runs with
 that account's role, and `me` resolves to the token's owner rather than whoever is
 asking. It has no `exp` claim, so it stays valid until the server's signing secret
-changes — treat it like a password. Huly has no API-token management screen; a
-token is what authentication returns, so one per person is the normal case.
+changes — treat it like a password. Tokens are issued from the Huly workbench's
+workspace settings (Settings → General), which is admin-only, so an ordinary
+member cannot mint their own — on a team, expect to ask an admin for one.
 
 ## Usage — stdio (local clients)
 

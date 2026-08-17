@@ -55,11 +55,27 @@ Consequences worth knowing before you share one:
 - **It carries no `exp` claim**, so it stays valid until the server's signing
   secret changes. Treat it like a password.
 
-Huly does not expose an API-token management screen, so there is nothing to
-"create". A token is what authentication returns, which means one per person is
-the normal case rather than a special setup. `@hcengineering/api-client` exposes
+**Where a token comes from.** In the Huly workbench, API access tokens are
+issued from the workspace settings area (Settings → General). That area is
+restricted to workspace admins, so an ordinary member cannot mint one — on a
+team, expect to ask an admin.
+
+Two things follow, and they pull against each other:
+
+- A token identifies **one account**, so correct attribution wants one token per
+  person.
+- Issuing tokens is **admin-only**, so getting one per person needs an admin to
+  issue each of them.
+
+If your admin issues a single token for everyone to share, every task will carry
+that admin's name and that admin's role — usually `OWNER`. That is a workable
+setup for a read-mostly integration and a poor one for a team that writes.
+
+`@hcengineering/api-client` also exposes
 `getWorkspaceToken(host, { email, password, workspace })`, which returns a token
-for whoever authenticates.
+for whoever authenticates. Note this repo's pinned `@hcengineering/account-client`
+(and its latest release) expose no token-creation call, so the settings screen is
+the supported route.
 
 ### Verify
 
