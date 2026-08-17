@@ -3,6 +3,37 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## 1.6.0
+
+### Added
+- `huly create task --parent <id>` and `huly_create_task`'s `parentId` — create a
+  task as a sub-issue of an existing one. Previously nothing could attach a task
+  to a parent, and nothing re-parents a task after creation.
+- `huly users` / `huly_list_users` — list workspace people with membership status
+  and role, so `--assignee` has a discoverable source of ids.
+- `HULY_ACTOR` — names the person operating a shared token: `me` resolves to them
+  and created tasks carry a `Requested by: <name>` line. Huly issues tokens per
+  (account, workspace) and its token screen is admin-only, so a team cannot get
+  one token each and every caller would otherwise appear as the token's owner.
+  This is a label, not authentication.
+- `HULY_DEFAULT_ASSIGNEE` — assignee used when `--assignee` is omitted.
+- `huly whoami` reports the configured actor and default assignee, and fails
+  loudly when the actor name does not resolve.
+
+### Fixed
+- `huly_create_task` took `parent` while `huly_list_tasks` took `parentId`.
+  Passing `parentId` to create returned `status: ok` and produced a *top-level*
+  task — the unknown key was dropped and the parent silently lost. `parentId` is
+  now the primary name on both, with `parent` kept as an alias.
+
+### Changed — may reject calls that previously succeeded
+- Tool arguments are validated strictly: an unrecognised argument is now an
+  error instead of being silently discarded. This affected every tool, not just
+  the one above — a mistyped filter used to return unfiltered results, and a
+  mistyped field used to report a successful update that changed nothing. Calls
+  relying on that behaviour were already producing wrong results, but they did
+  not fail, and now they will.
+
 ## 1.5.0
 
 ### Added
