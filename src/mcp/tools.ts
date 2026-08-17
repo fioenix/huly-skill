@@ -62,7 +62,7 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Verify Huly connection',
             description: 'Verify the connection to Huly and return the authenticated account info.',
-            inputSchema: {},
+            inputSchema: z.object({}).strict(),
         },
         async () => withHuly(async (client) => {
             const account = await client.getAccount();
@@ -79,7 +79,7 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List projects',
             description: 'List all projects in the Huly workspace.',
-            inputSchema: {},
+            inputSchema: z.object({}).strict(),
         },
         async () => withHuly(async (client) => {
             const projects = await client.getProjects();
@@ -262,7 +262,7 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List labels',
             description: 'List all labels/tags in the workspace.',
-            inputSchema: {},
+            inputSchema: z.object({}).strict(),
         },
         async () => withHuly(async (client) => {
             const labels = await client.getAllLabels();
@@ -329,7 +329,7 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List teamspaces',
             description: 'List all document teamspaces.',
-            inputSchema: {},
+            inputSchema: z.object({}).strict(),
         },
         async () => withHuly(async (client) => {
             const teamspaces = await client.getTeamspaces();

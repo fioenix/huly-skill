@@ -5,6 +5,14 @@ which are released together under the same number.
 
 ## Unreleased
 
+### Changed — may reject calls that previously succeeded
+- The four tools that take no arguments (`huly_whoami`, `huly_list_projects`,
+  `huly_list_labels`, `huly_list_teamspaces`) were left out of the strict
+  validation added in 1.6.0, so they still discarded unknown arguments
+  silently — `huly_list_projects` with `limit: 5` returned all 17 projects and
+  reported success. All 28 tools now reject unrecognised arguments, and their
+  advertised schemas carry `additionalProperties: false`.
+
 ### Fixed
 - The Huly client's connection log (`Generate new SessionId …`, `init DB
   complete …`, `Connected to server: …`, `findfull model …`) went to stdout.
