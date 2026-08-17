@@ -44,6 +44,7 @@ export function commentsCommand() {
             try {
                 await withClient(async (client) => {
                     const comment = await getCommentById(client, messageId);
+                    if (!comment) process.exitCode = 1;
                     if (isJsonMode()) {
                         outputJson(comment
                             ? { status: 'ok', data: comment }

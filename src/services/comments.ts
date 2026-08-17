@@ -81,14 +81,11 @@ export async function listComments(
     }
     for (const t of topItems) {
         const kids = byParent.get(t.id);
-        if (kids?.length) {
-            t.replies = kids;
-            byParent.delete(t.id);
-        }
+        if (kids?.length) t.replies = kids;
     }
-    // Orphan replies (parent outside this page) — surface so nothing is dropped.
-    const orphans = Array.from(byParent.values()).flat();
-    return [...topItems, ...orphans];
+    // Replies whose parent falls outside this page stay out: the result must hold
+    // at most `limit` top-level comments, and a detached reply loses its context.
+    return topItems;
 }
 
 /** Resolve a single comment by its ChatMessage _id (the `message` link param). */
