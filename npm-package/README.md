@@ -66,6 +66,11 @@ Serves `POST /mcp` (default port `3000`, override with `PORT`) and `GET /health`
 
 Every tool returns a JSON envelope: `{ "status": "ok", ... }` or `{ "status": "error", "error": "..." }`.
 
+Arguments are validated strictly: an unrecognised argument is rejected with
+`unrecognized_keys` instead of being ignored, so a call failing that way means a
+wrong argument *name*. Note `huly_create_task` takes `parentId` (alias `parent`)
+to create a sub-issue.
+
 ## License
 
 MIT — source at [github.com/fioenix/huly-skill](https://github.com/fioenix/huly-skill).
