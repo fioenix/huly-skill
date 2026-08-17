@@ -19,12 +19,30 @@ export interface ResolvedStatus {
 }
 
 /**
+ * The person operating this CLI, when it differs from the account behind the
+ * token. Huly issues tokens per (account, workspace) and its token screen is
+ * admin-only, so a team shares one token and every caller would otherwise be
+ * the token's owner. `HULY_ACTOR` names the real caller.
+ *
+ * This is a convention, not authentication: anyone can set it to any name, and
+ * Huly still records the token owner as the author. It answers "who asked for
+ * this", not "who is allowed to do this".
+ */
+export function getActor(): string | undefined {
+    const actor = process.env.HULY_ACTOR?.trim();
+    return actor && actor.toLowerCase() !== 'me' ? actor : undefined;
+}
+
+/**
  * Resolve "me" or a name/ID to a person record.
- * - "me" → uses account's personUuid to find the Person
+ * - "me" → HULY_ACTOR when set, otherwise the token account's Person
  * - otherwise tries matching by _id, name, or email
  */
 export async function resolvePerson(client: HulyClient, input: string): Promise<ResolvedPerson> {
     if (input.toLowerCase() === 'me') {
+        const actor = getActor();
+        if (actor) return await resolvePerson(client, actor);
+
         const account = await client.getAccount();
         const personUuid = account.fullSocialIds?.[0]?.personUuid || account.uuid;
         const persons = await client.getPersons();

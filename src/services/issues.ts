@@ -5,6 +5,7 @@ import {
     resolveStatus,
     resolveStatusIds,
     resolveTaskId,
+    getActor,
     parsePriority,
     parseDate,
     getProjectMap,
@@ -58,15 +59,27 @@ export interface IssueResult {
 export async function createIssue(client: HulyClient, input: CreateIssueInput): Promise<IssueResult> {
     const project = await resolveProject(client, input.project);
 
+    // Falls back to HULY_DEFAULT_ASSIGNEE so a shared token does not leave every
+    // task unassigned; an explicit --assignee always wins.
+    const assignee = input.assignee || process.env.HULY_DEFAULT_ASSIGNEE?.trim() || undefined;
+
     let assigneeName = 'Chua giao';
     let assigneeId: string | undefined;
-    if (input.assignee) {
-        const person = await resolvePerson(client, input.assignee);
+    if (assignee) {
+        const person = await resolvePerson(client, assignee);
         assigneeId = person._id;
         assigneeName = person.name;
     }
 
     const parentId = input.parent ? await resolveTaskId(client, input.parent) : undefined;
+
+    // Huly attributes the task to the token's account, which on a shared token
+    // is not the person asking. Record who did in the one place that survives:
+    // the task itself.
+    const actor = getActor();
+    const description = actor
+        ? `${input.description ? input.description + '\n\n' : ''}Requested by: ${actor}`
+        : input.description;
 
     const taskData: CreateTaskOptions = {
         title: input.title,
@@ -75,7 +88,7 @@ export async function createIssue(client: HulyClient, input: CreateIssueInput): 
         priority: parsePriority(input.priority),
         dueDate: parseDate(input.due),
         assigneeId,
-        description: input.description,
+        description,
         kindId: input.kindId,
         componentId: input.componentId,
         milestoneId: input.milestoneId,

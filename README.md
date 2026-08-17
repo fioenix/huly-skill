@@ -34,7 +34,7 @@ export HULY_API_KEY="your-api-token"
 
 - **HULY_HOST**: Your Huly instance URL
 - **HULY_WORKSPACE_ID**: Found in Huly Settings > Workspace
-- **HULY_API_KEY**: see below — Huly has no API-token page; the token comes from authenticating
+- **HULY_API_KEY**: issued from the workbench's workspace settings, admin-only — see below
 
 ### About the token
 
@@ -50,8 +50,8 @@ Consequences worth knowing before you share one:
   account, and runs with that account's role. There is no way to override the
   author from the client: `AuthOptions` accepts only credentials, no "on behalf
   of" field. A token shared across a team makes every task look like its owner's.
-- **`me` is the token's owner**, not whoever is typing — so on a shared token,
-  pass an explicit name or `_id` to `--assignee`.
+- **`me` is the token's owner**, not whoever is typing — unless `HULY_ACTOR`
+  is set (below).
 - **It carries no `exp` claim**, so it stays valid until the server's signing
   secret changes. Treat it like a password.
 
@@ -70,6 +70,24 @@ Two things follow, and they pull against each other:
 If your admin issues a single token for everyone to share, every task will carry
 that admin's name and that admin's role — usually `OWNER`. That is a workable
 setup for a read-mostly integration and a poor one for a team that writes.
+
+### Working around a shared token
+
+When a team shares one token, set two optional variables per person:
+
+```bash
+export HULY_ACTOR="Nguyen Van A"       # who is operating this CLI
+export HULY_DEFAULT_ASSIGNEE="me"      # assignee when --assignee is omitted
+```
+
+`HULY_ACTOR` makes `me` resolve to that person and appends
+`Requested by: <name>` to tasks they create. `huly whoami` shows which identity
+is in effect.
+
+This is a **label, not a permission**. Huly still records the token's owner as
+the author — there is no client-side way to change that — and anyone can set
+`HULY_ACTOR` to any name. It answers "who asked for this", not "who is allowed
+to do this", and it does nothing about the shared token's role.
 
 `@hcengineering/api-client` also exposes
 `getWorkspaceToken(host, { email, password, workspace })`, which returns a token

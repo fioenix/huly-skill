@@ -13,6 +13,9 @@ Ensure these environment variables are set (the CLI reads them from a `.env`; th
 - `HULY_WORKSPACE_ID` — workspace UUID
 - `HULY_API_KEY` — API token; a JWT binding one account to one workspace, so it
   acts as that person. `me` resolves to the token's owner, not whoever is asking.
+- `HULY_ACTOR` — optional; the person operating the CLI when the token is shared.
+  Makes `me` resolve to them and stamps `Requested by: <name>` on tasks created.
+- `HULY_DEFAULT_ASSIGNEE` — optional; used when `--assignee` is omitted.
 
 ### MCP setup (Codex)
 
@@ -109,9 +112,12 @@ ambiguous or unknown, list people first rather than guessing:
 huly users --active-only --json
 ```
 
-Note that `me` resolves to the account behind `HULY_API_KEY`. If that token is
-shared across a team, `me` is the token's owner, not the person typing — pass
-an explicit name or `_id` in that case.
+`me` resolves to `HULY_ACTOR` when it is set, otherwise to the account behind
+`HULY_API_KEY`. On a shared token with no `HULY_ACTOR`, `me` is the token's
+owner rather than the person typing — pass an explicit name or `_id` then.
+
+`huly whoami` prints both, so run it when an assignment lands on the wrong
+person.
 
 #### Update Task Options
 - `--status <name>` — new status
