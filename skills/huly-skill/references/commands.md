@@ -65,8 +65,22 @@ huly update task DELTA-123
 huly delete task DELTA-123 --yes                  # destructive; requires --yes
 ```
 
-`huly tasks` has no result cap yet — filter it. An unfiltered call on a busy
-workspace returns hundreds of full task documents.
+### Capping and trimming list output
+
+```bash
+huly tasks --overdue --limit 20                              # at most 20 rows
+huly tasks --json --limit 50 --fields identifier,title,dueDate  # rows + chosen fields
+```
+
+`--limit` and `--fields` are opt-in for the CLI: by default it returns every match
+with all fields, so existing shell pipelines keep working. JSON results carry
+`count` (rows returned), `total` (rows matched) and `truncated`, so you can tell
+when a cap hid something.
+
+The MCP tools default the other way, because their output lands in the agent's
+context: `huly_list_tasks` and the other `huly_list_*` tools return **50 rows** of
+a **projected field set**. Pass `limit: 0` for no cap and `fields: "all"` for whole
+Huly documents. On a 249-task workspace the default costs ~20 KB instead of ~290 KB.
 
 ### Creating a sub-issue
 

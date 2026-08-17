@@ -29,7 +29,8 @@ step that answers the question:
 1. **Ask for the answer, not the rows** — `huly report daily|weekly`,
    `huly milestones report <id>` return a computed summary (~13 KB for a full week).
 2. **Filter at the source** — `--assignee`, `--project`, `--status`, `--overdue`,
-   `--due-today`, `--parent`, `--milestone-id`.
+   `--due-today`, `--parent`, `--milestone-id`, then `--limit` and `--fields` to
+   cap rows and drop columns you will not read.
 3. **Reduce in the shell** — pipe `--json` through `jq`, or stage it in a file and
    print only what you need, so the rows never enter the conversation
    ([references/recipes.md](references/recipes.md)).

@@ -49,9 +49,13 @@ huly tasks --assignee me --json
 
 Response format:
 ```json
-{ "status": "ok", "data": {...} }
+{ "status": "ok", "count": 12, "total": 249, "truncated": true, "data": [] }
+{ "status": "ok", "type": "weekly", "due": [], "overdue": [], "inProgress": 3 }
 { "status": "error", "error": "message" }
 ```
+
+Listings wrap rows in `data`; reports put their payload at the top level, with no
+`data` key.
 
 ## Command Reference
 
@@ -85,6 +89,14 @@ Response format:
 - `--due-today` — due today only
 - `--parent <id>` — direct children of a parent task (identifier or internal _id)
 - `--milestone-id <id>` — only tasks attached to a milestone
+- `--limit <n>` — return at most n tasks (CLI default: no cap)
+- `--fields <list>` — JSON only; keep just these fields, or `all` (CLI default: `all`)
+
+The MCP tools default the other way round, because their results occupy the
+agent's context for the rest of the session: every `huly_list_*` tool returns 50
+rows of a projected field set. Pass `limit: 0` to remove the cap and
+`fields: "all"` for whole Huly documents. JSON results carry `count` (returned),
+`total` (matched) and `truncated` so a cap is never silent.
 
 #### Create Task Options
 - `--project <id>` — **required**, project identifier

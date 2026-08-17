@@ -3,6 +3,27 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Changed — MCP list results are now capped and projected
+- `huly_list_tasks`, `huly_list_projects`, `huly_list_users`, `huly_list_labels`,
+  `huly_list_teamspaces`, `huly_list_documents` and `huly_list_milestones` return
+  at most 50 rows, each trimmed to the fields callers actually read, instead of
+  whole Huly documents. On a 249-task workspace `huly_list_tasks` drops from
+  ~290 KB to ~20 KB — a tool result stays in the agent's context for the rest of
+  the session, so the old default cost more than the entire tool catalogue.
+  Every response now carries `count` (returned), `total` (matched) and
+  `truncated`, so a cap is never silent. Pass `limit: 0` for no cap and
+  `fields: "all"` for the previous behaviour — and `limit` on
+  `huly_list_projects` now does what 1.6.1 noted it did not.
+- Milestone listings omit `description`, which holds raw ProseMirror JSON rather
+  than prose; request it explicitly through `fields` when needed.
+
+### Added
+- `huly tasks --limit <n>` and `--fields <list>`. Both are opt-in: the CLI still
+  returns every match with all fields by default, so existing shell pipelines are
+  unaffected. `--fields all` is the explicit form of that default.
+
 ## 1.6.1
 
 ### Changed — may reject calls that previously succeeded

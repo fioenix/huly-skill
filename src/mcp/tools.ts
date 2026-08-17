@@ -13,8 +13,23 @@ import { MilestoneStatus } from '../huly-types.js';
 import { getSubIssueTree, getMilestoneReport } from '../services/sub-issues.js';
 import { getIssueActivity } from '../services/activity.js';
 import { listComments, getCommentById } from '../services/comments.js';
+import { DEFAULT_LIST_LIMIT, LIST_FIELDS, shapeList, type ListEntity } from '../utils/projection.js';
 
 // --- result helpers --------------------------------------------------------
+
+/**
+ * Shared `limit` / `fields` arguments for list tools. Tool results land in an
+ * agent's context and stay there for the rest of the session, so lists are capped
+ * and projected by default; `fields: "all"` returns whole Huly documents.
+ */
+function listArgs(noun: string, entity: ListEntity) {
+    return {
+        limit: z.number().int().min(0).max(1000).optional()
+            .describe(`Max ${noun} to return (default ${DEFAULT_LIST_LIMIT}; 0 means no cap)`),
+        fields: z.string().optional()
+            .describe(`Comma-separated fields to keep, or "all" for whole documents. Default: ${LIST_FIELDS[entity].join(',')}`),
+    };
+}
 
 type ToolResult = {
     content: { type: 'text'; text: string }[];
@@ -79,11 +94,12 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List projects',
             description: 'List all projects in the Huly workspace.',
-            inputSchema: z.object({}).strict(),
+            inputSchema: z.object({ ...listArgs('projects', 'project') }).strict(),
         },
-        async () => withHuly(async (client) => {
+        async (args) => withHuly(async (client) => {
             const projects = await client.getProjects();
-            return { count: projects.length, projects };
+            const { rows, total, truncated } = shapeList(projects, 'project', args);
+            return { count: rows.length, total, truncated, projects: rows };
         }),
     );
 
@@ -94,12 +110,14 @@ export function registerHulyTools(server: McpServer): void {
             description: 'List people in the workspace. Use a returned `_id` as the `assignee` argument of huly_create_task / huly_update_task.',
             inputSchema: z.object({
                 activeOnly: z.boolean().optional().describe('Only workspace members that are active (default false — returns everyone)'),
+                ...listArgs('people', 'user'),
             }).strict(),
         },
-        async ({ activeOnly }) => withHuly(async (client) => {
+        async ({ activeOnly, ...args }) => withHuly(async (client) => {
             let users = await client.getUsers();
             if (activeOnly) users = users.filter((u) => u.active === true);
-            return { count: users.length, users };
+            const { rows, total, truncated } = shapeList(users, 'user', args);
+            return { count: rows.length, total, truncated, users: rows };
         }),
     );
 
@@ -116,6 +134,7 @@ export function registerHulyTools(server: McpServer): void {
                 dueToday: z.boolean().optional().describe('Only tasks due today'),
                 parentId: z.string().optional().describe('Parent task identifier (e.g. LAMBD-568) or internal _id — returns direct children only'),
                 milestoneId: z.string().optional().describe('Filter by milestone internal _id'),
+                ...listArgs('tasks', 'task'),
             }).strict(),
         },
         async (args) => withHuly(async (client) => {
@@ -134,7 +153,8 @@ export function registerHulyTools(server: McpServer): void {
                 projectName: projectMap.get(task.space)?.name || null,
                 statusName: statusMap.get(task.status)?.name || null,
             }));
-            return { count: enriched.length, tasks: enriched };
+            const { rows, total, truncated } = shapeList(enriched, 'task', args);
+            return { count: rows.length, total, truncated, tasks: rows };
         }),
     );
 
@@ -262,11 +282,12 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List labels',
             description: 'List all labels/tags in the workspace.',
-            inputSchema: z.object({}).strict(),
+            inputSchema: z.object({ ...listArgs('labels', 'label') }).strict(),
         },
-        async () => withHuly(async (client) => {
+        async (args) => withHuly(async (client) => {
             const labels = await client.getAllLabels();
-            return { count: labels.length, labels };
+            const { rows, total, truncated } = shapeList(labels, 'label', args);
+            return { count: rows.length, total, truncated, labels: rows };
         }),
     );
 
@@ -329,11 +350,12 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List teamspaces',
             description: 'List all document teamspaces.',
-            inputSchema: z.object({}).strict(),
+            inputSchema: z.object({ ...listArgs('teamspaces', 'teamspace') }).strict(),
         },
-        async () => withHuly(async (client) => {
+        async (args) => withHuly(async (client) => {
             const teamspaces = await client.getTeamspaces();
-            return { count: teamspaces.length, teamspaces };
+            const { rows, total, truncated } = shapeList(teamspaces, 'teamspace', args);
+            return { count: rows.length, total, truncated, teamspaces: rows };
         }),
     );
 
@@ -344,12 +366,14 @@ export function registerHulyTools(server: McpServer): void {
             description: 'List documents within a teamspace.',
             inputSchema: z.object({
                 teamspace: z.string().describe('Teamspace name or _id'),
+                ...listArgs('documents', 'document'),
             }).strict(),
         },
-        async ({ teamspace }) => withHuly(async (client) => {
+        async ({ teamspace, ...args }) => withHuly(async (client) => {
             const ts = await resolveTeamspace(client, teamspace);
             const docs = await client.getDocuments(ts._id);
-            return { teamspace: ts.name, count: docs.length, documents: docs };
+            const { rows, total, truncated } = shapeList(docs, 'document', args);
+            return { teamspace: ts.name, count: rows.length, total, truncated, documents: rows };
         }),
     );
 
@@ -436,12 +460,14 @@ export function registerHulyTools(server: McpServer): void {
             description: 'List milestones in a project.',
             inputSchema: z.object({
                 project: z.string().describe('Project identifier, name, or _id'),
+                ...listArgs('milestones', 'milestone'),
             }).strict(),
         },
-        async ({ project }) => withHuly(async (client) => {
+        async ({ project, ...args }) => withHuly(async (client) => {
             const resolved = await resolveProject(client, project);
             const milestones = await client.getMilestones(resolved._id);
-            return { project: resolved.identifier, count: milestones.length, milestones };
+            const { rows, total, truncated } = shapeList(milestones, 'milestone', args);
+            return { project: resolved.identifier, count: rows.length, total, truncated, milestones: rows };
         }),
     );
 
