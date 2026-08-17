@@ -34,7 +34,32 @@ export HULY_API_KEY="your-api-token"
 
 - **HULY_HOST**: Your Huly instance URL
 - **HULY_WORKSPACE_ID**: Found in Huly Settings > Workspace
-- **HULY_API_KEY**: Create at Huly Settings > API Tokens
+- **HULY_API_KEY**: see below — Huly has no API-token page; the token comes from authenticating
+
+### About the token
+
+`HULY_API_KEY` is a JWT whose payload binds **one account to one workspace**:
+
+```
+{ "account": "<account uuid>", "workspace": "<workspace uuid>", "extra": {} }
+```
+
+Consequences worth knowing before you share one:
+
+- **It acts as that person.** Everything created through it is attributed to that
+  account, and runs with that account's role. There is no way to override the
+  author from the client: `AuthOptions` accepts only credentials, no "on behalf
+  of" field. A token shared across a team makes every task look like its owner's.
+- **`me` is the token's owner**, not whoever is typing — so on a shared token,
+  pass an explicit name or `_id` to `--assignee`.
+- **It carries no `exp` claim**, so it stays valid until the server's signing
+  secret changes. Treat it like a password.
+
+Huly does not expose an API-token management screen, so there is nothing to
+"create". A token is what authentication returns, which means one per person is
+the normal case rather than a special setup. `@hcengineering/api-client` exposes
+`getWorkspaceToken(host, { email, password, workspace })`, which returns a token
+for whoever authenticates.
 
 ### Verify
 

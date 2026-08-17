@@ -11,7 +11,8 @@ Two ways to operate Huly — use whichever your runtime has wired up:
 Ensure these environment variables are set (the CLI reads them from a `.env`; the MCP server from its config `env` block):
 - `HULY_HOST` — Huly instance URL
 - `HULY_WORKSPACE_ID` — workspace UUID
-- `HULY_API_KEY` — API token
+- `HULY_API_KEY` — API token; a JWT binding one account to one workspace, so it
+  acts as that person. `me` resolves to the token's owner, not whoever is asking.
 
 ### MCP setup (Codex)
 
