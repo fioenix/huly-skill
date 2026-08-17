@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      # The bundles are committed, because local MCP clients run bin/mcp.cjs from
+      # a checkout rather than from npm. A rebuild that never got committed ships
+      # stale code to every one of them, so a dirty tree after building is a
+      # failure, not a warning.
+      - name: Bundles match source
+        run: |
+          pnpm build
+          git diff --exit-code --stat bin/ \
+            || { echo "::error::bin/ is stale — run 'pnpm build' and commit the result"; exit 1; }

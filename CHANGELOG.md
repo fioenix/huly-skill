@@ -28,7 +28,10 @@ which are released together under the same number.
 - A GitHub Actions workflow runs typecheck, tests, and a build that fails when
   the committed `bin/` bundles differ from source. Local MCP clients run
   `bin/mcp.cjs` from a checkout, so an uncommitted rebuild silently ships stale
-  code to all of them; RELEASING.md warned about it, now CI enforces it.
+  code to all of them; RELEASING.md warned about it, now CI enforces it. (The
+  workflow file itself landed just after the v1.7.0 tag — `.gitignore`'s
+  `**/.*/` rule had been excluding `.github/`, so it was never committed. Repo
+  infrastructure only; the published package is unaffected.)
 
 ### Added — per-caller Huly credentials over HTTP
 - The HTTP transport accepts `x-huly-token`, `x-huly-url` and `x-huly-workspace`

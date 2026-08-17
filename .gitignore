@@ -16,8 +16,13 @@ npm-package/huly-mcp.cjs
 .env.local
 .env.*.local
 
-# Hidden directories
+# Hidden directories — but not .github, whose workflows must be committed.
+# `**/.*/` silently swallowed .github/workflows/ci.yml once: `git add -A` skipped
+# it and `git status` stayed clean, so the CI that was supposed to guard this repo
+# never existed on main.
 **/.*/
+!.github/
+!.github/**
 
 # IDE
 .idea/
