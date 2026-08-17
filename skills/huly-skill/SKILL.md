@@ -22,11 +22,13 @@ The CLI reads 3 environment variables from a `.env` file (it never needs them pa
 - `HULY_HOST` — Huly instance URL, e.g. `https://huly.app`
 - `HULY_WORKSPACE_ID` — workspace UUID (Huly Settings → Workspace)
 - `HULY_API_KEY` — API token; a JWT binding one account to one workspace
+- `HULY_ACTOR` — optional; who is operating the CLI when the token is shared
+- `HULY_DEFAULT_ASSIGNEE` — optional; assignee used when none is given
 
-Huly has no API-token management screen, so there is nothing for the user to
-"create" — the token is what authentication returns, and it acts as whoever
-authenticated. If the user asks where to get one, say that, rather than sending
-them to a settings page that does not exist.
+Tokens are issued from the Huly workbench's workspace settings (Settings →
+General), which is restricted to workspace admins. If the user is not an admin,
+they cannot mint one themselves — say so and tell them to ask an admin, rather
+than sending them to a screen they cannot open.
 
 It searches for `.env` in this order, first match wins:
 
@@ -93,10 +95,16 @@ Task types are scoped by project type, not by project: the same name (e.g. `KPI`
 can exist under several project types with different IDs. Always read the ID from
 `huly kinds` for the project you are writing to.
 
-`huly users` gives the `_id` values `--assignee` accepts. Note that `me`
-resolves to whoever owns `HULY_API_KEY` — if that token is shared by a team,
-`me` is the token owner, not the person asking. Pass an explicit name or `_id`
-whenever the request is on someone else's behalf.
+`huly users` gives the `_id` values `--assignee` accepts.
+
+`me` resolves to `HULY_ACTOR` when set, otherwise to whoever owns
+`HULY_API_KEY`. On a team sharing one token, `HULY_ACTOR` is what makes `me`
+mean the person asking; without it, `me` is the token owner. Tasks created also
+get a `Requested by: <name>` line, because Huly itself always records the token
+owner as the author and there is no way to override that from a client.
+
+Treat it as a label, not a permission: anyone can set `HULY_ACTOR` to any name.
+Run `huly whoami` to see which identity is in effect.
 
 ### Tasks
 ```bash
