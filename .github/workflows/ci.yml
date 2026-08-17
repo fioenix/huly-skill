@@ -11,14 +11,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm 11, matching the version that produced pnpm-lock.yaml. pnpm 9
+      # rejects this repo's pnpm-workspace.yaml, which carries `allowBuilds`
+      # and no `packages` field.
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 11
 
+      # No `cache: pnpm` — the cache step runs `pnpm store path`, which fails
+      # because pnpm-workspace.yaml here carries only `allowBuilds` and no
+      # `packages` field. Install is small enough that the cache is not worth
+      # changing the workspace file for.
+      # Node 22: pnpm 11 needs node:sqlite, which Node 20 does not have. The
+      # package's floor stays Node 20 — esbuild bundles with --target=node20,
+      # which is what actually guarantees it.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: pnpm
+          node-version: 22
 
       - run: pnpm install --frozen-lockfile
 
