@@ -25,6 +25,7 @@ import { milestonesCommand } from './commands/milestones.js';
 import { listSubIssuesCommand, getTaskByIdCommand } from './commands/sub-issues.js';
 import { activityCommand } from './commands/activity.js';
 import { commentsCommand } from './commands/comments.js';
+import { kindsCommand } from './commands/kinds.js';
 
 let version = '1.4.0';
 try {
@@ -64,5 +65,6 @@ program.addCommand(listSubIssuesCommand());
 program.addCommand(getTaskByIdCommand());
 program.addCommand(activityCommand());
 program.addCommand(commentsCommand());
+program.addCommand(kindsCommand());
 
 program.parse(process.argv);

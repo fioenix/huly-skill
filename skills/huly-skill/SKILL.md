@@ -80,7 +80,12 @@ huly whoami                    # Verify connection + show account info
 ### Projects
 ```bash
 huly projects                  # List all projects in the workspace
+huly kinds --project OMEGA     # Task types (kinds) in a project → IDs for --kind-id
 ```
+
+Task types are scoped by project type, not by project: the same name (e.g. `KPI`)
+can exist under several project types with different IDs. Always read the ID from
+`huly kinds` for the project you are writing to.
 
 ### Tasks
 ```bash
@@ -104,7 +109,7 @@ huly activity LAMBD-568 --comments-only --json    # Comments only, JSON
 
 huly create task "Title" --project DELTA          # Create task (required: --project)
   --priority HIGH --due tomorrow --assignee me    # Optional: priority, due date, assignee
-  --kind-id <id> --component-id <id>              # Optional: task type, component
+  --kind-id <id> --component-id <id>              # Optional: task type (see `huly kinds`), component
   --milestone-id <id>                             # Optional: milestone
   --set-field "customKey=value"                   # Optional: custom fields
 

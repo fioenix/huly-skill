@@ -47,6 +47,7 @@ Response format:
 |---------|---------|
 | `huly whoami` | Verify connection, show account info |
 | `huly projects` | List all workspace projects |
+| `huly kinds --project <id>` | List task types (kinds) in a project — source of `--kind-id` |
 
 ### Task Management
 | Command | Purpose |
@@ -75,7 +76,7 @@ Response format:
 - `--priority <level>` — 0-4 or LOW/MEDIUM/HIGH/URGENT (default: 2)
 - `--due <date>` — YYYY-MM-DD, "today", "tomorrow"
 - `--assignee <person>` — name, ID, or "me"
-- `--kind-id <id>` — task type
+- `--kind-id <id>` — task type, from `huly kinds --project <id>`
 - `--component-id <id>` — component
 - `--milestone-id <id>` — milestone
 - `--set-field "key=value"` — custom fields (repeatable)

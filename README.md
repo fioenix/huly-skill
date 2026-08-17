@@ -57,6 +57,14 @@ huly update task DELTA-123 --status "Done" --add-comment "Completed"
 huly delete task DELTA-123 --yes      # Requires confirmation
 ```
 
+### Task kinds
+```bash
+huly kinds --project OMEGA            # Task types in a project → IDs for --kind-id
+```
+
+Kinds are scoped by project type, so the same name (e.g. `KPI`) can carry a
+different ID in another project. Read the ID from the project you write to.
+
 ### Sub-issue tree
 ```bash
 huly sub-issues LAMBD-568             # Recursive tree (default)

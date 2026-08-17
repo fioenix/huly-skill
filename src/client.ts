@@ -71,7 +71,7 @@ type Doc = any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 import {
     tracker, contact, document as hulyDocument, tags,
-    activity, chunter,
+    activity, chunter, task,
     IssuePriority, MilestoneStatus, AvatarType,
     makeRank,
 } from './huly-types.js';
@@ -594,6 +594,26 @@ export class HulyClient {
             } as any
         );
         return await this.client!.findOne(hulyDocument.class.Teamspace as any, { _id: teamspaceId });
+    }
+
+    // -----------------------------------------------------------------------
+    // Task types (kinds)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Task types available in a project. TaskType is scoped by ProjectType,
+     * not by project — so the same kind name can exist under several project
+     * types with different `_id`s, and only the one matching this project's
+     * type is valid as `kindId` here.
+     */
+    async getTaskKinds(projectId: string): Promise<any[]> {
+        const projects = await this.getProjects();
+        const project = projects.find((p: any) => p._id === projectId);
+        if (!project) return [];
+        return await this.client!.findAll(
+            task.class.TaskType as any,
+            { parent: project.type } as any
+        );
     }
 
     // -----------------------------------------------------------------------
