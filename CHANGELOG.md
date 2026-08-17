@@ -3,7 +3,7 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
-## Unreleased
+## 1.6.1
 
 ### Changed — may reject calls that previously succeeded
 - The four tools that take no arguments (`huly_whoami`, `huly_list_projects`,
@@ -20,6 +20,17 @@ which are released together under the same number.
   and put non-protocol lines on the MCP stdio channel, where stdout carries the
   JSON-RPC framing. Those messages now go to stderr; stdout carries only this
   project's own output.
+
+### Changed
+- All 26 `@hcengineering` packages now resolve to `0.7.423`. A lockfile from
+  May held `api-client` and `core` at `0.7.19`/`0.7.26` while `activity` and
+  `chunter` were already at `0.7.423`, so two copies of `core` were bundled.
+- `tsc --noEmit` went from over ten minutes and seven errors to about one
+  second and none: `moduleResolution` moved off `node10`, whose directory walk
+  over the pnpm layout collapsed against zod's generics. From `0.7.423` the
+  `@hcengineering` packages ship no type declarations while still pointing
+  `"types"` at a missing path, so `src/hcengineering.d.ts` declares the surface
+  this project imports.
 
 ## 1.6.0
 

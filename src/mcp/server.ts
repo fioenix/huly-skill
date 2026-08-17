@@ -16,7 +16,7 @@ const INSTRUCTIONS = [
  */
 export function createHulyMcpServer(): McpServer {
     const server = new McpServer(
-        { name: 'huly-mcp', version: '1.6.0' },
+        { name: 'huly-mcp', version: '1.6.1' },
         { instructions: INSTRUCTIONS },
     );
     registerHulyTools(server);
