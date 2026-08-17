@@ -6,6 +6,8 @@ Two ways to operate Huly — use whichever your runtime has wired up:
 - **CLI** — run the `huly` command. If not on `PATH`, use `./bin/huly.cjs` or `node bin/bundle.cjs` from the repo root.
 - **MCP** — if the `huly` MCP server is configured (tools prefixed `huly_`), call those tools instead. Setup below.
 
+Changing this repo rather than using it? Architecture decisions live in [`reference/`](./reference) — start with [ADR-0001](./reference/adr-0001-websocket-transport.md) (why the client speaks WebSocket, not REST) and [huly-auth.md](./reference/huly-auth.md) (how tokens are issued and what they can't do).
+
 ## Prerequisites
 
 Ensure these environment variables are set (the CLI reads them from a `.env`; the MCP server from its config `env` block):
