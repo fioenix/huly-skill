@@ -34,13 +34,19 @@ export function formatDate(timestamp: number | undefined | null, includeTime = f
     return date.toLocaleDateString('vi-VN');
 }
 
+// bootstrap.ts sends console.log to stderr to keep the Huly client's chatter
+// off stdout, so this project's own output writes to stdout directly.
+function writeStdout(text: string) {
+    process.stdout.write(text + '\n');
+}
+
 export function outputJson(data: any) {
-    console.log(JSON.stringify(data, null, 2));
+    writeStdout(JSON.stringify(data, null, 2));
 }
 
 export function printToConsole(text: string) {
     if (text.length <= MAX_OUTPUT_LENGTH) {
-        console.log(text);
+        writeStdout(text);
         return;
     }
 
@@ -49,7 +55,7 @@ export function printToConsole(text: string) {
 
     for (const line of lines) {
         if (currentBlock.length + line.length + 1 > MAX_OUTPUT_LENGTH) {
-            console.log(currentBlock);
+            writeStdout(currentBlock);
             currentBlock = line + '\n';
         } else {
             currentBlock += line + '\n';
@@ -57,6 +63,6 @@ export function printToConsole(text: string) {
     }
 
     if (currentBlock.length > 0) {
-        console.log(currentBlock);
+        writeStdout(currentBlock);
     }
 }

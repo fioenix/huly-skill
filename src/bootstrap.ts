@@ -2,6 +2,22 @@
 // network or @hcengineering/api-client. Both the CLI and the MCP adapters
 // import this first so the proxy + browser-API polyfills are in place.
 
+// The Huly client-resources package logs its connection progress
+// ("Generate new SessionId …", "init DB complete …", "Connected to server: …",
+// "findfull model …") through console.log, which lands on stdout. That breaks
+// both consumers of this stdout: `--json` output stops being parseable, and the
+// MCP stdio transport — where stdout carries the JSON-RPC framing — receives
+// non-protocol lines. Route the stdout-bound console methods to stderr so the
+// diagnostics survive without sharing the channel. Anything this project means
+// to print goes through utils/logger, which writes to stdout directly.
+for (const method of ['log', 'info', 'debug'] as const) {
+    console[method] = (...args: unknown[]) => {
+        process.stderr.write(
+            args.map((a) => (typeof a === 'string' ? a : String(a))).join(' ') + '\n',
+        );
+    };
+}
+
 // Proxy support — must run before any network calls.
 import { ProxyAgent, setGlobalDispatcher, fetch as undiciFetch } from 'undici';
 
