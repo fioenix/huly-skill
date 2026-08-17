@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
 import { queryIssues, isCompletedStatus } from '../services/issues.js';
+import { parseFields, projectRows } from '../utils/projection.js';
 
 export function listTasksCommand() {
     return new Command('tasks')
@@ -13,6 +14,8 @@ export function listTasksCommand() {
         .option('--due-today', 'Show tasks due today')
         .option('--parent <parent>', 'Filter by parent task identifier (e.g., LAMBD-568) or internal _id — direct children only')
         .option('--milestone-id <id>', 'Filter by milestone internal _id')
+        .option('--limit <n>', 'Return at most n tasks (no cap by default)', (v) => parseInt(v, 10))
+        .option('--fields <list>', 'JSON only: comma-separated fields to keep, or "all" for whole documents (default: all)')
         .action(async (options) => {
             try {
                 await withClient(async (client) => {
@@ -34,8 +37,21 @@ export function listTasksCommand() {
 
                     activeTasks.sort((a, b) => (a.dueDate || 0) - (b.dueDate || 0));
 
+                    // The CLI feeds shell pipelines, so it stays uncapped and
+                    // unprojected unless asked — only the MCP adapter, whose output
+                    // lands in an agent's context, defaults to trimming.
+                    const limit = options.limit;
+                    const shown = limit > 0 ? activeTasks.slice(0, limit) : activeTasks;
+                    const truncated = shown.length < activeTasks.length;
+
                     if (isJsonMode()) {
-                        outputJson({ status: 'ok', count: activeTasks.length, data: activeTasks });
+                        outputJson({
+                            status: 'ok',
+                            count: shown.length,
+                            total: activeTasks.length,
+                            truncated,
+                            data: projectRows(shown, parseFields(options.fields ?? 'all', 'task')),
+                        });
                         return;
                     }
 
@@ -44,10 +60,12 @@ export function listTasksCommand() {
                         return;
                     }
 
-                    let output = `📋 DANH SACH CONG VIEC (${activeTasks.length})\n`;
+                    let output = truncated
+                        ? `📋 DANH SACH CONG VIEC (${shown.length}/${activeTasks.length} — gioi han boi --limit)\n`
+                        : `📋 DANH SACH CONG VIEC (${activeTasks.length})\n`;
                     output += '━'.repeat(60) + '\n';
 
-                    for (const task of activeTasks) {
+                    for (const task of shown) {
                         const project = projectMap.get(task.space);
                         const statusName = statusMap.get(task.status)?.name || 'Unknown';
                         const priorityLabel = PRIORITY_LABELS[task.priority] || 'NO';

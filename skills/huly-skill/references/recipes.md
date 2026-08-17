@@ -16,6 +16,17 @@ print the listing.
   — payload fields sit at the top level, not under `data`.
 - Errors: `{"status":"error","error":"…"}`.
 
+## Ask for less before reducing
+
+`--limit` and `--fields` do the trimming inside the CLI, which is cheaper and
+shorter than piping when you already know what you want:
+
+```bash
+huly tasks --overdue --json --limit 20 --fields identifier,title,dueDate
+```
+
+Use `jq` when the shape needs real work — grouping, counting, sorting, joining.
+
 ## Reduce in the shell
 
 ```bash
