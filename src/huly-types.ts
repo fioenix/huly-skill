@@ -37,6 +37,15 @@ export const tracker = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Task module class references
+// ---------------------------------------------------------------------------
+export const task = {
+  class: {
+    TaskType: 'task:class:TaskType' as Ref<Class<Doc>>,
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
 // Contact module class references
 // ---------------------------------------------------------------------------
 export const contact = {

@@ -154,9 +154,9 @@ export function registerHulyTools(server: McpServer): void {
                 due: z.string().optional().describe('YYYY-MM-DD, "today", or "tomorrow"'),
                 assignee: z.string().optional().describe('Assignee ID, name, or "me"'),
                 description: z.string().optional().describe('Markdown description'),
-                kindId: z.string().optional(),
-                componentId: z.string().optional(),
-                milestoneId: z.string().optional(),
+                kindId: z.string().optional().describe('Task type _id from huly_list_task_kinds. Defaults to the standard Issue type.'),
+                componentId: z.string().optional().describe('Component _id'),
+                milestoneId: z.string().optional().describe('Milestone _id from huly_list_milestones'),
             },
         },
         async (args) => withHuly(async (client) => {
@@ -178,9 +178,9 @@ export function registerHulyTools(server: McpServer): void {
                 assignee: z.string().optional().describe('Assignee ID, name, or "me"'),
                 descriptionMarkdown: z.string().optional().describe('Replace the description with this markdown'),
                 comment: z.string().optional().describe('Add a comment to the task'),
-                kindId: z.string().optional(),
-                componentId: z.string().optional(),
-                milestoneId: z.string().optional(),
+                kindId: z.string().optional().describe('Task type _id from huly_list_task_kinds'),
+                componentId: z.string().optional().describe('Component _id'),
+                milestoneId: z.string().optional().describe('Milestone _id from huly_list_milestones'),
             },
         },
         async ({ taskId, ...rest }) => withHuly(async (client) => {
@@ -383,6 +383,26 @@ export function registerHulyTools(server: McpServer): void {
         async ({ name, description, private: isPrivate }) => withHuly(async (client) => {
             const ts = await client.createTeamspace(name, description || '', isPrivate ?? false);
             return { teamspace: ts };
+        }),
+    );
+
+    server.registerTool(
+        'huly_list_task_kinds',
+        {
+            title: 'List task kinds',
+            description: 'List the task types (kinds) available in a project — e.g. Task, Bug, EPIC, KPI. Use a returned `_id` as the `kindId` argument of huly_create_task / huly_update_task.',
+            inputSchema: {
+                project: z.string().describe('Project identifier, name, or _id'),
+            },
+        },
+        async ({ project }) => withHuly(async (client) => {
+            const resolved = await resolveProject(client, project);
+            const kinds = await client.getTaskKinds(resolved._id);
+            return {
+                project: resolved.identifier,
+                count: kinds.length,
+                kinds: kinds.map((k: any) => ({ _id: k._id, name: k.name, kind: k.kind })),
+            };
         }),
     );
 
