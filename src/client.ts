@@ -56,9 +56,13 @@ function createSocketFactory() {
     };
 }
 const { SortingOrder, generateId, makeCollabId } = coreModule as any;
-const core = coreModule as any;
-const { jsonToMarkup } = textModule as any;
-const { markdownToMarkup } = textMarkdownModule as any;
+// CJS interop: the `core` plugin object (with .space, .class) lives on the
+// default export, while generateId/SortingOrder are top-level named exports.
+// Without `.default`, core.space is undefined → write paths throw
+// "Cannot read properties of undefined (reading 'Workspace'/'Space')".
+const core = ((coreModule as any).default ?? coreModule) as any;
+const { jsonToMarkup, markupToJSON } = textModule as any;
+const { markdownToMarkup, markupToMarkdown } = textMarkdownModule as any;
 
 type ConnectOptions = any;
 type PlatformClient = any;
@@ -113,6 +117,7 @@ export interface UpdateTaskOptions {
 export class HulyClient {
     private client: PlatformClient | null = null;
     private _persons: any[] | null = null;
+    private _socialIds: any[] | null = null;
     private _projects: any[] | null = null;
     private _statuses: any[] | null = null;
     private _account: any | null = null;
@@ -150,6 +155,18 @@ export class HulyClient {
             this._persons = await this.client!.findAll(contact.class.Person as any, {});
         }
         return this._persons!;
+    }
+
+    /**
+     * Social identities (contact:class:SocialIdentity). A doc's `modifiedBy`
+     * is a SocialIdentity `_id`, not a Person `_id` — resolve actor names by
+     * mapping `socialId._id → attachedTo (Person)`.
+     */
+    async getSocialIdentities(): Promise<any[]> {
+        if (!this._socialIds) {
+            this._socialIds = await this.client!.findAll(contact.class.SocialIdentity as any, {});
+        }
+        return this._socialIds!;
     }
 
     async getProjects(): Promise<any[]> {
@@ -673,10 +690,53 @@ export class HulyClient {
      * comments carry `message: Markup`, updates carry `attributeUpdates`.
      */
     async getIssueComments(issueInternalId: string, limit: number = 200): Promise<any[]> {
+        return await this.getComments(issueInternalId, tracker.class.Issue as any, limit);
+    }
+
+    /**
+     * Generic comment fetch: ChatMessage attaches to any Doc (Issue,
+     * Milestone, Document, Project, ...), so we key on `attachedTo` only.
+     * `attachedToClass` is optional — `attachedTo` (_id) is globally unique,
+     * so omitting the class avoids the class-mismatch trap while still
+     * allowing an explicit filter when the caller wants one.
+     */
+    async getComments(
+        attachedTo: string,
+        attachedToClass?: string,
+        limit: number = 200,
+    ): Promise<any[]> {
+        const query: any = { attachedTo };
+        if (attachedToClass) query.attachedToClass = attachedToClass;
         return await this.client!.findAll(
             chunter.class.ChatMessage as any,
-            { attachedTo: issueInternalId, attachedToClass: tracker.class.Issue } as any,
+            query,
             { sort: { modifiedOn: SortingOrder.Descending }, limit }
+        );
+    }
+
+    /**
+     * Resolve a single comment by its ChatMessage _id — e.g. the `message`
+     * query param in a Huly chunter deep-link.
+     */
+    async getCommentById(messageId: string): Promise<any | null> {
+        return await this.client!.findOne(
+            chunter.class.ChatMessage as any,
+            { _id: messageId } as any
+        );
+    }
+
+    /**
+     * Fetch thread replies (ThreadMessage) — comments nested inside another
+     * comment. A reply carries `objectId` (the root object, e.g. the issue)
+     * and `attachedTo` (the parent comment). Pass `{ objectId }` to get every
+     * reply on an object, or `{ attachedTo }` to get replies under one comment.
+     * Sorted oldest-first so a thread reads top-to-bottom.
+     */
+    async getThreadReplies(filter: Record<string, any>, limit: number = 200): Promise<any[]> {
+        return await this.client!.findAll(
+            chunter.class.ThreadMessage as any,
+            filter as any,
+            { sort: { modifiedOn: SortingOrder.Ascending }, limit }
         );
     }
 
@@ -689,6 +749,20 @@ export class HulyClient {
         return await (this.client as any).fetchMarkup(
             doc._class, doc._id, field, doc[field], 'markdown'
         );
+    }
+
+    /**
+     * Convert an inline Markup value to markdown. ChatMessage/ThreadMessage
+     * bodies store their content as a markup-JSON string (not a collaborative
+     * blob), so `fetchMarkup` 500s on them — use this for comment bodies.
+     */
+    renderMarkup(value: string | null | undefined): string | null {
+        if (!value) return null;
+        try {
+            return markupToMarkdown(markupToJSON(value));
+        } catch {
+            return null;
+        }
     }
 }
 

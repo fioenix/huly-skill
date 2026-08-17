@@ -55,17 +55,18 @@ export async function getIssueActivity(
     const task = await client.getTask(taskIdentifier);
     if (!task) throw new Error(`Khong tim thay task: ${taskIdentifier}`);
 
-    const [updates, comments, statusMap, persons] = await Promise.all([
+    const [updates, comments, statusMap, persons, socialIds] = await Promise.all([
         client.getIssueDocUpdates(task._id, limit),
         client.getIssueComments(task._id, limit),
         getStatusMap(client),
         client.getPersons(),
+        client.getSocialIdentities(),
     ]);
 
     const personMap = new Map<string, any>();
     for (const p of persons) personMap.set(p._id, p);
 
-    const socialIdToName = buildSocialIdMap(persons);
+    const socialIdToName = buildSocialIdMap(persons, socialIds);
     const ctx: ResolveCtx = { statusMap, personMap };
 
     const updateEvents: ActivityEvent[] = updates.map((u: any) => ({
@@ -81,10 +82,9 @@ export async function getIssueActivity(
 
     const commentEvents: ActivityEvent[] = await Promise.all(
         comments.map(async (c: any): Promise<ActivityEvent> => {
-            let message: string | null = null;
-            try {
-                message = await client.fetchMarkup(c, 'message');
-            } catch { /* ignore — comment may be missing markup blob */ }
+            // ChatMessage.message is inline markup JSON, not a blob ref —
+            // fetchMarkup 500s on it, so convert locally.
+            const message = client.renderMarkup(c.message);
             return {
                 id: c._id,
                 kind: 'comment',
@@ -159,17 +159,22 @@ function resolveAttrValue(
     return String(value);
 }
 
-function buildSocialIdMap(persons: any[]): Map<string, string> {
+export function buildSocialIdMap(persons: any[], socialIds: any[] = []): Map<string, string> {
     // Reset on each call so credentials swap doesn't poison the cache.
     SOCIAL_ID_LABEL_CACHE.clear();
+    const nameByPerson = new Map<string, string>();
     for (const p of persons) {
         const name = p.name || p.displayName;
         if (!name) continue;
-        if (Array.isArray(p.socialIds)) {
-            for (const sid of p.socialIds) SOCIAL_ID_LABEL_CACHE.set(sid, name);
-        }
+        nameByPerson.set(p._id, name);
         if (p.personUuid) SOCIAL_ID_LABEL_CACHE.set(p.personUuid, name);
         if (p._id) SOCIAL_ID_LABEL_CACHE.set(p._id, name);
+    }
+    // `modifiedBy` on docs is a SocialIdentity._id, not a Person._id — map it
+    // through `attachedTo` to the owning person's name.
+    for (const sid of socialIds) {
+        const name = nameByPerson.get(sid.attachedTo);
+        if (name) SOCIAL_ID_LABEL_CACHE.set(sid._id, name);
     }
     return SOCIAL_ID_LABEL_CACHE;
 }

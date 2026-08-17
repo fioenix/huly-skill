@@ -12,6 +12,7 @@ import { resolveProject, parseDate } from '../resolvers.js';
 import { MilestoneStatus } from '../huly-types.js';
 import { getSubIssueTree, getMilestoneReport } from '../services/sub-issues.js';
 import { getIssueActivity } from '../services/activity.js';
+import { listComments, getCommentById } from '../services/comments.js';
 
 // --- result helpers --------------------------------------------------------
 
@@ -479,6 +480,39 @@ export function registerHulyTools(server: McpServer): void {
                 count: events.length,
                 events,
             };
+        }),
+    );
+
+    server.registerTool(
+        'huly_get_comments',
+        {
+            title: 'List comments on any object',
+            description: 'List comments attached to any Huly object (issue, milestone, document, component, project) by its internal _id. Unlike huly_get_activity (issue-only), this works for milestones and other classes. Returns comment body (markdown), author and timestamps, newest first; thread replies are nested under their parent comment in `replies`.',
+            inputSchema: {
+                targetId: z.string().describe('Internal _id of the parent object. For milestones use huly_list_milestones to get _id; the _id is also the path segment before "|" in a chunter link.'),
+                targetClass: z.string().optional().describe('Optional parent class filter: friendly alias (issue|milestone|component|project|document) or raw ref like "tracker:class:Milestone". Omit to match any class on that _id.'),
+                limit: z.number().int().min(1).max(1000).optional().describe('Max comments (default 200)'),
+            },
+        },
+        async ({ targetId, targetClass, limit }) => withHuly(async (client) => {
+            const comments = await listComments(client, targetId, targetClass, limit ?? 200);
+            return { count: comments.length, comments };
+        }),
+    );
+
+    server.registerTool(
+        'huly_get_comment',
+        {
+            title: 'Get a single comment by id',
+            description: 'Resolve one ChatMessage comment by its _id — e.g. the "message" query param of a Huly chunter deep-link. Returns the comment body (markdown), author, timestamps, and any thread replies nested in `replies`.',
+            inputSchema: {
+                messageId: z.string().describe('ChatMessage _id, e.g. the value of the "message" query param in a chunter link'),
+            },
+        },
+        async ({ messageId }) => withHuly(async (client) => {
+            const comment = await getCommentById(client, messageId);
+            if (!comment) throw new Error(`Khong tim thay comment: ${messageId}`);
+            return { comment };
         }),
     );
 

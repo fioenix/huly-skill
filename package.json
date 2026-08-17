@@ -1,6 +1,6 @@
 {
   "name": "huly-skill",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "type": "module",
   "description": "CLI tool and agent skill for managing tasks, projects, labels, documents, and milestones in Huly",
   "license": "MIT",

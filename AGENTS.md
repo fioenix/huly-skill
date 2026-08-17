@@ -1,13 +1,31 @@
-# Huly Assist — Agent Guide
+# Huly Skill — Agent Guide
 
-You are a proxy to the Huly project management system. Use the `huly` CLI to execute operations. If `huly` is not found, use `./bin/huly.cjs` or `node dist/bundle.cjs` from the repository root.
+You are a proxy to the Huly project management system. This guide is read by **OpenAI Codex** and **Google Antigravity** (both honor `AGENTS.md`); Claude uses [`skills/huly-skill/SKILL.md`](./skills/huly-skill/SKILL.md), which mirrors this reference.
+
+Two ways to operate Huly — use whichever your runtime has wired up:
+- **CLI** — run the `huly` command. If not on `PATH`, use `./bin/huly.cjs` or `node bin/bundle.cjs` from the repo root.
+- **MCP** — if the `huly` MCP server is configured (tools prefixed `huly_`), call those tools instead. Setup below.
 
 ## Prerequisites
 
-Ensure these environment variables are set:
+Ensure these environment variables are set (the CLI reads them from a `.env`; the MCP server from its config `env` block):
 - `HULY_HOST` — Huly instance URL
 - `HULY_WORKSPACE_ID` — workspace UUID
 - `HULY_API_KEY` — API token
+
+### MCP setup (Codex)
+
+Add to `~/.codex/config.toml` (or a trusted project `.codex/config.toml`):
+```toml
+[mcp_servers.huly]
+command = "npx"
+args = ["-y", "@fioenix/huly-mcp@latest"]
+[mcp_servers.huly.env]
+HULY_HOST = "https://huly.app"
+HULY_WORKSPACE_ID = "your-workspace-uuid"
+HULY_API_KEY = "your-api-token"
+```
+MCP tools map 1:1 to CLI commands and return the same `{ "status": ... }` envelope. Templates for every agent: [`examples/agents/`](./examples/agents).
 
 ## JSON Mode
 
@@ -71,6 +89,20 @@ Response format:
 - `--description-file <path>` — replace description from .md/.txt file
 - `--kind-id`, `--component-id`, `--milestone-id` — update references
 - `--set-field "key=value"` — update custom fields
+
+### Comments
+| Command | Purpose |
+|---------|---------|
+| `huly comments list <objectId> [--class <c>] [--limit <n>]` | List comments on any object by internal _id (issue, milestone, doc, …); thread replies nested in `replies` |
+| `huly comments get <messageId>` | Get one comment by its `_id` (the `message` param in a chunter link) |
+
+- `--class` accepts a friendly alias (`issue`/`milestone`/`component`/`project`/`document`) or a raw ref (`tracker:class:Milestone`); omit to match any class on that `_id`.
+- For comments on an issue, `huly activity <identifier>` is friendlier (takes `LAMBD-568`, merges changes + comments).
+
+**Resolving a link → comments.** Extract ids from the URL, never call `milestones list`/`tasks` to re-find an id the URL already has. URL-decode (`%7C`→`|`, `%3A`→`:`). The object is the `<24-hex>` next to a `<plugin>:class:<Name>` token; that hex is `<objectId>`, the token is `--class`. A `?message=<id>` param is a specific comment.
+- Chunter link `…/chunter/<id>|<class>?message=<msgId>` → `comments get <msgId>`.
+- Tracker milestone link `…/tracker/<projectId>/milestones#…|<id>|tracker:class:Milestone|…` → `comments list <id> --class milestone` (the `<projectId>` early in the path is **not** the milestone).
+- Token-optimal: prefer `comments get <msgId>` over listing when a `message=` id exists; always `--json`; add `--limit` for "latest few"; bodies come back as markdown — no re-fetch.
 
 ### Reports
 | Command | Purpose |
