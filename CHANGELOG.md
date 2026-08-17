@@ -3,6 +3,16 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Fixed
+- The Huly client's connection log (`Generate new SessionId …`, `init DB
+  complete …`, `Connected to server: …`, `findfull model …`) went to stdout.
+  That made `--json` output unparseable without stripping a four-line preamble,
+  and put non-protocol lines on the MCP stdio channel, where stdout carries the
+  JSON-RPC framing. Those messages now go to stderr; stdout carries only this
+  project's own output.
+
 ## 1.6.0
 
 ### Added
