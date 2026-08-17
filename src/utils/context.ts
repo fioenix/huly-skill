@@ -5,7 +5,7 @@
 // derived locally from the environment and the token payload.
 
 import { VERSION } from '../version.js';
-import { maskToken } from './auth.js';
+import { credentialSource, maskToken, peekCredentials } from './auth.js';
 
 export interface TokenClaims {
     account: string | null;
@@ -50,6 +50,8 @@ function sanitizeHost(host: string | undefined): string | null {
 
 export interface HulyContext {
     version: string;
+    /** 'request' when the caller supplied a token, 'environment' otherwise. */
+    credentialSource: 'request' | 'environment';
     host: string | null;
     workspace: string | null;
     apiKey: { present: boolean; masked: string; claims: TokenClaims | null };
@@ -65,9 +67,10 @@ export interface HulyContext {
  * the token, the password-bearing parts of a URL, or `extra` values.
  */
 export function describeContext(): HulyContext {
-    const host = process.env.HULY_HOST;
-    const workspace = process.env.HULY_WORKSPACE_ID?.trim() || null;
-    const apiKey = process.env.HULY_API_KEY;
+    const credentials = peekCredentials();
+    const host = credentials.host;
+    const workspace = credentials.workspace?.trim() || null;
+    const apiKey = credentials.token;
     const claims = decodeTokenClaims(apiKey);
     const warnings: string[] = [];
 
@@ -98,6 +101,7 @@ export function describeContext(): HulyContext {
 
     return {
         version: VERSION,
+        credentialSource: credentialSource(),
         host: sanitizeHost(host),
         workspace,
         apiKey: { present: apiKey !== undefined, masked: maskToken(apiKey ?? ''), claims },

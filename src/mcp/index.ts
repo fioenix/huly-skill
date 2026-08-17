@@ -10,6 +10,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createHulyMcpServer } from './server.js';
+import { runWithCredentials, type HulyCredentials } from '../utils/auth.js';
 
 // Transport is chosen by env so a single bin works for every client:
 //   HULY_MCP_TRANSPORT=stdio  (default) — local clients (Claude Code/Desktop)
@@ -39,6 +40,24 @@ function startHttp(): void {
     const app = express();
     app.use(express.json());
 
+    // Per-caller Huly credentials. A caller may bring its own token so its writes
+    // are attributed to it rather than to whoever owns the server's token; the
+    // process environment stays the default when it doesn't.
+    const requireCallerToken = (req: Request, res: Response, next: NextFunction) => {
+        if (process.env.HULY_REQUIRE_CALLER_TOKEN !== 'true') return next();
+        if (!req.header('x-huly-token')) {
+            res.status(401).json({ error: 'x-huly-token header required (HULY_REQUIRE_CALLER_TOKEN=true)' });
+            return;
+        }
+        next();
+    };
+
+    const credentialsFromRequest = (req: Request): HulyCredentials => ({
+        token: req.header('x-huly-token') || undefined,
+        host: req.header('x-huly-url') || undefined,
+        workspace: req.header('x-huly-workspace') || undefined,
+    });
+
     const requireAuth = (req: Request, res: Response, next: NextFunction) => {
         if (!authToken) return next();
         const header = req.header('authorization') || '';
@@ -53,13 +72,14 @@ function startHttp(): void {
     app.get('/health', (_req, res) => { res.json({ status: 'ok' }); });
 
     // Stateless Streamable HTTP: a fresh server + transport per request.
-    app.post('/mcp', requireAuth, async (req: Request, res: Response) => {
+    app.post('/mcp', requireAuth, requireCallerToken, async (req: Request, res: Response) => {
         const server = createHulyMcpServer();
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
         res.on('close', () => { void transport.close(); void server.close(); });
         try {
             await server.connect(transport);
-            await transport.handleRequest(req, res, req.body);
+            await runWithCredentials(credentialsFromRequest(req), () =>
+                transport.handleRequest(req, res, req.body));
         } catch (e: any) {
             if (!res.headersSent) {
                 res.status(500).json({ error: e?.message || 'Internal error' });
