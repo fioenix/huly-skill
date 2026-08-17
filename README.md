@@ -279,6 +279,26 @@ See [AGENTS.md](./AGENTS.md) for the full agent integration guide, or [skills/hu
 
 All dependencies are bundled into a single `bin/bundle.cjs` via esbuild — no `npm install` or GitHub PAT required. The `@hcengineering/api-client` expects browser APIs (`indexedDB`, `window`), which are polyfilled automatically.
 
+## Prior art and thanks
+
+[`dearlordylord/huly-mcp`](https://github.com/dearlordylord/huly-mcp) (npm
+[`@firfi/huly-mcp`](https://www.npmjs.com/package/@firfi/huly-mcp)) started in
+February 2026, six weeks before this project, and covers far more of Huly than we
+do. Reading it sharpened this codebase in several concrete ways: an offline
+configuration tool, per-caller credentials over HTTP headers, and the discipline of
+capping and projecting list results all began as ideas taken from there — each
+reimplemented in this project's own style, kept deliberately smaller. Their
+[lazy-tool PRD](https://github.com/dearlordylord/huly-mcp/blob/main/docs/02_LAZY_TOOL_PRD.md)
+is also the best measurement of MCP tool-surface context cost we have found
+anywhere, and it independently reached the same conclusion we did about Huly's
+unreleased revocable API tokens.
+
+Thanks to its author. Two projects can solve the same problem at different scales
+and both be right: theirs goes wide, this one stays small enough to read in one
+sitting. A criterion-by-criterion comparison, including where they are ahead and
+where we deliberately diverge, is in
+[reference/comparison.md](./reference/comparison.md).
+
 ## License
 
 MIT
