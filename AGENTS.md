@@ -84,6 +84,34 @@ Response format:
 - `--milestone-id <id>` — milestone
 - `--set-field "key=value"` — custom fields (repeatable)
 
+#### Creating sub-issues
+There is no separate "create subtask" command — a sub-issue is a task created
+with `--parent`. Do not try to create the task first and re-parent it
+afterwards; nothing re-parents an existing task.
+
+```bash
+huly create task "Wire up the aggregation job" --project OMEGA --parent OMEGA-588
+```
+
+- `--parent` takes the friendly identifier (`OMEGA-588`) or the internal `_id`.
+- The parent must be in the same project; a cross-project parent is rejected.
+- Nesting deeper than one level is allowed — pass the direct parent, and the
+  full ancestor chain is recorded automatically.
+- Read the result back with `huly sub-issues <parent>` (tree) or
+  `huly tasks --parent <parent>` (direct children only).
+
+#### Choosing an assignee
+`--assignee` accepts a name, an internal `_id`, or `me`. When the name is
+ambiguous or unknown, list people first rather than guessing:
+
+```bash
+huly users --active-only --json
+```
+
+Note that `me` resolves to the account behind `HULY_API_KEY`. If that token is
+shared across a team, `me` is the token's owner, not the person typing — pass
+an explicit name or `_id` in that case.
+
 #### Update Task Options
 - `--status <name>` — new status
 - `--priority <level>` — new priority
