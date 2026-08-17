@@ -13,7 +13,8 @@ metadata:
 
 Read and write a Huly workspace through the bundled CLI at `<skill-dir>/bin/huly.cjs`
 (shown below as `huly`). Start with `huly whoami` to confirm credentials and see
-which identity your writes will be attributed to.
+which identity your writes will be attributed to; `huly whoami --offline` diagnoses
+configuration without a connection.
 
 Credentials live in `~/.huly/.env`, never inline. If it is missing any of
 `HULY_HOST`, `HULY_WORKSPACE_ID`, `HULY_API_KEY`, read
