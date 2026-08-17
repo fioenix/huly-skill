@@ -54,10 +54,20 @@ left half-finished before.
    gh release create v1.6.0 --title "v1.6.0 — short summary" \
      --notes-file <changelog-section> --latest
    ```
-9. **Publish to npm:**
+9. **Publish to npm, from the tagged commit.** `npm publish` uploads whatever is
+   in the working tree, and it has no idea a tag exists. Any commit that landed
+   on `main` after the tag — including one that changes no behaviour — makes the
+   published bundle differ from the tag while both still report the same
+   version, which is exactly what happened in 1.6.1. Check first, and publish
+   from a detached checkout if `main` has moved on:
    ```bash
+   git rev-parse HEAD v1.6.1^{}     # must match; otherwise:
+   git checkout v1.6.1              # then rebuild before publishing
    npm publish --access public ./npm-package
+   git checkout main
    ```
+   A version can only be published once, so a mismatch cannot be corrected
+   without burning a patch number.
 10. **Restart local MCP clients.** They spawn `bin/mcp.cjs` once at startup and
     hold it, so a running client keeps the old code until restarted.
 
@@ -69,4 +79,22 @@ gh release list --limit 3
 ```
 
 To confirm npm shipped what was tagged, unpack the tarball and compare
-`huly-mcp.cjs` against `bin/mcp.cjs` at the tag.
+`huly-mcp.cjs` against `bin/mcp.cjs` at the tag:
+
+```bash
+npm pack @fioenix/huly-mcp@1.6.1 && tar xzf fioenix-huly-mcp-1.6.1.tgz
+shasum -a 256 package/huly-mcp.cjs
+git show v1.6.1:bin/mcp.cjs | shasum -a 256
+```
+
+Then run the unpacked bundle rather than trusting the hash alone — the
+handshake version is the one check that catches a build-time substitution that
+did not happen:
+
+```bash
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}' \
+  | node package/huly-mcp.cjs
+```
+
+Its stdout must be JSON-RPC and nothing else; any other line is the Huly
+client's log escaping onto the protocol channel.
