@@ -11,7 +11,7 @@ A portable integration for **Claude** (Code / Desktop), **Google Antigravity**, 
 
 | Agent | Recommended | How |
 |-------|-------------|-----|
-| **Claude Code / Desktop** | Skill | `npx skills add fioenix/huly-skill` (drops `SKILL.md` into `.claude/skills/`). MCP also works — see below. |
+| **Claude Code / Desktop** | Skill | `npx skills add fioenix/huly-skill` (drops `SKILL.md` + `references/` into `.claude/skills/`). MCP also works — see below. |
 | **Google Antigravity** | Skill | Copy `skills/huly-skill/` → `<project>/.agents/skills/huly-skill/` (or the global skills dir). MCP also works. |
 | **OpenAI Codex** | MCP + `AGENTS.md` | Add the server to `~/.codex/config.toml` (snippet below); Codex reads [`AGENTS.md`](./AGENTS.md) for usage. |
 
