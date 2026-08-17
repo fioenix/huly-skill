@@ -92,9 +92,9 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List users',
             description: 'List people in the workspace. Use a returned `_id` as the `assignee` argument of huly_create_task / huly_update_task.',
-            inputSchema: {
+            inputSchema: z.object({
                 activeOnly: z.boolean().optional().describe('Only workspace members that are active (default false — returns everyone)'),
-            },
+            }).strict(),
         },
         async ({ activeOnly }) => withHuly(async (client) => {
             let users = await client.getUsers();
@@ -108,7 +108,7 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List tasks',
             description: 'List tasks with optional filters. By default completed tasks are excluded unless a status filter is given. Pass `parentId` to fetch only direct children of a parent task.',
-            inputSchema: {
+            inputSchema: z.object({
                 assignee: z.string().optional().describe('Assignee ID, name, or "me"'),
                 project: z.string().optional().describe('Project identifier, name, or _id'),
                 status: z.string().optional().describe('Comma-separated status names or IDs'),
@@ -116,7 +116,7 @@ export function registerHulyTools(server: McpServer): void {
                 dueToday: z.boolean().optional().describe('Only tasks due today'),
                 parentId: z.string().optional().describe('Parent task identifier (e.g. LAMBD-568) or internal _id — returns direct children only'),
                 milestoneId: z.string().optional().describe('Filter by milestone internal _id'),
-            },
+            }).strict(),
         },
         async (args) => withHuly(async (client) => {
             const { tasks, projectMap, statusMap } = await queryIssues(client, {
@@ -143,9 +143,9 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Get task detail',
             description: 'Get full details for a single task by its identifier (e.g. DELTA-123), including the description as markdown.',
-            inputSchema: {
+            inputSchema: z.object({
                 taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
-            },
+            }).strict(),
         },
         async ({ taskId }) => withHuly(async (client) => {
             const task = await client.getTask(taskId);
@@ -162,11 +162,15 @@ export function registerHulyTools(server: McpServer): void {
         'huly_create_task',
         {
             title: 'Create task',
-            description: 'Create a new task in a project. Pass `parent` to create it as a sub-issue of an existing task.',
-            inputSchema: {
+            description: 'Create a new task in a project. Pass `parentId` to create it as a sub-issue of an existing task.',
+            // Strict: an unknown argument is rejected instead of dropped. A
+            // silently ignored `parentId` used to return ok while creating a
+            // top-level task, which reads as success and is not.
+            inputSchema: z.object({
                 title: z.string().describe('Task title'),
                 project: z.string().describe('Project identifier, name, or _id'),
-                parent: z.string().optional().describe('Parent task identifier (e.g. OMEGA-588) or internal _id — creates this task as its sub-issue. Must be in the same project.'),
+                parentId: z.string().optional().describe('Parent task identifier (e.g. OMEGA-588) or internal _id — creates this task as its sub-issue. Must be in the same project.'),
+                parent: z.string().optional().describe('Alias of parentId.'),
                 priority: z.string().optional().describe('0-4, or LOW/MEDIUM/HIGH/URGENT'),
                 due: z.string().optional().describe('YYYY-MM-DD, "today", or "tomorrow"'),
                 assignee: z.string().optional().describe('Assignee ID, name, or "me"'),
@@ -174,10 +178,10 @@ export function registerHulyTools(server: McpServer): void {
                 kindId: z.string().optional().describe('Task type _id from huly_list_task_kinds. Defaults to the standard Issue type.'),
                 componentId: z.string().optional().describe('Component _id'),
                 milestoneId: z.string().optional().describe('Milestone _id from huly_list_milestones'),
-            },
+            }).strict(),
         },
-        async (args) => withHuly(async (client) => {
-            const result = await createIssue(client, args);
+        async ({ parentId, parent, ...rest }) => withHuly(async (client) => {
+            const result = await createIssue(client, { ...rest, parent: parentId ?? parent });
             return { task: result.task, projectIdentifier: result.projectIdentifier, assigneeName: result.assigneeName };
         }),
     );
@@ -187,7 +191,9 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Update task',
             description: 'Update a task by identifier. Only the provided fields are changed.',
-            inputSchema: {
+            // Strict for the same reason as huly_create_task: a dropped field
+            // would report success while changing nothing.
+            inputSchema: z.object({
                 taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
                 status: z.string().optional().describe('New status name or _id'),
                 priority: z.string().optional().describe('0-4, or LOW/MEDIUM/HIGH/URGENT'),
@@ -198,7 +204,7 @@ export function registerHulyTools(server: McpServer): void {
                 kindId: z.string().optional().describe('Task type _id from huly_list_task_kinds'),
                 componentId: z.string().optional().describe('Component _id'),
                 milestoneId: z.string().optional().describe('Milestone _id from huly_list_milestones'),
-            },
+            }).strict(),
         },
         async ({ taskId, ...rest }) => withHuly(async (client) => {
             const changes = await updateIssue(client, taskId, rest);
@@ -211,10 +217,10 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Delete task',
             description: 'Permanently delete a task. This cannot be undone — set confirm=true to proceed.',
-            inputSchema: {
+            inputSchema: z.object({
                 taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
                 confirm: z.boolean().describe('Must be true to actually delete'),
-            },
+            }).strict(),
         },
         async ({ taskId, confirm }) => {
             if (!confirm) {
@@ -234,10 +240,10 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Daily/weekly report',
             description: 'Generate a daily or weekly task report: tasks due in the window plus overdue tasks.',
-            inputSchema: {
+            inputSchema: z.object({
                 type: z.enum(['daily', 'weekly']).describe('Report window'),
                 assignee: z.string().optional().describe('Assignee ID, name, or "me" (default: "me")'),
-            },
+            }).strict(),
         },
         async ({ type, assignee }) => withHuly(async (client) => {
             const report = await reportIssues(client, { type, assignee: assignee ?? 'me' });
@@ -269,10 +275,10 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Create label',
             description: 'Create a new label/tag.',
-            inputSchema: {
+            inputSchema: z.object({
                 title: z.string().describe('Label title'),
                 color: z.number().int().min(0).max(15).optional().describe('Color index 0-15 (default 11)'),
-            },
+            }).strict(),
         },
         async ({ title, color }) => withHuly(async (client) => {
             const label = await client.createLabel(title, color ?? 11);
@@ -285,12 +291,12 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Assign label',
             description: 'Assign an existing label to a task.',
-            inputSchema: {
+            inputSchema: z.object({
                 taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
                 labelId: z.string().describe('Label _id'),
                 title: z.string().optional().describe('Display title for the label reference'),
                 color: z.number().int().min(0).max(15).optional(),
-            },
+            }).strict(),
         },
         async ({ taskId, labelId, title, color }) => withHuly(async (client) => {
             const task = await client.getTask(taskId);
@@ -306,9 +312,9 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Show task labels',
             description: 'Show the labels assigned to a task.',
-            inputSchema: {
+            inputSchema: z.object({
                 taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
-            },
+            }).strict(),
         },
         async ({ taskId }) => withHuly(async (client) => {
             const task = await client.getTask(taskId);
@@ -336,9 +342,9 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List documents',
             description: 'List documents within a teamspace.',
-            inputSchema: {
+            inputSchema: z.object({
                 teamspace: z.string().describe('Teamspace name or _id'),
-            },
+            }).strict(),
         },
         async ({ teamspace }) => withHuly(async (client) => {
             const ts = await resolveTeamspace(client, teamspace);
@@ -352,10 +358,10 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Read document',
             description: 'Read a document\'s content as markdown. Title match is case-insensitive and partial.',
-            inputSchema: {
+            inputSchema: z.object({
                 teamspace: z.string().describe('Teamspace name or _id'),
                 title: z.string().describe('Document title (partial match) or _id'),
-            },
+            }).strict(),
         },
         async ({ teamspace, title }) => withHuly(async (client) => {
             const ts = await resolveTeamspace(client, teamspace);
@@ -373,11 +379,11 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Create document',
             description: 'Create a new document in a teamspace.',
-            inputSchema: {
+            inputSchema: z.object({
                 teamspace: z.string().describe('Teamspace name or _id'),
                 title: z.string().describe('Document title'),
                 content: z.string().optional().describe('Markdown content'),
-            },
+            }).strict(),
         },
         async ({ teamspace, title, content }) => withHuly(async (client) => {
             const ts = await resolveTeamspace(client, teamspace);
@@ -391,11 +397,11 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Create teamspace',
             description: 'Create a new document teamspace.',
-            inputSchema: {
+            inputSchema: z.object({
                 name: z.string().describe('Teamspace name'),
                 description: z.string().optional(),
                 private: z.boolean().optional().describe('Make the teamspace private'),
-            },
+            }).strict(),
         },
         async ({ name, description, private: isPrivate }) => withHuly(async (client) => {
             const ts = await client.createTeamspace(name, description || '', isPrivate ?? false);
@@ -408,9 +414,9 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List task kinds',
             description: 'List the task types (kinds) available in a project — e.g. Task, Bug, EPIC, KPI. Use a returned `_id` as the `kindId` argument of huly_create_task / huly_update_task.',
-            inputSchema: {
+            inputSchema: z.object({
                 project: z.string().describe('Project identifier, name, or _id'),
-            },
+            }).strict(),
         },
         async ({ project }) => withHuly(async (client) => {
             const resolved = await resolveProject(client, project);
@@ -428,9 +434,9 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List milestones',
             description: 'List milestones in a project.',
-            inputSchema: {
+            inputSchema: z.object({
                 project: z.string().describe('Project identifier, name, or _id'),
-            },
+            }).strict(),
         },
         async ({ project }) => withHuly(async (client) => {
             const resolved = await resolveProject(client, project);
@@ -444,11 +450,11 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Create milestone',
             description: 'Create a milestone in a project. Defaults the target date to two weeks out.',
-            inputSchema: {
+            inputSchema: z.object({
                 project: z.string().describe('Project identifier, name, or _id'),
                 label: z.string().describe('Milestone label/name'),
                 target: z.string().optional().describe('Target date: YYYY-MM-DD, "today", or "tomorrow"'),
-            },
+            }).strict(),
         },
         async ({ project, label, target }) => withHuly(async (client) => {
             const resolved = await resolveProject(client, project);
@@ -463,11 +469,11 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List sub-issues (tree)',
             description: 'Recursively list all sub-issues of a parent task by identifier. Returns a tree by default; set flat=true for a flat list. Solves the "huly_list_tasks only returns top-level" pain.',
-            inputSchema: {
+            inputSchema: z.object({
                 taskId: z.string().describe('Parent task identifier, e.g. LAMBD-568'),
                 recursive: z.boolean().optional().describe('Walk grandchildren (default true)'),
                 flat: z.boolean().optional().describe('Return a flat list instead of a tree (default false)'),
-            },
+            }).strict(),
         },
         async ({ taskId, recursive, flat }) => withHuly(async (client) => {
             const result = await getSubIssueTree(client, taskId, recursive !== false);
@@ -485,9 +491,9 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Get task by internal _id',
             description: 'Look up a task by its internal _id (the kind of id stored in childInfo[].childId), not by human identifier like LAMBD-568.',
-            inputSchema: {
+            inputSchema: z.object({
                 internalId: z.string().describe('Internal task _id'),
-            },
+            }).strict(),
         },
         async ({ internalId }) => withHuly(async (client) => {
             const task = await client.getTaskByInternalId(internalId);
@@ -501,11 +507,11 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Get task activity feed',
             description: 'Return the activity timeline of an issue: DocUpdateMessage events (status/assignee/label changes with from→to) plus ChatMessage comments. Sorted newest first.',
-            inputSchema: {
+            inputSchema: z.object({
                 taskId: z.string().describe('Task identifier, e.g. LAMBD-568'),
                 limit: z.number().int().min(1).max(1000).optional().describe('Max events per kind (default 200)'),
                 kind: z.enum(['all', 'updates', 'comments']).optional().describe('Filter feed kind (default all)'),
-            },
+            }).strict(),
         },
         async ({ taskId, limit, kind }) => withHuly(async (client) => {
             const result = await getIssueActivity(client, taskId, limit ?? 200);
@@ -525,11 +531,11 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'List comments on any object',
             description: 'List comments attached to any Huly object (issue, milestone, document, component, project) by its internal _id. Unlike huly_get_activity (issue-only), this works for milestones and other classes. Returns comment body (markdown), author and timestamps, newest first; thread replies are nested under their parent comment in `replies`.',
-            inputSchema: {
+            inputSchema: z.object({
                 targetId: z.string().describe('Internal _id of the parent object. For milestones use huly_list_milestones to get _id; the _id is also the path segment before "|" in a chunter link.'),
                 targetClass: z.string().optional().describe('Optional parent class filter: friendly alias (issue|milestone|component|project|document) or raw ref like "tracker:class:Milestone". Omit to match any class on that _id.'),
                 limit: z.number().int().min(1).max(1000).optional().describe('Max comments (default 200)'),
-            },
+            }).strict(),
         },
         async ({ targetId, targetClass, limit }) => withHuly(async (client) => {
             const comments = await listComments(client, targetId, targetClass, limit ?? 200);
@@ -542,9 +548,9 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Get a single comment by id',
             description: 'Resolve one ChatMessage comment by its _id — e.g. the "message" query param of a Huly chunter deep-link. Returns the comment body (markdown), author, timestamps, and any thread replies nested in `replies`.',
-            inputSchema: {
+            inputSchema: z.object({
                 messageId: z.string().describe('ChatMessage _id, e.g. the value of the "message" query param in a chunter link'),
-            },
+            }).strict(),
         },
         async ({ messageId }) => withHuly(async (client) => {
             const comment = await getCommentById(client, messageId);
@@ -558,9 +564,9 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Milestone report (grouped by Epic)',
             description: 'List every issue in a milestone, group by Epic, walk sub-issues recursively. Output is shaped for KPI checkin and pitstop reviews.',
-            inputSchema: {
+            inputSchema: z.object({
                 milestoneId: z.string().describe('Internal milestone _id (use huly_list_milestones to discover)'),
-            },
+            }).strict(),
         },
         async ({ milestoneId }) => withHuly(async (client) => {
             const report = await getMilestoneReport(client, milestoneId);
@@ -573,10 +579,10 @@ export function registerHulyTools(server: McpServer): void {
         {
             title: 'Complete milestone',
             description: 'Mark a milestone as completed.',
-            inputSchema: {
+            inputSchema: z.object({
                 project: z.string().describe('Project identifier, name, or _id'),
                 milestoneId: z.string().describe('Milestone _id'),
-            },
+            }).strict(),
         },
         async ({ project, milestoneId }) => withHuly(async (client) => {
             const resolved = await resolveProject(client, project);
