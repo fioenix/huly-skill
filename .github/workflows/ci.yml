@@ -11,9 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm 11, matching the version that produced pnpm-lock.yaml. pnpm 9
+      # rejects this repo's pnpm-workspace.yaml, which carries `allowBuilds`
+      # and no `packages` field.
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 11
 
       # No `cache: pnpm` — the cache step runs `pnpm store path`, which fails
       # because pnpm-workspace.yaml here carries only `allowBuilds` and no
