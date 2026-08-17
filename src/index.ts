@@ -27,7 +27,7 @@ import { activityCommand } from './commands/activity.js';
 import { commentsCommand } from './commands/comments.js';
 import { kindsCommand } from './commands/kinds.js';
 
-let version = '1.4.0';
+let version = '1.5.0';
 try {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
