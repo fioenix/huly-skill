@@ -14,20 +14,18 @@ numbers.
 Nothing here is automated — each step is a place a release has actually been
 left half-finished before.
 
-1. **Bump the version in all five places.** They drift independently:
-   - `package.json`
-   - `npm-package/package.json`
-   - `src/mcp/server.ts` — reported in the MCP `initialize` handshake. This one
-     sat at `1.2.0` through three releases because nothing reads it back.
-   - `src/index.ts` — the fallback constant behind `huly --version`. It reads
-     `package.json` first, but esbuild rewrites `import.meta.url` to
-     `file:///bundle`, so that read always throws in the shipped bundle and the
-     constant is what users actually see. It was still `1.6.0` during the 1.6.1
-     release.
+1. **Bump the version in three places:**
+   - `package.json` — `huly --version` and the MCP `initialize` handshake both
+     derive from this one. esbuild substitutes it via `--define:__HULY_VERSION__`
+     (see `src/version.ts`), so neither can drift from the manifest.
+   - `npm-package/package.json` — the published package's own manifest
    - `skills/huly-skill/SKILL.md` frontmatter
 
-   Verify by asking the binaries, not by grepping — `node bin/bundle.cjs
-   --version` and the MCP `initialize` handshake are what clients see.
+   Two hardcoded constants used to carry the version instead, and both went
+   stale unnoticed: the MCP handshake reported `1.2.0` through three releases,
+   and `huly --version` reported `1.6.0` during the 1.6.1 release. Still verify
+   by asking the binaries rather than grepping — `node bin/bundle.cjs --version`
+   and the `initialize` handshake are what clients actually see.
 2. **Write the `CHANGELOG.md` entry.** Give any behaviour that can break an
    existing caller its own heading saying so, e.g. `### Changed — may reject
    calls that previously succeeded`.

@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerHulyTools } from './tools.js';
+import { VERSION } from '../version.js';
 
 const INSTRUCTIONS = [
     'Tools manage tasks, projects, labels, documents, and milestones in a Huly',
@@ -16,7 +17,7 @@ const INSTRUCTIONS = [
  */
 export function createHulyMcpServer(): McpServer {
     const server = new McpServer(
-        { name: 'huly-mcp', version: '1.6.1' },
+        { name: 'huly-mcp', version: VERSION },
         { instructions: INSTRUCTIONS },
     );
     registerHulyTools(server);
