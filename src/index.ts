@@ -6,10 +6,8 @@ import './bootstrap.js';
 import { loadEnvFile } from './env.js';
 loadEnvFile();
 
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { Command } from 'commander';
+import { VERSION } from './version.js';
 import { setJsonMode } from './utils/logger.js';
 import { listTasksCommand } from './commands/tasks.js';
 import { getTaskCommand } from './commands/task.js';
@@ -28,22 +26,12 @@ import { commentsCommand } from './commands/comments.js';
 import { kindsCommand } from './commands/kinds.js';
 import { usersCommand } from './commands/users.js';
 
-let version = '1.6.1';
-try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
-    version = pkg.version;
-} catch {
-    // Bundled mode — use hardcoded version
-}
-
 const program = new Command();
 
 program
     .name('huly')
     .description('CLI tool to interact with Huly project management')
-    .version(version)
+    .version(VERSION)
     .option('--json', 'Output in JSON format');
 
 program.hook('preAction', (thisCommand) => {
