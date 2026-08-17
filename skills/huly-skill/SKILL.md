@@ -5,7 +5,7 @@ license: MIT
 compatibility: "Node.js 20+. Requires environment variables: HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY. Zero-install: all dependencies are bundled."
 metadata:
   author: fioenix
-  version: "1.6.1"
+  version: "1.7.0"
   repository: https://github.com/fioenix/huly-skill
 ---
 

@@ -3,7 +3,7 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
-## Unreleased
+## 1.7.0
 
 ### Changed — MCP list results are now capped and projected
 - `huly_list_tasks`, `huly_list_projects`, `huly_list_users`, `huly_list_labels`,
