@@ -88,6 +88,22 @@ export function registerHulyTools(server: McpServer): void {
     );
 
     server.registerTool(
+        'huly_list_users',
+        {
+            title: 'List users',
+            description: 'List people in the workspace. Use a returned `_id` as the `assignee` argument of huly_create_task / huly_update_task.',
+            inputSchema: {
+                activeOnly: z.boolean().optional().describe('Only workspace members that are active (default false — returns everyone)'),
+            },
+        },
+        async ({ activeOnly }) => withHuly(async (client) => {
+            let users = await client.getUsers();
+            if (activeOnly) users = users.filter((u) => u.active === true);
+            return { count: users.length, users };
+        }),
+    );
+
+    server.registerTool(
         'huly_list_tasks',
         {
             title: 'List tasks',
@@ -146,10 +162,11 @@ export function registerHulyTools(server: McpServer): void {
         'huly_create_task',
         {
             title: 'Create task',
-            description: 'Create a new task in a project.',
+            description: 'Create a new task in a project. Pass `parent` to create it as a sub-issue of an existing task.',
             inputSchema: {
                 title: z.string().describe('Task title'),
                 project: z.string().describe('Project identifier, name, or _id'),
+                parent: z.string().optional().describe('Parent task identifier (e.g. OMEGA-588) or internal _id — creates this task as its sub-issue. Must be in the same project.'),
                 priority: z.string().optional().describe('0-4, or LOW/MEDIUM/HIGH/URGENT'),
                 due: z.string().optional().describe('YYYY-MM-DD, "today", or "tomorrow"'),
                 assignee: z.string().optional().describe('Assignee ID, name, or "me"'),

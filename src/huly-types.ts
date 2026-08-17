@@ -49,6 +49,10 @@ export const task = {
 // Contact module class references
 // ---------------------------------------------------------------------------
 export const contact = {
+  mixin: {
+    // Marks a Person as a workspace member; carries `active` and `role`.
+    Employee: 'contact:mixin:Employee' as string,
+  },
   class: {
     Person: 'contact:class:Person' as Ref<Class<Doc>>,
     Channel: 'contact:class:Channel' as Ref<Class<Doc>>,

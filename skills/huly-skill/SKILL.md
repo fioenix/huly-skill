@@ -1,11 +1,11 @@
 ---
 name: huly-skill
-description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, work with milestones, or read comments/activity (on issues, milestones, or any object — including thread replies) in Huly. Supports both human-readable Vietnamese output and structured JSON mode for programmatic agent use."
+description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, work with milestones, create subtasks under a parent issue, look up workspace people, or read comments/activity (on issues, milestones, or any object — including thread replies) in Huly. Supports both human-readable Vietnamese output and structured JSON mode for programmatic agent use."
 license: MIT
 compatibility: "Node.js 20+. Requires environment variables: HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY. Zero-install: all dependencies are bundled."
 metadata:
   author: fioenix
-  version: "1.4.0"
+  version: "1.5.0"
   repository: https://github.com/fioenix/huly-skill
 ---
 
@@ -81,11 +81,17 @@ huly whoami                    # Verify connection + show account info
 ```bash
 huly projects                  # List all projects in the workspace
 huly kinds --project OMEGA     # Task types (kinds) in a project → IDs for --kind-id
+huly users [--active-only]     # Workspace people → IDs for --assignee
 ```
 
 Task types are scoped by project type, not by project: the same name (e.g. `KPI`)
 can exist under several project types with different IDs. Always read the ID from
 `huly kinds` for the project you are writing to.
+
+`huly users` gives the `_id` values `--assignee` accepts. Note that `me`
+resolves to whoever owns `HULY_API_KEY` — if that token is shared by a team,
+`me` is the token owner, not the person asking. Pass an explicit name or `_id`
+whenever the request is on someone else's behalf.
 
 ### Tasks
 ```bash
@@ -108,6 +114,7 @@ huly activity LAMBD-568 --updates-only            # Field changes only
 huly activity LAMBD-568 --comments-only --json    # Comments only, JSON
 
 huly create task "Title" --project DELTA          # Create task (required: --project)
+  --parent DELTA-16                               # Optional: create as a sub-issue
   --priority HIGH --due tomorrow --assignee me    # Optional: priority, due date, assignee
   --kind-id <id> --component-id <id>              # Optional: task type (see `huly kinds`), component
   --milestone-id <id>                             # Optional: milestone
@@ -121,6 +128,18 @@ huly update task DELTA-123                        # Update task
 
 huly delete task DELTA-123 --yes                  # Delete (requires --yes)
 ```
+
+#### Creating a sub-issue
+A subtask is just a task created with `--parent` — there is no separate command,
+and nothing re-parents a task after the fact, so pass `--parent` at creation:
+
+```bash
+huly create task "Wire up the aggregation job" --project OMEGA --parent OMEGA-588
+```
+
+The parent must live in the same project. Nesting deeper than one level works —
+pass the direct parent and the ancestor chain is recorded for you. Verify with
+`huly sub-issues <parent>`.
 
 ### Comments
 Read comments on **any** object — issues, milestones, documents, components — not just issues. Thread replies are nested under their parent comment in `replies`.

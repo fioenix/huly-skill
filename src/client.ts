@@ -97,6 +97,7 @@ export interface CreateTaskOptions {
     kindId?: string; // Task type / kind ref
     componentId?: string; // Component ref
     milestoneId?: string; // Milestone ref
+    parentId?: string; // Parent issue _id — creates the task as its sub-issue
     rawFields?: Record<string, any>; // custom/raw fields
 }
 
@@ -162,6 +163,25 @@ export class HulyClient {
      * is a SocialIdentity `_id`, not a Person `_id` — resolve actor names by
      * mapping `socialId._id → attachedTo (Person)`.
      */
+    /**
+     * Workspace people, flattened for listing: the Employee mixin carries
+     * membership status and role, so surface those alongside the name.
+     * Email lives on SocialIdentity and is deliberately left out — picking an
+     * assignee only needs `_id`.
+     */
+    async getUsers(): Promise<Array<{ _id: string; name: string; active: boolean | null; role: string | null }>> {
+        const persons = await this.getPersons();
+        return persons.map((p: any) => {
+            const employee = p[contact.mixin.Employee];
+            return {
+                _id: p._id,
+                name: p.name || '',
+                active: employee ? employee.active === true : null,
+                role: employee?.role ?? null,
+            };
+        });
+    }
+
     async getSocialIdentities(): Promise<any[]> {
         if (!this._socialIds) {
             this._socialIds = await this.client!.findAll(contact.class.SocialIdentity as any, {});
@@ -316,6 +336,25 @@ export class HulyClient {
             throw new Error(`Project not found: ${options.projectId}`);
         }
 
+        // Sub-issues attach to the parent issue instead of the project. Huly
+        // keeps the whole ancestor chain on the child (`parents[0]` is the
+        // direct parent), so read it off the parent rather than rebuilding it.
+        let parent: any = null;
+        if (options.parentId) {
+            parent = await this.client!.findOne(
+                tracker.class.Issue as any,
+                { _id: options.parentId } as any
+            );
+            if (!parent) {
+                throw new Error(`Parent task not found: ${options.parentId}`);
+            }
+            if (parent.space !== project._id) {
+                throw new Error(
+                    `Parent ${parent.identifier} belongs to another project — a sub-issue must live in the same project as its parent`
+                );
+            }
+        }
+
         // Generate unique issue ID
         const issueId: Ref<Doc> = generateId();
 
@@ -365,7 +404,17 @@ export class HulyClient {
             reportedTime: 0,
             reports: 0,
             subIssues: 0,
-            parents: [],
+            parents: parent
+                ? [
+                    {
+                        parentId: parent._id,
+                        parentTitle: parent.title,
+                        identifier: parent.identifier,
+                        space: parent.space,
+                    },
+                    ...(parent.parents || []),
+                ]
+                : [],
             childInfo: [],
             dueDate: options.dueDate || null,
             rank: makeRank(lastOne?.rank, undefined),
@@ -378,10 +427,10 @@ export class HulyClient {
         const c = this.client as any;
         await c.addCollection(
             tracker.class.Issue,
-            project._id,       // space
-            project._id,       // attachedTo (project)
-            project._class,    // attachedToClass
-            'issues',          // collection name
+            project._id,                                    // space
+            parent ? parent._id : project._id,              // attachedTo
+            parent ? tracker.class.Issue : project._class,  // attachedToClass
+            parent ? 'subIssues' : 'issues',                // collection name
             taskAttributes,
             issueId
         );

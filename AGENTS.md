@@ -48,6 +48,7 @@ Response format:
 | `huly whoami` | Verify connection, show account info |
 | `huly projects` | List all workspace projects |
 | `huly kinds --project <id>` | List task types (kinds) in a project — source of `--kind-id` |
+| `huly users [--active-only]` | List workspace people — source of `--assignee` ids |
 
 ### Task Management
 | Command | Purpose |
@@ -58,6 +59,7 @@ Response format:
 | `huly sub-issues <id>` | Recursive sub-issue tree of a parent task |
 | `huly activity <id>` | Activity timeline (changes + comments) |
 | `huly create task <title> --project <id> [options]` | Create a new task |
+| `huly create task <title> --project <id> --parent <id>` | Create it as a sub-issue of an existing task |
 | `huly update task <id> [options]` | Update task fields |
 | `huly delete task <id> --yes` | Permanently delete a task |
 
@@ -76,10 +78,39 @@ Response format:
 - `--priority <level>` — 0-4 or LOW/MEDIUM/HIGH/URGENT (default: 2)
 - `--due <date>` — YYYY-MM-DD, "today", "tomorrow"
 - `--assignee <person>` — name, ID, or "me"
+- `--parent <id>` — parent task identifier (e.g. OMEGA-588); creates a sub-issue in the same project
 - `--kind-id <id>` — task type, from `huly kinds --project <id>`
 - `--component-id <id>` — component
 - `--milestone-id <id>` — milestone
 - `--set-field "key=value"` — custom fields (repeatable)
+
+#### Creating sub-issues
+There is no separate "create subtask" command — a sub-issue is a task created
+with `--parent`. Do not try to create the task first and re-parent it
+afterwards; nothing re-parents an existing task.
+
+```bash
+huly create task "Wire up the aggregation job" --project OMEGA --parent OMEGA-588
+```
+
+- `--parent` takes the friendly identifier (`OMEGA-588`) or the internal `_id`.
+- The parent must be in the same project; a cross-project parent is rejected.
+- Nesting deeper than one level is allowed — pass the direct parent, and the
+  full ancestor chain is recorded automatically.
+- Read the result back with `huly sub-issues <parent>` (tree) or
+  `huly tasks --parent <parent>` (direct children only).
+
+#### Choosing an assignee
+`--assignee` accepts a name, an internal `_id`, or `me`. When the name is
+ambiguous or unknown, list people first rather than guessing:
+
+```bash
+huly users --active-only --json
+```
+
+Note that `me` resolves to the account behind `HULY_API_KEY`. If that token is
+shared across a team, `me` is the token's owner, not the person typing — pass
+an explicit name or `_id` in that case.
 
 #### Update Task Options
 - `--status <name>` — new status

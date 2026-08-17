@@ -52,7 +52,7 @@ Serves `POST /mcp` (default port `3000`, override with `PORT`) and `GET /health`
 
 ## Tools
 
-`huly_whoami`, `huly_list_projects`, `huly_list_task_kinds`, `huly_list_tasks`, `huly_get_task`, `huly_get_task_by_id`, `huly_list_sub_issues`, `huly_create_task`, `huly_update_task`, `huly_delete_task`, `huly_get_activity`, `huly_get_comments`, `huly_get_comment`, `huly_report`, `huly_list_labels`, `huly_create_label`, `huly_assign_label`, `huly_show_labels`, `huly_list_teamspaces`, `huly_list_documents`, `huly_read_document`, `huly_create_document`, `huly_create_teamspace`, `huly_list_milestones`, `huly_create_milestone`, `huly_complete_milestone`, `huly_milestone_report`.
+`huly_whoami`, `huly_list_projects`, `huly_list_task_kinds`, `huly_list_users`, `huly_list_tasks`, `huly_get_task`, `huly_get_task_by_id`, `huly_list_sub_issues`, `huly_create_task`, `huly_update_task`, `huly_delete_task`, `huly_get_activity`, `huly_get_comments`, `huly_get_comment`, `huly_report`, `huly_list_labels`, `huly_create_label`, `huly_assign_label`, `huly_show_labels`, `huly_list_teamspaces`, `huly_list_documents`, `huly_read_document`, `huly_create_document`, `huly_create_teamspace`, `huly_list_milestones`, `huly_create_milestone`, `huly_complete_milestone`, `huly_milestone_report`.
 
 `huly_get_comments` reads comments on **any** object (issue, milestone, document, …) by its internal `_id`, with thread replies nested in `replies`; `huly_get_comment` resolves a single comment by the `message` `_id` from a chunter link.
 
