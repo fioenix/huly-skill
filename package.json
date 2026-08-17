@@ -14,7 +14,7 @@
     "build:cli": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=bin/bundle.cjs --minify --define:import.meta.url='\"file:///bundle\"' --define:__HULY_VERSION__='\"'$npm_package_version'\"'",
     "build:mcp": "esbuild src/mcp/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=bin/mcp.cjs --minify --define:import.meta.url='\"file:///bundle\"' --define:__HULY_VERSION__='\"'$npm_package_version'\"' && node -e \"require('fs').copyFileSync('bin/mcp.cjs','npm-package/huly-mcp.cjs')\"",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('No tests configured yet')\"",
+    "test": "node --import tsx --test tests/*.test.ts",
     "start:mcp": "node bin/mcp.cjs"
   },
   "engines": {

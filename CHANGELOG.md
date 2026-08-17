@@ -19,6 +19,17 @@ which are released together under the same number.
 - Milestone listings omit `description`, which holds raw ProseMirror JSON rather
   than prose; request it explicitly through `fields` when needed.
 
+### Added — tests and CI
+- 30 tests over the parts where a silent mistake is expensive: output shaping
+  (caps, projection, the `all` escape hatch), token claim decoding and the
+  configuration warnings, and credential precedence including that a caller's
+  token never leaks past its own request. They run on `node --test` through the
+  `tsx` loader already in devDependencies — no test framework was added.
+- A GitHub Actions workflow runs typecheck, tests, and a build that fails when
+  the committed `bin/` bundles differ from source. Local MCP clients run
+  `bin/mcp.cjs` from a checkout, so an uncommitted rebuild silently ships stale
+  code to all of them; RELEASING.md warned about it, now CI enforces it.
+
 ### Added — per-caller Huly credentials over HTTP
 - The HTTP transport accepts `x-huly-token`, `x-huly-url` and `x-huly-workspace`
   per request, so several people can share one deployment and still have their
