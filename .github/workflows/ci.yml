@@ -50,3 +50,8 @@ jobs:
       # the class of mistake that shipped a 1.2.0 handshake through three
       # releases, and a skill bundle that went stale for just as long.
       - run: pnpm verify:release
+
+      # pnpm audit reports the whole graph, most of which esbuild never puts in
+      # bin/. This fails only when an advisory reaches a shipped bundle, which is
+      # the only case a user can be exposed to and the only one we can act on.
+      - run: pnpm audit:shipped

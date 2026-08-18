@@ -1,3 +1,18 @@
+# Transitive advisories closed by forcing patched versions upstream has not
+# adopted yet. Only packages that actually reach the shipped bundles are listed —
+# see reference/security-audit-2026-08.md for how that was determined and why the
+# rest are left alone.
+# Each range is the smallest patched version, capped inside the major upstream
+# already depends on: a bare '>=' pulls the next major (markdown-it 15,
+# linkify-it 6) into a code path upstream never tested.
+overrides:
+  ws: '>=8.21.0 <9'                    # @hcengineering/api-client — the WebSocket transport
+  fast-uri: '>=3.1.5 <4'               # ajv, via @modelcontextprotocol/sdk
+  linkify-it: '>=5.0.2 <6'             # markdown-it
+  markdown-it: '>=14.1.2 <15'          # @hcengineering/text-markdown
+  body-parser: '>=2.3.0 <3'            # express
+  '@hono/node-server': '>=1.19.15 <2'  # @modelcontextprotocol/sdk
+
 allowBuilds:
   core-js: false
   esbuild: true

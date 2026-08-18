@@ -23,6 +23,7 @@ pnpm typecheck
 pnpm test
 pnpm build            # bin/ is committed — see below
 pnpm verify:release
+pnpm audit:shipped
 ```
 
 CI runs exactly these. Two things catch people out:
@@ -75,6 +76,13 @@ together when the floor moves.
 
 The `@hcengineering` packages must match the Huly server version they talk to.
 1.6.1 shipped two copies of `core` because they had drifted.
+
+`overrides` in `pnpm-workspace.yaml` forces patched versions of transitive
+packages whose upstream has not moved. Add one only for a package that actually
+reaches a shipped bundle — `pnpm audit:shipped` tells you which do — and cap the
+range inside the major upstream depends on, or you replace an advisory with an
+untested major. Reasoning in
+[reference/security-audit-2026-08.md](./reference/security-audit-2026-08.md).
 
 ## Commits and pull requests
 
