@@ -1,6 +1,6 @@
 {
   "name": "huly-skill",
-  "version": "1.10.2",
+  "version": "1.10.3",
   "type": "module",
   "description": "CLI tool and agent skill for managing tasks, projects, labels, documents, and milestones in Huly",
   "license": "MIT",
@@ -22,6 +22,7 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "start:mcp": "node bin/mcp.cjs",
     "verify:release": "node scripts/verify-release.mjs",
+    "audit:shipped": "node scripts/audit-shipped.mjs",
     "pack:skill": "node scripts/pack-skill.mjs",
     "smoke": "node scripts/smoke.mjs"
   },

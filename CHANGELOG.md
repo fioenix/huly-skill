@@ -3,6 +3,34 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## 1.10.3
+
+### Fixed — every advisory that reached a shipped bundle
+- `pnpm audit` reported 41 advisories, all transitive. Six of them were in
+  packages esbuild actually puts into `bin/mcp.cjs` or `bin/bundle.cjs`, and those
+  are now forced to patched versions through `overrides` in
+  `pnpm-workspace.yaml`: `ws` 8.19.0 → 8.21.3 (high — memory exhaustion and
+  uninitialised memory disclosure, and it carries every call this tool makes),
+  `fast-uri` 3.1.2 → 3.1.5 (high ×3), `linkify-it` 5.0.0 → 5.0.2 (high ×2),
+  `markdown-it` 14.1.1 → 14.3.0, `body-parser` 2.2.2 → 2.3.0, and
+  `@hono/node-server` 1.19.14 → 1.19.17. Each range is capped inside the major
+  upstream depends on — a bare `>=` pulled `markdown-it` 15 and `linkify-it` 6
+  into code paths upstream never tested.
+- The remaining 31 advisories are in packages that are present at build time and
+  absent at run time: `svelte` and `dompurify` (Svelte components inside
+  `@hcengineering/activity` and `chunter`), `hono` and `ip-address` (the MCP SDK's
+  own HTTP server, unused here). None appear in either bundle, and the
+  `@hcengineering` ones cannot be moved independently of the Huly server version.
+  `SECURITY.md` states this rather than implying a clean audit.
+
+### Added — `pnpm audit:shipped`
+- Rebuilds both bundles' esbuild metafiles, maps every input back to its package,
+  and fails only when an advisory names a package actually inside a bundle. CI
+  runs it on every push. A gate that failed on the whole graph would be
+  permanently red, which trains people to ignore it; this one is actionable, and
+  its single remedy is an override. Method and evidence in
+  `reference/security-audit-2026-08.md`.
+
 ## 1.10.2
 
 ### Changed — remaining dependency updates

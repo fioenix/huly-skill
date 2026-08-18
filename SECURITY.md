@@ -32,6 +32,27 @@ model are upstream — report those to the Huly project. Note that a token is
 opaque to this project: it is passed through, and its payload is only ever
 decoded locally, without verification, to describe the configuration.
 
+## Known transitive advisories
+
+`pnpm audit` reports advisories in this project's dependency graph that are not
+fixable here, and this project does not pretend otherwise.
+
+Every advisory that reaches a **shipped bundle** is closed, by forcing a patched
+version through `overrides` in `pnpm-workspace.yaml` where upstream has not moved.
+`pnpm audit:shipped` enforces that on every push: it rebuilds both bundles, maps
+each input back to its package, and fails if a vulnerable package is actually
+inside `bin/mcp.cjs` or `bin/bundle.cjs`.
+
+The advisories that remain are in packages present at build time and absent at run
+time — `svelte` and `dompurify` (Svelte UI components inside
+`@hcengineering/activity` and `chunter`), `hono` and `ip-address` (the MCP SDK's
+own HTTP server, unused here because this project runs `express`). None of them
+are in either bundle, and the `@hcengineering` packages cannot be moved
+independently: they must match the Huly server version.
+
+The triage, the evidence, and the reasoning are in
+[reference/security-audit-2026-08.md](./reference/security-audit-2026-08.md).
+
 ## Handling credentials safely
 
 - Keep credentials in `~/.huly/.env`, never inline in a command or a config file
