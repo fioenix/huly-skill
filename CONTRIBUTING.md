@@ -64,6 +64,18 @@ Huly MCP server. Read the relevant note before proposing to reverse one of them 
 and if you have evidence the decision was wrong, that note is the right place to
 argue it.
 
+## Dependencies
+
+Three of them are pinned to this package's **Node floor**, not to their latest
+release: `commander` 15 requires Node 22.12, `undici` 8 requires 22.19, and
+`@types/node` must describe the *oldest* runtime supported — typing against a
+newer Node lets an API that crashes on the floor version pass `pnpm typecheck`.
+`.github/dependabot.yml` ignores major bumps for those three; revisit all of them
+together when the floor moves.
+
+The `@hcengineering` packages must match the Huly server version they talk to.
+1.6.1 shipped two copies of `core` because they had drifted.
+
 ## Commits and pull requests
 
 - Commit messages start with a verb: `Add`, `Fix`, `Refactor`, `Update`. One

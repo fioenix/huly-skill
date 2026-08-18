@@ -7,6 +7,22 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    ignore:
+      # These three gate on this package's Node floor, not on their own merits.
+      # commander 15 wants Node >=22.12, undici 8 wants >=22.19, and @types/node
+      # must describe the OLDEST runtime we support — typing against a newer Node
+      # lets an API that crashes on the floor version pass typecheck. Revisit all
+      # three together when the floor moves; until then a major here is a break
+      # for users, not an upgrade.
+      - dependency-name: commander
+        update-types: [version-update:semver-major]
+      - dependency-name: undici
+        update-types: [version-update:semver-major]
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
+      # Must match the Huly server version this talks to; 1.6.1 shipped two
+      # copies of core because these drifted. Bumped deliberately, never by bot.
+      - dependency-name: "@hcengineering/*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
