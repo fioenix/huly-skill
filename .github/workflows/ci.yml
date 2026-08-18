@@ -14,7 +14,7 @@ jobs:
       # pnpm 11, matching the version that produced pnpm-lock.yaml. pnpm 9
       # rejects this repo's pnpm-workspace.yaml, which carries `allowBuilds`
       # and no `packages` field.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11
 
