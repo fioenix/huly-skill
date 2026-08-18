@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload } from '../utils/errors.js';
 
 export function labelsCommand() {
     const cmd = new Command('labels')
@@ -32,7 +33,7 @@ export function labelsCommand() {
                     printToConsole(output);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
                 process.exitCode = 1;
             }
@@ -54,7 +55,7 @@ export function labelsCommand() {
                     }
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi khi tao label: ${e.message}`);
                 process.exitCode = 1;
             }
@@ -86,7 +87,7 @@ export function labelsCommand() {
                     }
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
                 process.exitCode = 1;
             }
@@ -124,7 +125,7 @@ export function labelsCommand() {
                     printToConsole(output);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
                 process.exitCode = 1;
             }

@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, formatDate, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload, hulyError } from '../utils/errors.js';
 import { listComments, getCommentById, CommentItem } from '../services/comments.js';
 
 export function commentsCommand() {
@@ -31,7 +32,7 @@ export function commentsCommand() {
                     printToConsole(output);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
                 process.exitCode = 1;
             }
@@ -48,7 +49,7 @@ export function commentsCommand() {
                     if (isJsonMode()) {
                         outputJson(comment
                             ? { status: 'ok', data: comment }
-                            : { status: 'error', error: `Khong tim thay comment: ${messageId}` });
+                            : errorPayload(hulyError('not_found', `Khong tim thay comment: ${messageId}`)));
                         return;
                     }
                     if (!comment) {
@@ -58,7 +59,7 @@ export function commentsCommand() {
                     printToConsole(renderComment(comment));
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
                 process.exitCode = 1;
             }

@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload, hulyError } from '../utils/errors.js';
 import { getSubIssueTree, SubIssueNode } from '../services/sub-issues.js';
 
 export function listSubIssuesCommand() {
@@ -37,7 +38,7 @@ export function listSubIssuesCommand() {
                     printToConsole(output);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
                 process.exitCode = 1;
             }
@@ -71,7 +72,7 @@ export function getTaskByIdCommand() {
                 await withClient(async (client) => {
                     const task = await client.getTaskByInternalId(internalId);
                     if (!task) {
-                        if (isJsonMode()) outputJson({ status: 'error', error: `Task not found: ${internalId}` });
+                        if (isJsonMode()) outputJson(errorPayload(hulyError('not_found', `Task not found: ${internalId}`)));
                         else console.error(`Khong tim thay task voi _id: ${internalId}`);
                         process.exitCode = 1;
                         return;
@@ -83,7 +84,7 @@ export function getTaskByIdCommand() {
                     printToConsole(`${task.identifier}: ${task.title}\n  _id: ${task._id}\n  space: ${task.space}`);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
                 process.exitCode = 1;
             }

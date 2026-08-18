@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload } from '../utils/errors.js';
 import { resolveProject } from '../resolvers.js';
 
 export function kindsCommand() {
@@ -37,7 +38,7 @@ export function kindsCommand() {
                     printToConsole(output);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi khi tai task kinds: ${e.message}`);
                 process.exitCode = 1;
             }

@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload } from '../utils/errors.js';
 import { reportIssues } from '../services/issues.js';
 
 export function reportCommand() {
@@ -58,7 +59,7 @@ export function reportCommand() {
                     printToConsole(output);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Loi tao bao cao: ${e.message}`);
                 process.exitCode = 1;
             }

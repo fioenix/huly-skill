@@ -44,3 +44,8 @@ jobs:
           pnpm build
           git diff --exit-code --stat bin/ \
             || { echo "::error::bin/ is stale — run 'pnpm build' and commit the result"; exit 1; }
+
+      # Version agreement across the three manifests, and what the binaries
+      # actually report — the class of mistake that shipped a 1.2.0 handshake
+      # through three releases.
+      - run: pnpm verify:release

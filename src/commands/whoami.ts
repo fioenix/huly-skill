@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload } from '../utils/errors.js';
 import { maskToken } from '../utils/auth.js';
 import { describeContext } from '../utils/context.js';
 import { getActor, resolvePerson } from '../resolvers.js';
@@ -106,7 +107,7 @@ export function whoamiCommand() {
                     }
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Ket noi that bai: ${e.message}`);
                 process.exitCode = 1;
             }
