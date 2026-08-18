@@ -3,6 +3,28 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## 1.9.0
+
+### Added — comments can be edited and deleted
+- `huly comments update <messageId> "<body>"` / `huly_update_comment` and
+  `huly comments delete <messageId> --yes` / `huly_delete_comment`. Reading
+  comments has been possible since 1.5.0; fixing a wrong one meant opening Huly.
+  Both address a comment by its `_id` and work on thread replies too, since the
+  collection coordinates come off the stored document. An edit stamps `editedOn`
+  the way Huly's own editor does, so a listing can tell an edited comment from an
+  original one. Deletion is irreversible and needs `--yes` (`confirm=true` on
+  MCP). MCP tool count 29 → 31; `tools/list` 18,264 B → 19,589 B.
+
+### Added — exit status by error class
+- The CLI exits `2` on `auth`, `3` on `not_found`, `4` on `invalid_input`, `5` on
+  `connection`, and `1` on anything else, matching the `code` in JSON mode. A
+  shell can now branch on `$?` without parsing output. Scripts that only test for
+  nonzero are unaffected.
+- Six failure paths — missing teamspace, missing document, missing task in
+  `labels`/`delete` — printed a human line even under `--json`, so a JSON caller
+  got nothing parseable. They now return the same envelope as every other
+  failure.
+
 ## 1.8.0
 
 ### Fixed — the skill bundle shipped three versions stale

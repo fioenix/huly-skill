@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, formatDate, isJsonMode, outputJson } from '../utils/logger.js';
-import { errorPayload, hulyError } from '../utils/errors.js';
-import { listComments, getCommentById, CommentItem } from '../services/comments.js';
+import { EXIT_STATUS, errorPayload, exitStatusFor, hulyError } from '../utils/errors.js';
+import { listComments, getCommentById, updateComment, deleteComment, CommentItem } from '../services/comments.js';
 
 export function commentsCommand() {
     const cmd = new Command('comments')
@@ -34,7 +34,7 @@ export function commentsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 
@@ -45,7 +45,7 @@ export function commentsCommand() {
             try {
                 await withClient(async (client) => {
                     const comment = await getCommentById(client, messageId);
-                    if (!comment) process.exitCode = 1;
+                    if (!comment) process.exitCode = EXIT_STATUS.not_found;
                     if (isJsonMode()) {
                         outputJson(comment
                             ? { status: 'ok', data: comment }
@@ -61,7 +61,49 @@ export function commentsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
+            }
+        });
+
+    cmd.command('update')
+        .description('Edit an existing comment by its _id')
+        .argument('<messageId>', 'ChatMessage _id')
+        .argument('<message>', 'New comment body (markdown)')
+        .action(async (messageId, message) => {
+            try {
+                await withClient(async (client) => {
+                    const updated = await updateComment(client, messageId, message);
+                    if (isJsonMode()) outputJson({ status: 'ok', data: updated });
+                    else printToConsole(`Da cap nhat comment ${messageId}:\n\n${renderComment(updated)}`);
+                });
+            } catch (e: any) {
+                if (isJsonMode()) outputJson(errorPayload(e));
+                else console.error(`Loi: ${e.message}`);
+                process.exitCode = exitStatusFor(e);
+            }
+        });
+
+    cmd.command('delete')
+        .description('Delete a comment by its _id (irreversible)')
+        .argument('<messageId>', 'ChatMessage _id')
+        .option('-y, --yes', 'Confirm deletion')
+        .action(async (messageId, options) => {
+            if (!options.yes) {
+                const e = hulyError('invalid_input', `Chua xac nhan xoa. Them --yes de xoa comment ${messageId}.`);
+                if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
+                process.exitCode = exitStatusFor(e);
+                return;
+            }
+            try {
+                await withClient(async (client) => {
+                    const deleted = await deleteComment(client, messageId);
+                    if (isJsonMode()) outputJson({ status: 'ok', deleted });
+                    else printToConsole(`Da xoa comment ${messageId}.`);
+                });
+            } catch (e: any) {
+                if (isJsonMode()) outputJson(errorPayload(e));
+                else console.error(`Loi: ${e.message}`);
+                process.exitCode = exitStatusFor(e);
             }
         });
 

@@ -83,10 +83,31 @@ try {
         if (!rows[0]._id) throw new Error('listing rows lost _id');
     });
 
+    let commentId;
     step('comment', () => {
         expectOk(huly('update', 'task', created, '--add-comment', 'smoke test'));
         const comments = expectOk(huly('activity', created, '--comments-only')).data ?? [];
-        if (!comments.some((entry) => JSON.stringify(entry).includes('smoke test'))) throw new Error('comment did not come back');
+        const posted = comments.find((entry) => JSON.stringify(entry).includes('smoke test'));
+        if (!posted) throw new Error('comment did not come back');
+        commentId = posted.id ?? posted.messageId ?? posted._id;
+        if (!commentId) throw new Error('comment came back without an id to address it by');
+    });
+
+    step('edit the comment', () => {
+        const updated = expectOk(huly('comments', 'update', commentId, 'smoke test, edited')).data;
+        if (!updated?.message?.includes('edited')) throw new Error(`edit did not stick: ${JSON.stringify(updated?.message)}`);
+        if (!updated?.editedOn) throw new Error('an edited comment must carry editedOn');
+    });
+
+    step('delete without --yes is refused', () => {
+        const refused = huly('comments', 'delete', commentId);
+        if (refused.code !== 'invalid_input') throw new Error(`unconfirmed delete classified as ${refused.code}`);
+    });
+
+    step('delete the comment', () => {
+        expectOk(huly('comments', 'delete', commentId, '--yes'));
+        const gone = huly('comments', 'get', commentId);
+        if (gone.status !== 'error' || gone.code !== 'not_found') throw new Error('deleted comment still resolves');
     });
 
     let gone;

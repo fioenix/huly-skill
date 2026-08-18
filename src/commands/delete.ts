@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
-import { errorPayload } from '../utils/errors.js';
+import { errorPayload, exitStatusFor, hulyError } from '../utils/errors.js';
 
 export function deleteTaskCommand() {
     return new Command('delete')
@@ -22,8 +22,9 @@ export function deleteTaskCommand() {
                 await withClient(async (client) => {
                     const task = await client.getTask(taskId);
                     if (!task) {
-                        console.error(`❌ Khong tim thay task voi Identifier: ${taskId}`);
-                        process.exitCode = 1;
+                        const e = hulyError('not_found', `Khong tim thay task voi Identifier: ${taskId}`);
+                        if (isJsonMode()) outputJson(errorPayload(e)); else console.error(`❌ ${e.message}`);
+                        process.exitCode = exitStatusFor(e);
                         return;
                     }
 
@@ -40,7 +41,7 @@ export function deleteTaskCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Loi khi xoa task: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 }

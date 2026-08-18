@@ -1,11 +1,11 @@
 ---
 name: huly-skill
-description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, work with milestones, create subtasks under a parent issue, look up workspace people, or read comments/activity (on issues, milestones, or any object — including thread replies) in Huly. Supports both human-readable Vietnamese output and structured JSON mode for programmatic agent use."
+description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, work with milestones, create subtasks under a parent issue, look up workspace people, or read, edit and delete comments/activity (on issues, milestones, or any object — including thread replies) in Huly. Supports both human-readable Vietnamese output and structured JSON mode for programmatic agent use."
 license: MIT
 compatibility: "Node.js 20+. Requires environment variables: HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY. Zero-install: all dependencies are bundled."
 metadata:
   author: fioenix
-  version: "1.8.0"
+  version: "1.9.0"
   repository: https://github.com/fioenix/huly-skill
 ---
 
@@ -53,7 +53,7 @@ huly update task DELTA-123 --status "Done" --add-comment "shipped"
 huly report weekly --json                        # computed weekly summary
 ```
 
-Everything else — projects, task kinds, users, comments on any object, documents,
+Everything else — projects, task kinds, users, comments on any object (read, edit, delete), documents,
 teamspaces, milestones, labels, priorities, dates, pasted-link resolution:
 [references/commands.md](references/commands.md).
 

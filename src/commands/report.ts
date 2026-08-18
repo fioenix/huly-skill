@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
-import { errorPayload } from '../utils/errors.js';
+import { EXIT_STATUS, errorPayload, exitStatusFor } from '../utils/errors.js';
 import { reportIssues } from '../services/issues.js';
 
 export function reportCommand() {
@@ -13,7 +13,7 @@ export function reportCommand() {
             const normalized = type.toLowerCase();
             if (normalized !== 'daily' && normalized !== 'weekly') {
                 console.error(`❌ Loai bao cao khong hop le. Vui long chon 'daily' hoac 'weekly'.`);
-                process.exitCode = 1;
+                process.exitCode = EXIT_STATUS.invalid_input;
                 return;
             }
 
@@ -61,7 +61,7 @@ export function reportCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Loi tao bao cao: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 }

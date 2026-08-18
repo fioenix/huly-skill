@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
-import { errorPayload, hulyError } from '../utils/errors.js';
+import { EXIT_STATUS, errorPayload, exitStatusFor, hulyError } from '../utils/errors.js';
 import { getProjectMap, getStatusMap } from '../resolvers.js';
 
 export function getTaskCommand() {
@@ -15,7 +15,7 @@ export function getTaskCommand() {
                     if (!task) {
                         if (isJsonMode()) outputJson(errorPayload(hulyError('not_found', `Task not found: ${taskId}`)));
                         else console.error(`❌ Khong tim thay cong viec: ${taskId}`);
-                        process.exitCode = 1;
+                        process.exitCode = EXIT_STATUS.not_found;
                         return;
                     }
 
@@ -76,7 +76,7 @@ export function getTaskCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Loi: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 }

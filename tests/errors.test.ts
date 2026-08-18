@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { classifyError, errorPayload, hulyError } from '../src/utils/errors.js';
+import { EXIT_STATUS, classifyError, errorPayload, exitStatusFor, hulyError } from '../src/utils/errors.js';
 
 test('a dropped connection is the one class worth retrying', () => {
     const payload = errorPayload(new Error('WebSocket connection closed'));
@@ -48,4 +48,21 @@ test('the human message is passed through untouched', () => {
 test('a non-Error rejection still produces an envelope', () => {
     assert.equal(errorPayload('boom').error, 'boom');
     assert.equal(errorPayload(undefined).status, 'error');
+});
+
+test('exit status is distinct per class, so a shell can branch on $?', () => {
+    const statuses = Object.values(EXIT_STATUS);
+    assert.equal(new Set(statuses).size, statuses.length);
+    assert.equal(statuses.includes(0), false, 'no failure may exit 0');
+});
+
+test('an unclassified failure keeps exit 1 — scripts that only test nonzero still work', () => {
+    assert.equal(exitStatusFor(new Error('something went sideways')), 1);
+});
+
+test('exit status follows the classification', () => {
+    assert.equal(exitStatusFor(new Error('Khong tim thay task: X')), EXIT_STATUS.not_found);
+    assert.equal(exitStatusFor(new Error('401 Unauthorized')), EXIT_STATUS.auth);
+    assert.equal(exitStatusFor(hulyError('invalid_input', 'nope')), EXIT_STATUS.invalid_input);
+    assert.equal(exitStatusFor(new Error('ECONNREFUSED')), EXIT_STATUS.connection);
 });

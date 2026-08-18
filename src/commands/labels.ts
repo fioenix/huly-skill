@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
-import { errorPayload } from '../utils/errors.js';
+import { errorPayload, exitStatusFor, hulyError } from '../utils/errors.js';
 
 export function labelsCommand() {
     const cmd = new Command('labels')
@@ -35,7 +35,7 @@ export function labelsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 
@@ -57,7 +57,7 @@ export function labelsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi khi tao label: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 
@@ -72,8 +72,9 @@ export function labelsCommand() {
                 await withClient(async (client) => {
                     const task = await client.getTask(taskId);
                     if (!task) {
-                        console.error(`Khong tim thay task: ${taskId}`);
-                        process.exitCode = 1;
+                        const e = hulyError('not_found', `Khong tim thay task: ${taskId}`);
+                        if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
+                        process.exitCode = exitStatusFor(e);
                         return;
                     }
 
@@ -89,7 +90,7 @@ export function labelsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 
@@ -101,8 +102,9 @@ export function labelsCommand() {
                 await withClient(async (client) => {
                     const task = await client.getTask(taskId);
                     if (!task) {
-                        console.error(`Khong tim thay task: ${taskId}`);
-                        process.exitCode = 1;
+                        const e = hulyError('not_found', `Khong tim thay task: ${taskId}`);
+                        if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
+                        process.exitCode = exitStatusFor(e);
                         return;
                     }
 
@@ -127,7 +129,7 @@ export function labelsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 

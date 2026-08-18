@@ -12,7 +12,7 @@ import { resolveProject, parseDate } from '../resolvers.js';
 import { MilestoneStatus } from '../huly-types.js';
 import { getSubIssueTree, getMilestoneReport } from '../services/sub-issues.js';
 import { getIssueActivity } from '../services/activity.js';
-import { listComments, getCommentById } from '../services/comments.js';
+import { listComments, getCommentById, updateComment, deleteComment } from '../services/comments.js';
 import { DEFAULT_LIST_LIMIT, LIST_FIELDS, shapeList, type ListEntity } from '../utils/projection.js';
 import { describeContext } from '../utils/context.js';
 import { errorPayload, hulyError } from '../utils/errors.js';
@@ -595,6 +595,39 @@ export function registerHulyTools(server: McpServer): void {
             if (!comment) throw new Error(`Khong tim thay comment: ${messageId}`);
             return { comment };
         }),
+    );
+
+    server.registerTool(
+        'huly_update_comment',
+        {
+            title: 'Edit a comment',
+            description: 'Replace the body of an existing comment, addressed by its _id (from huly_get_comments or the "message" query param of a chunter link). Works on thread replies too. Returns the comment as stored after the edit. Huly attributes the edit to the token owner, not to HULY_ACTOR.',
+            inputSchema: z.object({
+                messageId: z.string().describe('ChatMessage _id of the comment to edit'),
+                message: z.string().describe('New comment body (markdown)'),
+            }).strict(),
+        },
+        async ({ messageId, message }) => withHuly(async (client) => ({
+            comment: await updateComment(client, messageId, message),
+        })),
+    );
+
+    server.registerTool(
+        'huly_delete_comment',
+        {
+            title: 'Delete a comment',
+            description: 'Permanently delete a comment by its _id. This cannot be undone — set confirm=true to proceed. Deleting a comment that has thread replies leaves those replies without a parent.',
+            inputSchema: z.object({
+                messageId: z.string().describe('ChatMessage _id of the comment to delete'),
+                confirm: z.boolean().describe('Must be true to actually delete'),
+            }).strict(),
+        },
+        async ({ messageId, confirm }) => {
+            if (!confirm) {
+                return toResult(errorPayload(hulyError('invalid_input', `Deletion not confirmed. Re-call with confirm=true to permanently delete comment ${messageId}.`)));
+            }
+            return withHuly(async (client) => ({ deleted: await deleteComment(client, messageId) }));
+        },
     );
 
     server.registerTool(

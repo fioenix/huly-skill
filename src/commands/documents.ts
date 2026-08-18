@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
-import { errorPayload } from '../utils/errors.js';
+import { errorPayload, exitStatusFor, hulyError } from '../utils/errors.js';
 
 export function documentsCommand() {
     const cmd = new Command('docs')
@@ -36,7 +36,7 @@ export function documentsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 
@@ -51,8 +51,9 @@ export function documentsCommand() {
                         t.name === teamspaceInput || t._id === teamspaceInput
                     );
                     if (!ts) {
-                        console.error(`Khong tim thay teamspace: ${teamspaceInput}`);
-                        process.exitCode = 1;
+                        const e = hulyError('not_found', `Khong tim thay teamspace: ${teamspaceInput}`);
+                        if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
+                        process.exitCode = exitStatusFor(e);
                         return;
                     }
 
@@ -79,7 +80,7 @@ export function documentsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 
@@ -97,8 +98,9 @@ export function documentsCommand() {
                         t.name === options.teamspace || t._id === options.teamspace
                     );
                     if (!ts) {
-                        console.error(`Khong tim thay teamspace: ${options.teamspace}`);
-                        process.exitCode = 1;
+                        const e = hulyError('not_found', `Khong tim thay teamspace: ${options.teamspace}`);
+                        if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
+                        process.exitCode = exitStatusFor(e);
                         return;
                     }
 
@@ -119,7 +121,7 @@ export function documentsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi khi tao tai lieu: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 
@@ -142,7 +144,7 @@ export function documentsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi khi tao teamspace: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 
@@ -158,8 +160,9 @@ export function documentsCommand() {
                         t.name === teamspaceInput || t._id === teamspaceInput
                     );
                     if (!ts) {
-                        console.error(`Khong tim thay teamspace: ${teamspaceInput}`);
-                        process.exitCode = 1;
+                        const e = hulyError('not_found', `Khong tim thay teamspace: ${teamspaceInput}`);
+                        if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
+                        process.exitCode = exitStatusFor(e);
                         return;
                     }
 
@@ -169,8 +172,9 @@ export function documentsCommand() {
                         d.title?.toLowerCase().includes(titleLower) || d._id === titleInput
                     );
                     if (!doc) {
-                        console.error(`Khong tim thay tai lieu: "${titleInput}"`);
-                        process.exitCode = 1;
+                        const e = hulyError('not_found', `Khong tim thay tai lieu: "${titleInput}"`);
+                        if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
+                        process.exitCode = exitStatusFor(e);
                         return;
                     }
 
@@ -188,7 +192,7 @@ export function documentsCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 
