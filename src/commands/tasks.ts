@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload } from '../utils/errors.js';
 import { queryIssues, isCompletedStatus } from '../services/issues.js';
 import { parseFields, projectRows } from '../utils/projection.js';
 
@@ -81,7 +82,7 @@ export function listTasksCommand() {
                     printToConsole(output);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Loi: ${e.message}`);
                 process.exitCode = 1;
             }

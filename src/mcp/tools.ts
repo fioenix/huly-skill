@@ -15,6 +15,7 @@ import { getIssueActivity } from '../services/activity.js';
 import { listComments, getCommentById } from '../services/comments.js';
 import { DEFAULT_LIST_LIMIT, LIST_FIELDS, shapeList, type ListEntity } from '../utils/projection.js';
 import { describeContext } from '../utils/context.js';
+import { errorPayload, hulyError } from '../utils/errors.js';
 
 // --- result helpers --------------------------------------------------------
 
@@ -54,7 +55,7 @@ async function withHuly(fn: (client: HulyClient) => Promise<Record<string, any>>
         const data = await withClient(fn);
         return toResult({ status: 'ok', ...data });
     } catch (e: any) {
-        return toResult({ status: 'error', error: e?.message || String(e) });
+        return toResult(errorPayload(e));
     }
 }
 
@@ -255,7 +256,7 @@ export function registerHulyTools(server: McpServer): void {
         },
         async ({ taskId, confirm }) => {
             if (!confirm) {
-                return toResult({ status: 'error', error: `Deletion not confirmed. Re-call with confirm=true to permanently delete ${taskId}.` });
+                return toResult(errorPayload(hulyError('invalid_input', `Deletion not confirmed. Re-call with confirm=true to permanently delete ${taskId}.`)));
             }
             return withHuly(async (client) => {
                 const task = await client.getTask(taskId);

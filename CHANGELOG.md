@@ -3,6 +3,32 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Added — errors say whether retrying is worth it
+- Every JSON failure now carries `code` and `retryable` beside the message it
+  already had: `auth`, `connection`, `not_found`, `invalid_input`, `unknown`.
+  Only `connection` is retryable. An agent previously had to infer that from a
+  Vietnamese sentence, and both wrong guesses cost something — retrying a
+  `not_found` burns turns, giving up on a dropped WebSocket loses work that
+  would have succeeded. `auth` also carries a `hint` pointing at the offline
+  diagnostics. The human message is unchanged, in both languages; the fields sit
+  next to it.
+
+### Added — release and integration checks
+- `pnpm verify:release` checks the three manifests agree on the version and,
+  more to the point, asks the binaries what they report: `huly --version` and
+  the MCP `initialize` handshake, plus that `npm-package/huly-mcp.cjs` matches
+  `bin/mcp.cjs` and that nothing but JSON-RPC reaches stdout. `--packed` repeats
+  the last two against the tarball `npm publish` would upload. Every check
+  corresponds to a release that went out wrong. CI runs it on every push.
+- `HULY_SMOKE=1 pnpm smoke` runs create → read → list → comment → delete against
+  a real workspace through the built CLI, and deletes the issue it created even
+  when a step fails. Opt-in and deliberately outside CI, since it needs
+  credentials and writes to a live workspace: the unit tests cover pure
+  functions, this covers the half where an SDK change or a bundling mistake
+  breaks a call that still typechecks.
+
 ## 1.7.0
 
 ### Changed — MCP list results are now capped and projected

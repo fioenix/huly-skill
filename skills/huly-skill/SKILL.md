@@ -39,7 +39,8 @@ step that answers the question:
 
 Always pass `--json` when parsing or piping. Listings return
 `{"status":"ok","count":N,"data":[…]}`; reports put their payload at the top level;
-failures return `{"status":"error","error":"…"}`.
+failures return `{"status":"error","error":"…","code":"…","retryable":bool}` —
+retry only when `retryable` is true.
 
 ## Everyday commands
 
@@ -63,8 +64,8 @@ teamspaces, milestones, labels, priorities, dates, pasted-link resolution:
 - A subtask is a task created with `--parent`; nothing re-parents it afterwards.
 - `me` is `HULY_ACTOR` when set, else the owner of `HULY_API_KEY` — and Huly always
   records that token owner as the author, whatever `HULY_ACTOR` says.
-- Deletes need `--yes`. Errors print in Vietnamese with a `Loi:` prefix — report the
-  failure instead of retrying blindly.
+- Deletes need `--yes`. Errors print in Vietnamese with a `Loi:` prefix; in JSON,
+  `code` and `retryable` say whether another attempt can help.
 - Never call Huly HTTP/WS APIs directly; the CLI is the source of truth.
 
 Codex has no skill system: it uses [`AGENTS.md`](../../AGENTS.md) with the

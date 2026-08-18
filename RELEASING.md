@@ -11,8 +11,9 @@ numbers.
 
 ## Checklist
 
-Nothing here is automated — each step is a place a release has actually been
-left half-finished before.
+Each step is a place a release has actually been left half-finished before.
+Steps 1–3 and 6 are checked by `pnpm verify:release`, which CI also runs; the
+rest still need a human.
 
 1. **Bump the version in three places:**
    - `package.json` — `huly --version` and the MCP `initialize` handshake both
@@ -29,10 +30,20 @@ left half-finished before.
 2. **Write the `CHANGELOG.md` entry.** Give any behaviour that can break an
    existing caller its own heading saying so, e.g. `### Changed — may reject
    calls that previously succeeded`.
-3. **Rebuild.** `pnpm build` regenerates `bin/bundle.cjs` and `bin/mcp.cjs`, and
+3. **Verify and rebuild.** `pnpm build` regenerates `bin/bundle.cjs` and `bin/mcp.cjs`, and
    copies the latter to `npm-package/huly-mcp.cjs`. The bundles are committed —
    local MCP clients run `bin/mcp.cjs` from a checkout, not from npm, so a
-   forgotten rebuild ships stale code to every local client.
+   forgotten rebuild ships stale code to every local client. Then:
+   ```bash
+   pnpm verify:release --packed
+   ```
+   It asks the binaries what version they report rather than grepping for it,
+   compares the published bundle against `bin/mcp.cjs` — including inside the
+   tarball `npm publish` would upload — and fails if anything but JSON-RPC
+   reaches stdout. Run the smoke test too, if the release touches a write path:
+   ```bash
+   HULY_SMOKE=1 pnpm smoke
+   ```
 4. **Open a PR and squash-merge it.** Branch from `main`, not from another
    feature branch — a squash merge of a branch stacked on an open PR swallows
    that PR's commits and leaves it open forever.

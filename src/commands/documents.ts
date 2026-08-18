@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload } from '../utils/errors.js';
 
 export function documentsCommand() {
     const cmd = new Command('docs')
@@ -33,7 +34,7 @@ export function documentsCommand() {
                     printToConsole(output);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
                 process.exitCode = 1;
             }
@@ -76,7 +77,7 @@ export function documentsCommand() {
                     printToConsole(output);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
                 process.exitCode = 1;
             }
@@ -116,7 +117,7 @@ export function documentsCommand() {
                     }
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi khi tao tai lieu: ${e.message}`);
                 process.exitCode = 1;
             }
@@ -139,7 +140,7 @@ export function documentsCommand() {
                     }
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi khi tao teamspace: ${e.message}`);
                 process.exitCode = 1;
             }
@@ -185,7 +186,7 @@ export function documentsCommand() {
                     }
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi: ${e.message}`);
                 process.exitCode = 1;
             }

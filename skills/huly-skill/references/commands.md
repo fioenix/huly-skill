@@ -205,12 +205,16 @@ Due dates accept `YYYY-MM-DD`, `today`, `tomorrow`.
 ```json
 { "status": "ok", "count": 12, "data": [] }
 { "status": "ok", "type": "weekly", "due": [], "overdue": [], "inProgress": 3 }
-{ "status": "error", "error": "message" }
+{ "status": "error", "error": "message", "code": "not_found", "retryable": false }
 ```
 
 Listings wrap rows in `data` with a `count`. Reports (`report daily|weekly`) put
 their payload at the top level — there is no `data` key. Check the shape before
 writing a `jq` path.
 
-Errors print in Vietnamese with a `Loi:` prefix. Parse the message, report the
-failure, and don't fall back to calling Huly APIs directly.
+Errors print in Vietnamese with a `Loi:` prefix in human mode. In `--json` mode
+read `code` (`auth`, `connection`, `not_found`, `invalid_input`, `unknown`) and
+`retryable` instead of the message: only `connection` is worth the same call
+again. `not_found` means change the identifier; `invalid_input` means change the
+arguments; `auth` carries a `hint` and needs `huly whoami --offline`. Never fall
+back to calling Huly APIs directly.

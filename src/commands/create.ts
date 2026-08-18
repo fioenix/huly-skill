@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload } from '../utils/errors.js';
 import { parseRawFields } from '../resolvers.js';
 import { createIssue } from '../services/issues.js';
 
@@ -58,7 +59,7 @@ export function createTaskCommand() {
                     }
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Loi khi tao task: ${e.message}`);
                 process.exitCode = 1;
             }

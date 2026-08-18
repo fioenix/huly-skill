@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload } from '../utils/errors.js';
 
 export function deleteTaskCommand() {
     return new Command('delete')
@@ -37,7 +38,7 @@ export function deleteTaskCommand() {
                     }
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Loi khi xoa task: ${e.message}`);
                 process.exitCode = 1;
             }

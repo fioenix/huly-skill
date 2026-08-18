@@ -51,11 +51,15 @@ Response format:
 ```json
 { "status": "ok", "count": 12, "total": 249, "truncated": true, "data": [] }
 { "status": "ok", "type": "weekly", "due": [], "overdue": [], "inProgress": 3 }
-{ "status": "error", "error": "message" }
+{ "status": "error", "error": "message", "code": "not_found", "retryable": false }
 ```
 
 Listings wrap rows in `data`; reports put their payload at the top level, with no
 `data` key.
+
+On failure, `code` is one of `auth`, `connection`, `not_found`, `invalid_input`,
+`unknown`, and only `connection` is `retryable` — repeating any other call with
+the same arguments will fail the same way. `auth` errors carry a `hint`.
 
 ## Command Reference
 

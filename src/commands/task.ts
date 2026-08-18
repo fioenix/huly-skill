@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
+import { errorPayload, hulyError } from '../utils/errors.js';
 import { getProjectMap, getStatusMap } from '../resolvers.js';
 
 export function getTaskCommand() {
@@ -12,7 +13,7 @@ export function getTaskCommand() {
                 await withClient(async (client) => {
                     const task = await client.getTask(taskId);
                     if (!task) {
-                        if (isJsonMode()) outputJson({ status: 'error', error: `Task not found: ${taskId}` });
+                        if (isJsonMode()) outputJson(errorPayload(hulyError('not_found', `Task not found: ${taskId}`)));
                         else console.error(`❌ Khong tim thay cong viec: ${taskId}`);
                         process.exitCode = 1;
                         return;
@@ -73,7 +74,7 @@ export function getTaskCommand() {
                     printToConsole(output);
                 });
             } catch (e: any) {
-                if (isJsonMode()) outputJson({ status: 'error', error: e.message });
+                if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Loi: ${e.message}`);
                 process.exitCode = 1;
             }
