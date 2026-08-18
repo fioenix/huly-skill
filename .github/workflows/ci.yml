@@ -45,7 +45,8 @@ jobs:
           git diff --exit-code --stat bin/ \
             || { echo "::error::bin/ is stale — run 'pnpm build' and commit the result"; exit 1; }
 
-      # Version agreement across the three manifests, and what the binaries
-      # actually report — the class of mistake that shipped a 1.2.0 handshake
-      # through three releases.
+      # Version agreement across the three manifests, what the binaries actually
+      # report, and whether the committed skill zip still matches its sources —
+      # the class of mistake that shipped a 1.2.0 handshake through three
+      # releases, and a skill bundle that went stale for just as long.
       - run: pnpm verify:release

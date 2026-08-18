@@ -3,7 +3,17 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
-## Unreleased
+## 1.8.0
+
+### Fixed — the skill bundle shipped three versions stale
+- `huly-skill.zip`, the archive uploaded to claude.ai as a Skill, still carried
+  the pre-1.7 `SKILL.md` and none of `references/`. Nothing regenerated it
+  because nothing owned it. `pnpm pack:skill` rebuilds it from
+  `skills/huly-skill/` plus `bin/`, and `pnpm verify:release` now fails when the
+  committed zip differs from either.
+- The `dist/` directory — 36 files of `tsc` output from April, superseded by the
+  esbuild bundles in `bin/` and already listed in `.gitignore` — was still
+  tracked in git. Removed; nothing referenced it.
 
 ### Added — errors say whether retrying is worth it
 - Every JSON failure now carries `code` and `retryable` beside the message it

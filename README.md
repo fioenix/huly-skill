@@ -196,6 +196,14 @@ Append `--json` to any command for structured output:
 huly tasks --assignee me --json
 ```
 
+Success is `{ "status": "ok", … }`; failure is:
+```json
+{ "status": "error", "error": "Khong tim thay task: DELTA-9", "code": "not_found", "retryable": false }
+```
+`code` is one of `auth`, `connection`, `not_found`, `invalid_input`, `unknown`, and
+only `connection` is retryable — repeating any other call unchanged fails the same
+way. `auth` errors carry a `hint`. The MCP tools return the identical envelope.
+
 ## MCP Server
 
 Besides the CLI skill, the same Huly operations are exposed as an **MCP server** — a better fit for Claude Cowork and any MCP-capable client. It is published to npm as [`@fioenix/huly-mcp`](https://www.npmjs.com/package/@fioenix/huly-mcp) and runs via `npx` with no install step.
@@ -285,8 +293,9 @@ All dependencies are bundled into a single `bin/bundle.cjs` via esbuild — no `
 [`@firfi/huly-mcp`](https://www.npmjs.com/package/@firfi/huly-mcp)) started in
 February 2026, six weeks before this project, and covers far more of Huly than we
 do. Reading it sharpened this codebase in several concrete ways: an offline
-configuration tool, per-caller credentials over HTTP headers, and the discipline of
-capping and projecting list results all began as ideas taken from there — each
+configuration tool, per-caller credentials over HTTP headers, machine-readable error
+codes, release-artifact verification, and the discipline of capping and projecting
+list results all began as ideas taken from there — each
 reimplemented in this project's own style, kept deliberately smaller. Their
 [lazy-tool PRD](https://github.com/dearlordylord/huly-mcp/blob/main/docs/02_LAZY_TOOL_PRD.md)
 is also the best measurement of MCP tool-surface context cost we have found

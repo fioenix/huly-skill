@@ -63,6 +63,13 @@ check('MCP initialize handshake', handshake(join(root, 'bin/mcp.cjs')), version)
 
 console.log('\nbundle identity');
 check('npm-package/huly-mcp.cjs == bin/mcp.cjs', sha(read('npm-package/huly-mcp.cjs')), sha(read('bin/mcp.cjs')));
+// The committed skill zip is a third distribution channel, and the one with no
+// build step in front of it — it went three releases stale before anyone looked.
+try {
+    execFileSync(process.execPath, [join(root, 'scripts/pack-skill.mjs'), '--check'], { stdio: 'inherit' });
+} catch {
+    failures.push('huly-skill.zip');
+}
 
 if (process.argv.includes('--packed')) {
     console.log('\nthe tarball npm would upload');
