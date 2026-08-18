@@ -20,7 +20,7 @@ export function documentsCommand() {
                     }
 
                     if (teamspaces.length === 0) {
-                        printToConsole('Khong co teamspace nao.');
+                        printToConsole('No teamspaces.');
                         return;
                     }
 
@@ -29,13 +29,13 @@ export function documentsCommand() {
                     for (const ts of teamspaces) {
                         output += `  ${ts.name}\n`;
                         output += `    ID: ${ts._id}\n`;
-                        if (ts.description) output += `    Mo ta: ${ts.description}\n`;
+                        if (ts.description) output += `    Description: ${ts.description}\n`;
                     }
                     printToConsole(output);
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -51,7 +51,7 @@ export function documentsCommand() {
                         t.name === teamspaceInput || t._id === teamspaceInput
                     );
                     if (!ts) {
-                        const e = hulyError('not_found', `Khong tim thay teamspace: ${teamspaceInput}`);
+                        const e = hulyError('not_found', `Teamspace not found: ${teamspaceInput}`);
                         if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
                         process.exitCode = exitStatusFor(e);
                         return;
@@ -65,21 +65,21 @@ export function documentsCommand() {
                     }
 
                     if (docs.length === 0) {
-                        printToConsole(`Teamspace "${ts.name}" khong co tai lieu nao.`);
+                        printToConsole(`Teamspace "${ts.name}" has no documents.`);
                         return;
                     }
 
                     let output = `TAI LIEU trong "${ts.name}" (${docs.length})\n`;
                     output += '='.repeat(50) + '\n';
                     for (const doc of docs) {
-                        output += `  ${doc.title || '(Khong co tieu de)'}\n`;
+                        output += `  ${doc.title || '(untitled)'}\n`;
                         output += `    ID: ${doc._id}\n`;
                     }
                     printToConsole(output);
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -98,7 +98,7 @@ export function documentsCommand() {
                         t.name === options.teamspace || t._id === options.teamspace
                     );
                     if (!ts) {
-                        const e = hulyError('not_found', `Khong tim thay teamspace: ${options.teamspace}`);
+                        const e = hulyError('not_found', `Teamspace not found: ${options.teamspace}`);
                         if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
                         process.exitCode = exitStatusFor(e);
                         return;
@@ -115,12 +115,12 @@ export function documentsCommand() {
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', data: doc });
                     } else {
-                        printToConsole(`Da tao tai lieu: "${doc.title}" trong teamspace "${ts.name}"\n  ID: ${doc._id}`);
+                        printToConsole(`Created document: "${doc.title}" in teamspace "${ts.name}"\n  ID: ${doc._id}`);
                     }
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi khi tao tai lieu: ${e.message}`);
+                else console.error(`Could not create the document: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -138,12 +138,12 @@ export function documentsCommand() {
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', data: ts });
                     } else {
-                        printToConsole(`Da tao teamspace: "${ts.name}"\n  ID: ${ts._id}`);
+                        printToConsole(`Created teamspace: "${ts.name}"\n  ID: ${ts._id}`);
                     }
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi khi tao teamspace: ${e.message}`);
+                else console.error(`Could not create the teamspace: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -160,7 +160,7 @@ export function documentsCommand() {
                         t.name === teamspaceInput || t._id === teamspaceInput
                     );
                     if (!ts) {
-                        const e = hulyError('not_found', `Khong tim thay teamspace: ${teamspaceInput}`);
+                        const e = hulyError('not_found', `Teamspace not found: ${teamspaceInput}`);
                         if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
                         process.exitCode = exitStatusFor(e);
                         return;
@@ -172,7 +172,7 @@ export function documentsCommand() {
                         d.title?.toLowerCase().includes(titleLower) || d._id === titleInput
                     );
                     if (!doc) {
-                        const e = hulyError('not_found', `Khong tim thay tai lieu: "${titleInput}"`);
+                        const e = hulyError('not_found', `Document not found: "${titleInput}"`);
                         if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
                         process.exitCode = exitStatusFor(e);
                         return;
@@ -185,13 +185,13 @@ export function documentsCommand() {
                     } else {
                         let output = `TAI LIEU: ${doc.title}\n`;
                         output += '='.repeat(50) + '\n\n';
-                        output += content || '(Khong co noi dung)';
+                        output += content || '(no content)';
                         printToConsole(output);
                     }
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

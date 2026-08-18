@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # The @hcengineering packages must stay pinned to the Huly server version they
+  # talk to, so those come as PRs to review rather than automatic merges.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

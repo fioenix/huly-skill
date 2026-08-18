@@ -12,7 +12,7 @@ export function reportCommand() {
         .action(async (type, options) => {
             const normalized = type.toLowerCase();
             if (normalized !== 'daily' && normalized !== 'weekly') {
-                console.error(`❌ Loai bao cao khong hop le. Vui long chon 'daily' hoac 'weekly'.`);
+                console.error(`❌ Unknown report type. Choose 'daily' or 'weekly'.`);
                 process.exitCode = EXIT_STATUS.invalid_input;
                 return;
             }
@@ -60,7 +60,7 @@ export function reportCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`❌ Loi tao bao cao: ${e.message}`);
+                else console.error(`❌ Report failed: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

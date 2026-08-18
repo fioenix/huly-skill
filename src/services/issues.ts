@@ -63,7 +63,7 @@ export async function createIssue(client: HulyClient, input: CreateIssueInput): 
     // task unassigned; an explicit --assignee always wins.
     const assignee = input.assignee || process.env.HULY_DEFAULT_ASSIGNEE?.trim() || undefined;
 
-    let assigneeName = 'Chua giao';
+    let assigneeName = 'Unassigned';
     let assigneeId: string | undefined;
     if (assignee) {
         const person = await resolvePerson(client, assignee);
@@ -107,7 +107,7 @@ export async function createIssue(client: HulyClient, input: CreateIssueInput): 
 
 export async function updateIssue(client: HulyClient, taskId: string, input: UpdateIssueInput): Promise<string[]> {
     const task = await client.getTask(taskId);
-    if (!task) throw new Error(`Task ${taskId} khong tim thay`);
+    if (!task) throw new Error(`Task ${taskId} not found`);
 
     const updates: UpdateTaskOptions = {};
     const changes: string[] = [];
@@ -115,23 +115,23 @@ export async function updateIssue(client: HulyClient, taskId: string, input: Upd
     if (input.status) {
         const resolved = await resolveStatus(client, input.status, task.space);
         updates.statusId = resolved._id;
-        changes.push(`Trang thai → '${resolved.name}'`);
+        changes.push(`Status → '${resolved.name}'`);
     }
 
     if (input.priority !== undefined) {
         updates.priority = parsePriority(input.priority);
-        changes.push(`Uu tien → ${updates.priority}`);
+        changes.push(`Priority → ${updates.priority}`);
     }
 
     if (input.due) {
         updates.dueDate = parseDate(input.due);
-        changes.push(`Han chot → ${input.due}`);
+        changes.push(`Due → ${input.due}`);
     }
 
     if (input.assignee) {
         const person = await resolvePerson(client, input.assignee);
         updates.assigneeId = person._id;
-        changes.push(`Nguoi thuc hien → ${person.name}`);
+        changes.push(`Assignee → ${person.name}`);
     }
 
     if (input.kindId) {
@@ -186,7 +186,7 @@ export async function updateIssue(client: HulyClient, taskId: string, input: Upd
 
     if (input.comment) {
         await client.addComment(taskId, input.comment);
-        changes.push('Binh luan da them');
+        changes.push('Comment added');
     }
 
     return changes;
@@ -268,7 +268,7 @@ export interface ReportResult {
  */
 export async function reportIssues(client: HulyClient, input: ReportInput): Promise<ReportResult> {
     let assigneeId: string | undefined;
-    let assigneeName = 'Ban';
+    let assigneeName = 'You';
     if (input.assignee) {
         const person = await resolvePerson(client, input.assignee);
         assigneeId = person._id;

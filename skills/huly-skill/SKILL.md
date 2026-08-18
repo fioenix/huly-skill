@@ -1,11 +1,11 @@
 ---
 name: huly-skill
-description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, work with milestones, create subtasks under a parent issue, look up workspace people, or read, edit and delete comments/activity (on issues, milestones, or any object — including thread replies) in Huly. Supports both human-readable Vietnamese output and structured JSON mode for programmatic agent use."
+description: "Manages tasks, projects, labels, documents, milestones, and contacts in Huly project management. Use when the user asks to list tasks, create issues, update status, check what's overdue, generate daily/weekly reports, manage labels/tags, create or read documents, work with milestones, create subtasks under a parent issue, look up workspace people, or read, edit and delete comments/activity (on issues, milestones, or any object — including thread replies) in Huly. Supports both human-readable output and structured JSON mode for programmatic agent use."
 license: MIT
 compatibility: "Node.js 20+. Requires environment variables: HULY_HOST, HULY_WORKSPACE_ID, HULY_API_KEY. Zero-install: all dependencies are bundled."
 metadata:
   author: fioenix
-  version: "1.9.0"
+  version: "1.10.0"
   repository: https://github.com/fioenix/huly-skill
 ---
 
@@ -64,8 +64,8 @@ teamspaces, milestones, labels, priorities, dates, pasted-link resolution:
 - A subtask is a task created with `--parent`; nothing re-parents it afterwards.
 - `me` is `HULY_ACTOR` when set, else the owner of `HULY_API_KEY` — and Huly always
   records that token owner as the author, whatever `HULY_ACTOR` says.
-- Deletes need `--yes`. Errors print in Vietnamese with a `Loi:` prefix; in JSON,
-  `code` and `retryable` say whether another attempt can help.
+- Deletes need `--yes`. Errors print with an `Error:` prefix; in JSON, `code` and
+  `retryable` say whether another attempt can help.
 - Never call Huly HTTP/WS APIs directly; the CLI is the source of truth.
 
 Codex has no skill system: it uses [`AGENTS.md`](../../AGENTS.md) with the

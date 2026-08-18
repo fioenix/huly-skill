@@ -3,6 +3,33 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## 1.10.0
+
+### Changed — human-readable output is now English
+- Every message the CLI prints, and every error message the CLI and MCP server
+  return, was Vietnamese; all of it is now English. JSON payloads are unaffected
+  — field names and values were already English, and `status`, `code` and
+  `retryable` do not change — but a script that greps human output for `Loi:`,
+  `Khong tim thay` or a Vietnamese heading will stop matching. The error prefix
+  is now `Error:`.
+- Priority labels print as `NONE` / `LOW` / `MEDIUM` / `HIGH` / `URGENT` instead
+  of `KHONG UU TIEN` / `THAP` / `TRUNG BINH` / `CAO` / `KHAN CAP`, and
+  `--priority` no longer accepts the Vietnamese names (`thap`, `trung binh`,
+  `cao`, `khan cap`). Numbers `0`–`4` and the English names work as before, and
+  `none` is now accepted alongside them.
+- The reference notes under `reference/` were translated as well. The repository
+  is English-only: code, comments, output, and documentation.
+
+### Added — the files an open-source repository is expected to have
+- `CONTRIBUTING.md` (how to build, test and verify a change, and what this
+  project says no to), `SECURITY.md` (private reporting, and what is in scope
+  given that this tool holds a full-rights Huly token), issue and pull-request
+  templates, and a Dependabot schedule for npm and Actions.
+- `.editorconfig` and `.gitattributes` — the latter marks the committed bundles
+  as generated so they stop dominating diffs and language statistics.
+- `author`, `homepage` and `bugs` in both manifests; CI, npm and licence badges
+  in the README.
+
 ## 1.9.0
 
 ### Added — comments can be edited and deleted

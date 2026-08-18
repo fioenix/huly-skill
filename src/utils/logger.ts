@@ -11,11 +11,11 @@ export function isJsonMode(): boolean {
 }
 
 export const PRIORITY_LABELS: Record<number, string> = {
-    0: 'KHONG UU TIEN',
-    1: 'THAP',
-    2: 'TRUNG BINH',
-    3: 'CAO',
-    4: 'KHAN CAP'
+    0: 'NONE',
+    1: 'LOW',
+    2: 'MEDIUM',
+    3: 'HIGH',
+    4: 'URGENT'
 };
 
 export function formatDate(timestamp: number | undefined | null, includeTime = false): string {

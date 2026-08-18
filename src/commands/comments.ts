@@ -24,7 +24,7 @@ export function commentsCommand() {
                         return;
                     }
                     if (comments.length === 0) {
-                        printToConsole(`Object ${targetId} chua co comment nao.`);
+                        printToConsole(`Object ${targetId} has no comments yet.`);
                         return;
                     }
                     let output = `COMMENTS: ${targetId} (${comments.length})\n` + '='.repeat(70) + '\n';
@@ -33,7 +33,7 @@ export function commentsCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -49,18 +49,18 @@ export function commentsCommand() {
                     if (isJsonMode()) {
                         outputJson(comment
                             ? { status: 'ok', data: comment }
-                            : errorPayload(hulyError('not_found', `Khong tim thay comment: ${messageId}`)));
+                            : errorPayload(hulyError('not_found', `Comment not found: ${messageId}`)));
                         return;
                     }
                     if (!comment) {
-                        printToConsole(`Khong tim thay comment: ${messageId}`);
+                        printToConsole(`Comment not found: ${messageId}`);
                         return;
                     }
                     printToConsole(renderComment(comment));
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -74,11 +74,11 @@ export function commentsCommand() {
                 await withClient(async (client) => {
                     const updated = await updateComment(client, messageId, message);
                     if (isJsonMode()) outputJson({ status: 'ok', data: updated });
-                    else printToConsole(`Da cap nhat comment ${messageId}:\n\n${renderComment(updated)}`);
+                    else printToConsole(`Updated comment ${messageId}:\n\n${renderComment(updated)}`);
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -89,7 +89,7 @@ export function commentsCommand() {
         .option('-y, --yes', 'Confirm deletion')
         .action(async (messageId, options) => {
             if (!options.yes) {
-                const e = hulyError('invalid_input', `Chua xac nhan xoa. Them --yes de xoa comment ${messageId}.`);
+                const e = hulyError('invalid_input', `Deletion not confirmed. Add --yes to delete comment ${messageId}.`);
                 if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
                 process.exitCode = exitStatusFor(e);
                 return;
@@ -98,11 +98,11 @@ export function commentsCommand() {
                 await withClient(async (client) => {
                     const deleted = await deleteComment(client, messageId);
                     if (isJsonMode()) outputJson({ status: 'ok', deleted });
-                    else printToConsole(`Da xoa comment ${messageId}.`);
+                    else printToConsole(`Deleted comment ${messageId}.`);
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

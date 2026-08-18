@@ -1,181 +1,181 @@
-# Chi phí token thực tế: `huly-skill` vs `@firfi/huly-mcp`
+# Real token cost: `huly-skill` vs `@firfi/huly-mcp`
 
-Ngày: 18/08/2026. Giả thuyết cần kiểm chứng: "trên thực tế họ hao tốn token hơn ta
-rất nhiều". **Kết quả: sai — ở chi phí tĩnh ta rẻ hơn, nhưng ở chi phí mỗi lời gọi
-ta đắt hơn họ khoảng 18–30 lần, và đó mới là phần lặp lại suốt session.**
+Date: 18/08/2026. The hypothesis to test: "in practice they burn far more tokens than we do".
+**Result: false — on static cost we are cheaper, but on per-call cost
+we are roughly 18–30x more expensive, and that is the part that repeats all session long.**
 
-## Phương pháp
+## Method
 
-- Số của ta: đo thật. `initialize` + `tools/list` qua stdio vào `bin/mcp.cjs`; và
-  `./bin/huly.cjs tasks --json` trên workspace thật (`work.yody.io`, 249 task).
-- Số của họ: lấy từ chính tài liệu của họ (`docs/02_LAZY_TOOL_PRD.md`) và đọc source
-  cho phần schema/limit. **Không chạy binary của họ** (không đưa credential cho code
-  bên thứ ba).
-- Quy đổi token: dùng đúng tỉ lệ họ đã đo bằng tokenizer của Claude — 435 KB ↔ 170K
-  token, tức **~2,56 ký tự/token** cho JSON schema. Heuristic 4 ký tự/token là quá
-  lạc quan với JSON.
+- Our numbers: measured for real. `initialize` + `tools/list` over stdio into `bin/mcp.cjs`; and
+  `./bin/huly.cjs tasks --json` against a real workspace (`work.yody.io`, 249 tasks).
+- Their numbers: taken from their own documentation (`docs/02_LAZY_TOOL_PRD.md`) and read from source
+  for the schema/limit parts. **We did not run their binary** (no handing credentials to
+  third-party code).
+- Token conversion: using exactly the ratio they measured with Claude's tokenizer — 435 KB ↔ 170K
+  tokens, i.e. **~2.56 chars/token** for JSON schema. The 4-chars/token heuristic is far too
+  optimistic for JSON.
 
-## 1. Chi phí tĩnh — `tools/list` một lần mỗi session
+## 1. Static cost — `tools/list`, once per session
 
-| | Payload | Token |
+| | Payload | Tokens |
 |---|---|---|
-| Ta (28 tool) | 15.721 B (đo) | **~6.100** |
-| Họ, `native` (470 tool, số của họ) | 435 KB (họ đo) | **~170.000** (họ đo bằng `/context`) |
-| Họ, `proxy` (6 tool: `get_version`, `get_huly_context`, `list_tool_categories`, `search_tools`, `get_tool_schema`, `invoke_tool`) | — | **~500** (họ ước tính) |
+| Us (28 tools) | 15,721 B (measured) | **~6,100** |
+| Them, `native` (470 tools, their number) | 435 KB (their measurement) | **~170,000** (they measured with `/context`) |
+| Them, `proxy` (6 tools: `get_version`, `get_huly_context`, `list_tool_categories`, `search_tools`, `get_tool_schema`, `invoke_tool`) | — | **~500** (their estimate) |
 
-Ở đây ta rẻ hơn native của họ ~28x. **Nhưng native không phải mặc định của họ với
-phần lớn client.** Bảng `auto` mode (`src/mcp/tool-mode.ts:85`, PRD dòng 150–161):
+Here we are ~28x cheaper than their native mode. **But native is not their default for
+most clients.** The `auto` mode table (`src/mcp/tool-mode.ts:85`, PRD lines 150–161):
 
-- `claude-code` (khớp chính xác) → **native**, vì Claude Code tự defer tool
-  definitions từ 01/2026 khi tool surface vượt ~10% context window.
-- `claude-ai`, `cursor*`, `windsurf*`, `copilot*`, `codex*`, `opencode*`, và
-  client không rõ → **proxy** (~500 token).
+- `claude-code` (exact match) → **native**, because Claude Code defers tool
+  definitions itself since 01/2026 once the tool surface exceeds ~10% of the context window.
+- `claude-ai`, `cursor*`, `windsurf*`, `copilot*`, `codex*`, `opencode*`, and
+  unknown clients → **proxy** (~500 tokens).
 
-Nghĩa là: với Cursor/Codex/Copilot, **họ rẻ hơn ta ~12x** ở chi phí tĩnh. Với Claude
-Code, 170K token đó không nằm thẳng trong context mà bị defer sang tool search —
-đúng cơ chế đang chạy trong session này. Ta 6.100 token thì nằm dưới ngưỡng defer
-nên được nạp đủ, luôn sẵn sàng, không mất vòng tra cứu — đó là lợi thế thật của ta,
-nhưng là lợi thế về *độ tiện*, không phải 28x tiết kiệm như con số thô gợi ra.
+Which means: on Cursor/Codex/Copilot, **they are ~12x cheaper than us** on static cost. On Claude
+Code, those 170K tokens do not sit directly in context but get deferred to tool search —
+exactly the mechanism running in this session. Our 6,100 tokens sit under the defer threshold,
+so they load in full, always ready, with no lookup round-trip — that is our real advantage,
+but it is an advantage in *convenience*, not the 28x saving the raw number suggests.
 
-## 2. Chi phí mỗi lời gọi — chỗ ta thua nặng
+## 2. Per-call cost — where we lose badly
 
-Đo `huly_list_tasks` (không filter) trên workspace thật:
+Measuring `huly_list_tasks` (no filter) against a real workspace:
 
-| | Kết quả |
+| | Result |
 |---|---|
-| Số task trả về | 249 (**không có tham số `limit`**) |
-| Mảng task | 204.071 B |
-| Cả response | 273.771 B → **~107.000 token** |
-| Số field mỗi task | **32** — trả nguyên raw doc của Huly (`...task`, `src/mcp/tools.ts:133`) |
+| Tasks returned | 249 (**no `limit` parameter**) |
+| Task array | 204,071 B |
+| Whole response | 273,771 B → **~107,000 tokens** |
+| Fields per task | **32** — returns Huly's raw doc verbatim (`...task`, `src/mcp/tools.ts:133`) |
 
-Phân bổ byte theo field cho thấy phần lớn là rác với người đọc: `attachedToClass`
-5,0%, `attachedTo` 4,5%, `space` 4,3%, `modifiedBy` 4,3%, `createdBy` 4,2%, `kind`
-4,1%, `_class` 3,8%, `collection` 3,1%, cộng `rank`, `childInfo`, `docUpdateMessages`,
+The byte distribution by field shows most of it is noise to a human reader: `attachedToClass`
+5.0%, `attachedTo` 4.5%, `space` 4.3%, `modifiedBy` 4.3%, `createdBy` 4.2%, `kind`
+4.1%, `_class` 3.8%, `collection` 3.1%, plus `rank`, `childInfo`, `docUpdateMessages`,
 `relations`, `parents`, `reports`.
 
-**Một lời gọi `huly_list_tasks` của ta ≈ 107K token — bằng ~63% toàn bộ tool surface
-native của họ, và nó lặp lại mỗi lần gọi.** Trong thực tế Claude Code sẽ cắt bớt
-tool result quá lớn, nên hậu quả thật là một trong hai: đốt context, hoặc **mất dữ
-liệu âm thầm**. Cả hai đều tệ.
+**One `huly_list_tasks` call of ours ≈ 107K tokens — about 63% of their entire native tool
+surface, and it repeats on every call.** In practice Claude Code will truncate an oversized
+tool result, so the real outcome is one of two things: burning context, or **silent data
+loss**. Both are bad.
 
-Cùng thao tác đó bên họ: `list_issues` trả `IssueSummarySchema` — **11 field đã
-chọn lọc** (`issueId`, `identifier`, `title`, `status`, `priority`, `assignee`,
-`creator`, `parentIssue`, `subIssues`, `labels`, `milestone`, `modifiedOn`), với
-`DEFAULT_LIMIT = 50`, `MAX_LIMIT = 200` (`src/domain/schemas/shared.ts:8-9`). Ước
-tính ~250–350 B/issue → ~15 KB ≈ **~6K token** cho một lời gọi mặc định.
+The same operation on their side: `list_issues` returns `IssueSummarySchema` — **11 curated
+fields** (`issueId`, `identifier`, `title`, `status`, `priority`, `assignee`,
+`creator`, `parentIssue`, `subIssues`, `labels`, `milestone`, `modifiedOn`), with
+`DEFAULT_LIMIT = 50`, `MAX_LIMIT = 200` (`src/domain/schemas/shared.ts:8-9`). Estimated
+~250–350 B/issue → ~15 KB ≈ **~6K tokens** for a default call.
 
-Đối chiếu trên cùng dữ liệu, nếu ta chỉ giữ 9 field cần dùng:
+For comparison on the same data, if we kept only the 9 fields we actually use:
 
-| Cấu hình | Bytes | ~Token | So với hiện tại |
+| Configuration | Bytes | ~Tokens | vs current |
 |---|---|---|---|
-| Hiện tại (32 field, 249 task) | 204.071 | ~80.000 | 1x |
-| Lean 9 field, 249 task | 40.611 | ~15.900 | **5x nhỏ hơn** |
-| Lean 9 field + `limit=50` | 6.900 | ~2.700 | **30x nhỏ hơn** |
+| Current (32 fields, 249 tasks) | 204,071 | ~80,000 | 1x |
+| Lean 9 fields, 249 tasks | 40,611 | ~15,900 | **5x smaller** |
+| Lean 9 fields + `limit=50` | 6,900 | ~2,700 | **30x smaller** |
 
-## 3. Kết luận
+## 3. Conclusion
 
-- **Giả thuyết sai trong sử dụng thực tế.** Ta chỉ thắng ở lần nạp `tools/list`
-  (một lần/session, và chỉ khi so với chế độ native của họ). Ta thua ở mọi lời gọi
-  sau đó.
-- Một session làm báo cáo tuần gọi 5–10 lần `list_tasks` sẽ đốt của ta hàng trăm
-  nghìn token, trong khi họ trả 170K một lần rồi mỗi lời gọi chỉ vài nghìn.
-- Điểm yếu của ta không phải "ít tool" mà là **không có projection và không có
-  limit** — nghĩa là ta chưa có kỷ luật về output, thứ mà họ đã có bằng
-  `resultSchema` cho từng tool.
+- **The hypothesis is false in real use.** We only win on the `tools/list` load
+  (once per session, and only against their native mode). We lose on every call
+  after that.
+- A session producing a weekly report calls `list_tasks` 5–10 times and burns hundreds of
+  thousands of our tokens, while they pay 170K once and then a few thousand per call.
+- Our weakness is not "few tools" but **no projection and no
+  limit** — meaning we have no output discipline, which they do have via
+  per-tool `resultSchema`.
 
-## 4. Việc cần làm (xếp theo tác động đo được)
+## 4. What to do (ordered by measured impact)
 
-1. **`limit` + mặc định 50 cho mọi tool list** (`huly_list_tasks`,
+1. **`limit` with a default of 50 on every list tool** (`huly_list_tasks`,
    `huly_list_projects`, `huly_list_documents`, `huly_list_milestones`,
-   `huly_list_labels`, `huly_list_users`, `huly_list_sub_issues`). Hiện chỉ
-   `huly_get_activity` và `huly_get_comments` có `limit`, và mặc định 200 cũng còn cao.
-2. **Field projection cho tool list**: trả tập field đã chọn thay cho `...task`
-   (`src/mcp/tools.ts:133`), tương tự cho `...doc` (`:373`). Giữ raw doc chỉ ở
-   `huly_get_task` / `huly_get_task_by_id`, nơi người ta thật sự cần chi tiết.
-3. **Tham số `fields` (opt-in)** cho ai cần thêm field, thay vì trả tất cả theo mặc định.
-4. **Cursor/offset để phân trang**, kèm `totalCount` để agent biết còn bao nhiêu.
-5. **Test hồi quy về kích thước output**: một test khẳng định response của tool list
-   không vượt ngưỡng byte đã chốt — chống trôi ngược về trạng thái hiện tại.
+   `huly_list_labels`, `huly_list_users`, `huly_list_sub_issues`). Right now only
+   `huly_get_activity` and `huly_get_comments` have `limit`, and a default of 200 is still high.
+2. **Field projection for list tools**: return a curated field set instead of `...task`
+   (`src/mcp/tools.ts:133`), same for `...doc` (`:373`). Keep the raw doc only in
+   `huly_get_task` / `huly_get_task_by_id`, where people actually need the detail.
+3. **A `fields` parameter (opt-in)** for anyone who needs more fields, instead of returning everything by default.
+4. **Cursor/offset pagination**, with `totalCount` so the agent knows how much is left.
+5. **A regression test on output size**: a test asserting a list tool's response
+   does not exceed an agreed byte threshold — to prevent drifting back to today's state.
 
-Ba mục đầu là thay đổi nhỏ trong `src/mcp/tools.ts` và cho **30x** giảm token trên
-đúng đường nóng. Nhưng đây chỉ là **sàn**, không phải chiến lược — xem mục 5.
+The first three are small changes in `src/mcp/tools.ts` and give a **30x** token reduction on
+exactly the hot path. But that is only the **floor**, not a strategy — see section 5.
 
-## 5. Tối ưu token thật của agent context
+## 5. Real token optimization of agent context
 
-`limit` + projection chỉ chặn result tràn. Bốn trục dưới đây mới là chỗ quyết định
-một session tốn 30K hay 300K token. Xếp theo tác động đã đo.
+`limit` + projection only stop results overflowing. The four axes below are what decide
+whether a session costs 30K or 300K tokens. Ordered by measured impact.
 
-### a. Trả *câu trả lời*, không trả *tập dữ liệu* — đo được 20x
+### a. Return an *answer*, not a *dataset* — measured at 20x
 
-`huly_report weekly` (server tự tổng hợp) = **13.209 B ≈ 5.200 token** cho toàn bộ
-bức tranh tuần. Cùng câu hỏi nếu đi đường `huly_list_tasks` rồi để model tự lọc và
-đếm = **273.771 B ≈ 107.000 token**. Chênh **~20x**, và bản aggregate còn đúng hơn
-vì phép đếm do code làm, không do model làm.
+`huly_report weekly` (server aggregates it) = **13,209 B ≈ 5,200 tokens** for the whole
+weekly picture. The same question via `huly_list_tasks`, leaving the model to filter and
+count = **273,771 B ≈ 107,000 tokens**. A **~20x** difference, and the aggregate is more correct
+too, because the counting is done by code, not by the model.
 
-Suy ra: mỗi khi một câu hỏi nghiệp vụ lặp lại (tiến độ squad, việc quá hạn, rollup
-milestone), thứ cần thêm là **một tool trả kết quả đã tổng hợp**, không phải một
-tool trả thêm dữ liệu thô. Đây là trục ta đang có lợi thế (`huly_report`,
-`huly_milestone_report`) nhưng chưa khai thác: SKILL.md chưa dạy agent ưu tiên
-đường này trước khi gọi list.
+Implication: whenever a business question recurs (squad progress, overdue work, milestone
+rollup), the thing to add is **a tool that returns an aggregated result**, not a
+tool that returns more raw data. This is the axis where we have the advantage (`huly_report`,
+`huly_milestone_report`) but have not exploited it: SKILL.md does not teach the agent to prefer
+this path before calling list.
 
-### b. Dữ liệu không cần vào context — CLI pipeline, đo được 125x
+### b. Data that never needs to enter context — CLI pipeline, measured at 125x
 
-Đây là trục mà **MCP thuần không bao giờ làm được**: mọi tool result buộc phải đi
-qua context. CLI thì không — agent viết một lệnh, dữ liệu thô chảy qua `jq`/`awk`
-hoặc ra file, **chỉ kết quả cuối vào context**.
+This is the axis **pure MCP can never do**: every tool result has to pass
+through context. The CLI does not — the agent writes one command, raw data flows through `jq`/`awk`
+or into a file, and **only the final result enters context**.
 
-Đo thật trên cùng dữ liệu 249 task:
+Measured for real on the same 249 tasks:
 
-| Đường đi | Vào context | So sánh |
+| Path | Into context | Comparison |
 |---|---|---|
-| `huly_list_tasks` (MCP) | 273.771 B ≈ 107.000 token | 1x |
-| `huly tasks --json \| <reduce>` (CLI) | **2.178 B ≈ 850 token** | **~125x nhỏ hơn** |
+| `huly_list_tasks` (MCP) | 273,771 B ≈ 107,000 tokens | 1x |
+| `huly tasks --json \| <reduce>` (CLI) | **2,178 B ≈ 850 tokens** | **~125x smaller** |
 
-Anthropic báo cáo cùng pattern (code execution với MCP) đưa một workflow từ ~150K
-xuống ~2K token (98,7%); PRD của chính đối thủ thừa nhận các cách proxy meta-tool
-**không** giải quyết được phần intermediate results (`docs/02_LAZY_TOOL_PRD.md:54`).
+Anthropic reports the same pattern (code execution with MCP) taking a workflow from ~150K
+down to ~2K tokens (98.7%); the competitor's own PRD concedes that proxy meta-tool approaches
+do **not** solve the intermediate-results problem (`docs/02_LAZY_TOOL_PRD.md:54`).
 
-**Lưu ý về lợi thế**: ta có CLI, nhưng họ cũng có — `@firfi/huly-cli@0.48.2` đã
-publish, có skill riêng. Nên lợi thế không nằm ở việc *có* CLI mà ở việc **skill có
-dạy agent dùng pipeline thay vì gọi bulk tool hay không**. Hiện SKILL.md của ta
-không dạy điều đó → lợi thế đang bỏ không.
+**A note on the advantage**: we have a CLI, but so do they — `@firfi/huly-cli@0.48.2` is
+published, with its own skill. So the advantage is not in *having* a CLI but in **whether the skill
+teaches the agent to use a pipeline instead of calling a bulk tool**. Our SKILL.md currently
+does not teach that → the advantage is going unused.
 
-### c. Chi phí bản thân skill — ta đang nặng 6x
+### c. Cost of the skill itself — we are 6x heavier
 
-Skill body được nạp vào context khi kích hoạt, trước cả tool nào được gọi.
+The skill body is loaded into context on activation, before any tool is called.
 
-| | Kích thước |
+| | Size |
 |---|---|
-| `skills/huly-skill/SKILL.md` (ta) | **13.059 B** — một khối, nạp hết |
-| `AGENTS.md` (ta, cho Codex/Antigravity) | 10.333 B |
-| `packages/huly-cli/skills/huly-cli/SKILL.md` (họ) | **2.112 B** + `references/automation.md` 1.296 B nạp khi cần |
+| `skills/huly-skill/SKILL.md` (us) | **13,059 B** — one block, loaded in full |
+| `AGENTS.md` (us, for Codex/Antigravity) | 10,333 B |
+| `packages/huly-cli/skills/huly-cli/SKILL.md` (them) | **2,112 B** + `references/automation.md` 1,296 B loaded on demand |
 
-Họ dùng progressive disclosure: lõi 2 KB, chi tiết để trong `references/` và chỉ đọc
-khi thật cần. Ta nạp 13 KB mỗi lần. Đây là chi phí cố định, trả mọi session, và là
-chỗ dễ sửa nhất trong cả bốn trục.
+They use progressive disclosure: a 2 KB core, details left in `references/` and only read
+when genuinely needed. We load 13 KB every time. This is a fixed cost, paid every session, and it is
+the easiest of the four axes to fix.
 
-### d. Số vòng gọi và tính cache-friendly
+### d. Number of round-trips and cache-friendliness
 
-Mỗi tool call là một cặp request/response nằm lại trong history và được gửi lại ở
-mọi turn sau đó cho tới khi compaction — nên một result 107K không phải chi phí một
-lần, nó là thuế thu suốt phần còn lại của session. Giảm **số** lời gọi cần để hoàn
-thành một việc (tool theo tác vụ, không theo endpoint) vì thế đáng giá hơn giảm kích
-thước từng lời gọi.
+Every tool call is a request/response pair that stays in history and is resent on
+every subsequent turn until compaction — so a 107K result is not a one-time
+cost, it is a tax levied over the rest of the session. Reducing the **number** of calls needed to
+finish a job (tools per task, not per endpoint) is therefore worth more than reducing the size
+of each call.
 
-Về prompt cache: `tools/list` của ta tĩnh, không mutate giữa session → prefix
-cacheable. Họ nêu đúng cái bẫy này trong PRD (`:124`): mutate tool list giữa session
-làm mất cache prefix, và cache miss có thể đắt hơn phần schema tiết kiệm được. Ta
-đang ở phía đúng, chỉ cần đừng đánh mất nó khi thêm tool.
+On prompt caching: our `tools/list` is static and does not mutate mid-session → the prefix is
+cacheable. They name exactly this trap in their PRD (`:124`): mutating the tool list mid-session
+loses the cached prefix, and a cache miss can cost more than the schema you saved. We are
+on the right side of it; we just must not lose it as we add tools.
 
-### Việc cần làm, xếp lại theo tác động thật
+### What to do, reordered by real impact
 
-| # | Việc | Tác động đo được | Chi phí |
+| # | Task | Measured impact | Cost |
 |---|---|---|---|
-| 1 | SKILL.md dạy thứ tự ưu tiên: **report/aggregate → CLI pipeline → tool list** | quyết định trục a và b có được dùng hay không | rất thấp |
-| 2 | Tách SKILL.md thành lõi ~2 KB + `references/` | 13 KB → ~2 KB mỗi session | thấp |
-| 3 | Thêm `--fields` / `--limit` cho CLI để pipeline gọn | mở đường cho 125x | thấp |
-| 4 | Mở rộng họ tool aggregate (rollup theo squad/milestone/assignee) | ~20x cho câu hỏi lặp lại | trung bình |
-| 5 | `limit` + projection cho mọi tool list (mục 4 ở trên) | 30x cho lời gọi lẻ | thấp |
+| 1 | SKILL.md teaches the priority order: **report/aggregate → CLI pipeline → list tool** | decides whether axes a and b get used at all | very low |
+| 2 | Split SKILL.md into a ~2 KB core + `references/` | 13 KB → ~2 KB per session | low |
+| 3 | Add `--fields` / `--limit` to the CLI so pipelines stay compact | opens the path to 125x | low |
+| 4 | Expand the aggregate tool family (rollup by squad/milestone/assignee) | ~20x for recurring questions | medium |
+| 5 | `limit` + projection on every list tool (section 4 above) | 30x for individual calls | low |
 
-Thứ tự này khác với mục 4: mục 1–3 rẻ hơn và tác động lớn hơn mục 5, vì chúng thay
-đổi **đường agent chọn đi**, còn mục 5 chỉ làm rẻ con đường cũ.
+This order differs from section 4: items 1–3 are cheaper and higher impact than item 5, because they change
+**which path the agent takes**, while item 5 only makes the old path cheaper.

@@ -25,7 +25,7 @@ export function kindsCommand() {
                     }
 
                     if (kinds.length === 0) {
-                        printToConsole(`Du an ${project.identifier} khong co task type nao.`);
+                        printToConsole(`Project ${project.identifier} has no task types.`);
                         return;
                     }
 
@@ -39,7 +39,7 @@ export function kindsCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi khi tai task kinds: ${e.message}`);
+                else console.error(`Could not load task kinds: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

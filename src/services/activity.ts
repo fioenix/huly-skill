@@ -53,7 +53,7 @@ export async function getIssueActivity(
     limit: number = 200,
 ): Promise<ActivityResult> {
     const task = await client.getTask(taskIdentifier);
-    if (!task) throw new Error(`Khong tim thay task: ${taskIdentifier}`);
+    if (!task) throw new Error(`Task not found: ${taskIdentifier}`);
 
     const [updates, comments, statusMap, persons, socialIds] = await Promise.all([
         client.getIssueDocUpdates(task._id, limit),

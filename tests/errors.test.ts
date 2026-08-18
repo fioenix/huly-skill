@@ -10,7 +10,7 @@ test('a dropped connection is the one class worth retrying', () => {
 });
 
 test('a missing object is never retryable — the agent must change the id', () => {
-    for (const message of ['Task not found: DELTA-1', 'Khong tim thay teamspace: X', 'Du an khong ton tai: Y']) {
+    for (const message of ['Task not found: DELTA-1', 'Teamspace not found: X', 'No such project: Y']) {
         const payload = errorPayload(new Error(message));
         assert.equal(payload.code, 'not_found', message);
         assert.equal(payload.retryable, false);
@@ -42,7 +42,7 @@ test('an explicit code wins over what the message looks like', () => {
 });
 
 test('the human message is passed through untouched', () => {
-    assert.equal(errorPayload(new Error('Khong tim thay task: DELTA-9')).error, 'Khong tim thay task: DELTA-9');
+    assert.equal(errorPayload(new Error('Task not found: DELTA-9')).error, 'Task not found: DELTA-9');
 });
 
 test('a non-Error rejection still produces an envelope', () => {
@@ -61,7 +61,7 @@ test('an unclassified failure keeps exit 1 — scripts that only test nonzero st
 });
 
 test('exit status follows the classification', () => {
-    assert.equal(exitStatusFor(new Error('Khong tim thay task: X')), EXIT_STATUS.not_found);
+    assert.equal(exitStatusFor(new Error('Task not found: X')), EXIT_STATUS.not_found);
     assert.equal(exitStatusFor(new Error('401 Unauthorized')), EXIT_STATUS.auth);
     assert.equal(exitStatusFor(hulyError('invalid_input', 'nope')), EXIT_STATUS.invalid_input);
     assert.equal(exitStatusFor(new Error('ECONNREFUSED')), EXIT_STATUS.connection);

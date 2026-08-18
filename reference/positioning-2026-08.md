@@ -1,128 +1,128 @@
-# Định vị `huly-skill` — ưu/nhược, đổi tên, và sức khoẻ của Huly
+# Positioning `huly-skill` — strengths/weaknesses, renaming, and the health of Huly
 
-Ngày: 17/08/2026. Ba câu hỏi: (1) ta mạnh yếu gì so với `@firfi/huly-mcp`,
-(2) có nên đổi tên thành `huly-mcp`, (3) Huly còn được phát triển không.
-Chi tiết review đối thủ: [review-firfi-huly-mcp.md](./review-firfi-huly-mcp.md).
+Date: 17/08/2026. Three questions: (1) where are we strong and weak against `@firfi/huly-mcp`,
+(2) should we rename to `huly-mcp`, (3) is Huly still being developed.
+Detailed competitor review: [review-firfi-huly-mcp.md](./review-firfi-huly-mcp.md).
 
 ---
 
-## 1. Ưu / nhược — hai bên
+## 1. Strengths / weaknesses — both sides
 
-### Ta mạnh ở đâu (có số đo)
+### Where we are strong (with measurements)
 
-| Điểm mạnh | Bằng chứng |
+| Strength | Evidence |
 |---|---|
-| Bề mặt nhỏ, một người đọc hết | 4.565 LOC vs 89.614; 28 tool vs 522 |
-| Chi phí context thấp ở native mode | `tools/list` 15.721 B ≈ 3.930 token (đo thật) |
-| Bundle nhỏ hơn ~2,9x | npm unpacked 2,9 MB vs 8,4 MB |
-| SDK khớp version server | `api-client@0.7.423` ↔ server `0.7.423`; họ pin `0.7.19` + patch tự bảo trì |
-| Markup/collab miễn phí từ SDK | WS `PlatformClient` có `MarkupOperations`; họ phải tự dựng ([ADR-0001](./adr-0001-websocket-transport.md)) |
-| Hiểu đường SSO/2FA của Huly | [huly-auth.md](./huly-auth.md); README của họ không đề cập SSO |
-| CLI + agent skill + tiếng Việt | `bin/huly.cjs`, `skills/huly-skill/SKILL.md` — họ là MCP-first |
+| Small surface, one person reads all of it | 4,565 LOC vs 89,614; 28 tools vs 522 |
+| Low context cost in native mode | `tools/list` 15,721 B ≈ 3,930 tokens (measured) |
+| Bundle ~2.9x smaller | npm unpacked 2.9 MB vs 8.4 MB |
+| SDK matches the server version | `api-client@0.7.423` ↔ server `0.7.423`; they pin `0.7.19` + a self-maintained patch |
+| Markup/collab free from the SDK | the WS `PlatformClient` has `MarkupOperations`; they had to rebuild it ([ADR-0001](./adr-0001-websocket-transport.md)) |
+| Understanding of Huly's SSO/2FA path | [huly-auth.md](./huly-auth.md); their README does not mention SSO |
+| CLI + agent skill + Vietnamese | `bin/huly.cjs`, `skills/huly-skill/SKILL.md` — they are MCP-first |
 
-### Ta yếu ở đâu
+### Where we are weak
 
-| Điểm yếu | Bằng chứng | Mức độ |
+| Weakness | Evidence | Severity |
 |---|---|---|
-| Không test, không CI | 0 file test, 0 workflow vs 1.232 test + quality gate | **cao** |
-| MCP HTTP giữ một credential dùng chung | họ có `x-huly-url`/`x-huly-workspace`/`x-huly-token` theo request | **cao** |
-| Không ai dùng | 39 lượt tải npm/tháng vs 4.892; 0 star vs 46 | trung bình |
-| Không có kênh phân phối | họ có Docker, Smithery, Glama, MCP registry, site riêng | trung bình |
-| Chẩn đoán yếu | `huly_whoami` phải connect mới nói được gì; họ có `get_huly_context` không cần kết nối | trung bình |
-| Độ phủ domain hẹp | thiếu drive, boards, mail, calendar, recruiting, inventory… | thấp (chưa cần) |
-| Bootstrap nặng | `fake-indexeddb`, polyfill `window`, redirect `console.log` | thấp (giá của ADR-0001) |
+| No tests, no CI | 0 test files, 0 workflows vs 1,232 tests + a quality gate | **high** |
+| MCP HTTP holds one shared credential | they take `x-huly-url`/`x-huly-workspace`/`x-huly-token` per request | **high** |
+| Nobody uses it | 39 npm downloads/month vs 4,892; 0 stars vs 46 | medium |
+| No distribution channels | they have Docker, Smithery, Glama, MCP registry, own site | medium |
+| Weak diagnostics | `huly_whoami` must connect before it can say anything; they have `get_huly_context` needing no connection | medium |
+| Narrow domain coverage | no drive, boards, mail, calendar, recruiting, inventory… | low (not needed yet) |
+| Heavy bootstrap | `fake-indexeddb`, `window` polyfill, `console.log` redirect | low (the price of ADR-0001) |
 
-### Họ mạnh / yếu
+### Their strengths / weaknesses
 
-Mạnh: độ phủ 522 tool, 1.232 test + CI, multi-tenant qua header, `proxy` tool mode
-để tránh nổ context, harness certification không in secret, phân phối rộng, 4.892
-lượt tải/tháng.
+Strengths: 522-tool coverage, 1,232 tests + CI, multi-tenancy via headers, a `proxy` tool mode
+to avoid blowing up context, a certification harness that prints no secrets, wide distribution, 4,892
+downloads/month.
 
-Yếu: 89.600 LOC + Effect-TS cho một wrapper (chi phí nhận thức lớn, dấu hiệu sinh
-bằng agent loop — `RALPH.md`); bus factor = 1; SDK pin `0.7.19` lệch 400+ patch so
-với server 0.7.423, phải tự bảo trì patch; không có hướng dẫn cho SSO/2FA; 522 tool
-là 522 bề mặt có thể sai.
+Weaknesses: 89,600 LOC + Effect-TS for a wrapper (huge cognitive cost, signs of generation
+by an agent loop — `RALPH.md`); bus factor = 1; SDK pinned at `0.7.19`, 400+ patches behind
+the 0.7.423 server, requiring a self-maintained patch; no guidance for SSO/2FA; 522 tools
+are 522 surfaces that can be wrong.
 
-### Đọc thẳng
+### Straight reading
 
-Trên trục **kỷ luật kỹ thuật và mức độ được dùng, ta thua rõ**. Trên trục **gọn,
-đúng version, hiểu sâu auth, có CLI + skill tiếng Việt, ta thắng**. "Tinh gọn" là
-lựa chọn scope chứ không phải phẩm chất tự thân: lean của ta thì *người dùng* trả
-giá khi cần domain mới; lean của họ thì *agent* trả giá bằng context hoặc bằng vòng
-discovery.
+On the axis of **engineering discipline and adoption, we clearly lose**. On the axis of **compact,
+version-matched, deep auth understanding, a CLI + Vietnamese skill, we win**. "Lean" is
+a scope choice, not a virtue in itself: with our lean, the *user* pays
+when a new domain is needed; with their lean, the *agent* pays in context or in a discovery
+round-trip.
 
-## 2. Có nên đổi tên thành `huly-mcp`? — **Không**
+## 2. Should we rename to `huly-mcp`? — **No**
 
-Lý do, theo thứ tự sức nặng:
+Reasons, in order of weight:
 
-1. **Đụng tên trực diện với dự án đã có trước 6 tuần và đang được dùng gấp 125 lần.**
-   Repo họ tên `huly-mcp`, npm `@firfi/huly-mcp`, đã nằm trong MCP registry,
-   Smithery, Glama. Ta vào sau, cùng tên → thua về discovery và dễ bị đọc là bắt chước.
-2. **Ta đã có định danh MCP rồi.** npm package của ta là `@fioenix/huly-mcp` v1.6.1,
-   binary `huly-mcp`. Người cài MCP không gõ tên repo. Đổi tên repo không giúp gì
-   cho discovery, chỉ phá link cũ.
-3. **"Skill" là phần khác biệt thật.** Ta là CLI + agent skill + MCP; họ là MCP-first.
-   Bỏ chữ "skill" là tự xoá điểm khác biệt để lấy một cái tên đã có chủ.
-4. **Chi phí đổi tên đến đúng lúc không nên chi.** Xem mục 3.
+1. **A head-on name collision with a project that came 6 weeks earlier and is used 125x more.**
+   Their repo is named `huly-mcp`, npm `@firfi/huly-mcp`, already in the MCP registry,
+   Smithery, Glama. We arrive later with the same name → we lose on discovery and get read as a copy.
+2. **We already have an MCP identity.** Our npm package is `@fioenix/huly-mcp` v1.6.1,
+   binary `huly-mcp`. People installing MCP do not type the repo name. Renaming the repo helps
+   discovery not at all, it only breaks old links.
+3. **"Skill" is the real differentiator.** We are CLI + agent skill + MCP; they are MCP-first.
+   Dropping the word "skill" erases our differentiator to take a name that already has an owner.
+4. **The cost of renaming lands at exactly the wrong time.** See section 3.
 
-Nếu muốn nhấn MCP mà không đổi tên: sửa `description` của repo và headline README
-thành dạng "Huly MCP server + CLI + agent skill", giữ nguyên tên `huly-skill`.
+If we want to emphasize MCP without renaming: change the repo `description` and the README headline
+to something like "Huly MCP server + CLI + agent skill", keeping the name `huly-skill`.
 
-## 3. Huly còn được phát triển không? — Còn, nhưng đã tụt xuống chế độ bảo trì
+## 3. Is Huly still being developed? — Yes, but it has dropped to maintenance mode
 
-Số đo từ `hcengineering/platform` (17/08/2026):
+Measurements from `hcengineering/platform` (17/08/2026):
 
-- **Commit/tuần, 52 tuần gần nhất** (cũ → mới): `44 55 63 70 77 89 105 150 85 63 69
+- **Commits/week, last 52 weeks** (old → new): `44 55 63 70 77 89 105 150 85 63 69
   15 15 36 41 14 15 20 9 24 30 23 17 18 21 11 25 24 18 23 23 32 15 25 15 15 12 18 5
-  11 3 4 1 5 8 21 11 6 5 5 1 1`. Tức là từ **100–150/tuần** một năm trước xuống
-  **1–10/tuần** trong ~12 tuần gần nhất.
-- Commit gần nhất: **11/08/2026**. Repo **không** archived; 27.4k star, 2.107 fork,
-  846 issue mở.
-- Người còn commit (từ 01/06/2026): Artyom Savchenko (14), Alexander Onnikov (5),
-  Denis Bykhov (4) — core team vẫn ở đó, chỉ ít việc.
-- **Hosted Huly (huly.app) đã đóng ~20/07/2026** vì "hosting is no longer being
-  funded" (thông báo ngay đầu README platform). Self-hosted **không** ảnh hưởng →
-  `work.yody.io` không bị gì.
-- README nói platform đang đỡ nhiều sản phẩm, "including Huly and **TraceX**"
-  (tracex.co) — năng lượng thương mại có vẻ đã dịch sang đó.
-- Org phân tán ra nhiều repo nhỏ (hulypulse, hulykvs, huly.net, hulyrs, hulylake…),
-  phần lớn push lần cuối từ 2025.
+  11 3 4 1 5 8 21 11 6 5 5 1 1`. That is, from **100–150/week** a year ago down to
+  **1–10/week** over the last ~12 weeks.
+- Most recent commit: **11/08/2026**. The repo is **not** archived; 27.4k stars, 2,107 forks,
+  846 open issues.
+- Still committing (since 01/06/2026): Artyom Savchenko (14), Alexander Onnikov (5),
+  Denis Bykhov (4) — the core team is still there, just with less work.
+- **Hosted Huly (huly.app) shut down ~20/07/2026** because "hosting is no longer being
+  funded" (announced at the top of the platform README). Self-hosted is **not** affected →
+  `work.yody.io` is fine.
+- The README says the platform now underpins several products, "including Huly and **TraceX**"
+  (tracex.co) — the commercial energy appears to have shifted there.
+- The org has scattered into many small repos (hulypulse, hulykvs, huly.net, hulyrs, hulylake…),
+  most last pushed in 2025.
 
-**Điểm chí tử với ta — npm đã ngừng publish:** `@hcengineering/core` (và cả bộ SDK)
-bản cuối trên npm là **0.7.423 ngày 10/05/2026**. Trong khi đó tag `v0.7.426`
-(03/07) và `v0.7.432` (16/07) **đã ra nhưng không được publish lên npm**. Ba tháng
-không có bản npm mới.
+**The killer detail for us — npm publishing has stopped:** `@hcengineering/core` (and the whole SDK)
+was last published to npm at **0.7.423 on 10/05/2026**. Meanwhile tags `v0.7.426`
+(03/07) and `v0.7.432` (16/07) **shipped but were never published to npm**. Three months
+with no new npm release.
 
-### Hệ quả trực tiếp cho quyết định "Chọn 3"
+### Direct consequence for the "Option 3" decision
 
-Ở lượt trước ta chốt: chờ bản phát hành có PR #10624 (revocable API tokens) rồi
-chuyển sang. Với dữ liệu này, **xác suất điều đó xảy ra trong vài tháng tới là
-thấp**: PR #10624 nằm ở `develop`, chưa vào tag nào, và ngay cả tag đã có cũng
-không lên npm nữa. Chờ vô thời hạn không phải kế hoạch.
+Last round we settled on: wait for a release containing PR #10624 (revocable API tokens) and
+switch to it. With this data, **the probability of that happening in the next few months is
+low**: PR #10624 sits on `develop`, is in no tag, and even existing tags no longer
+reach npm. Waiting indefinitely is not a plan.
 
-Ba đường đi, kèm ai trả giá:
+Three paths, and who pays for each:
 
-1. **Chọn 1 (mint token có `exp` bằng `SERVER_SECRET`)** — không phụ thuộc Huly
-   phát hành gì. `jwt-simple` đã enforce `exp` ngay ở `decode()` nên hạn dùng có
-   hiệu lực trên 0.7.423. Không có revocation, chỉ có hết hạn → bù bằng hạn ngắn
-   (30 ngày). Giá: admin phải rotate; `SERVER_SECRET` phải xử như secret hạng nhất.
-2. **Build self-host từ `develop`** để có revocable tokens sớm. Giá: chạy nhánh
-   chưa release cho production, và tự gánh việc build image — với một platform
-   đang bảo trì cầm chừng thì đây là rủi ro tăng dần.
-3. **Chờ** — chỉ hợp lý nếu Huly publish npm trở lại. Cần một mốc kiểm tra, không
-   phải chờ mở.
+1. **Option 1 (mint tokens with `exp` using `SERVER_SECRET`)** — does not depend on what Huly
+   releases. `jwt-simple` already enforces `exp` right in `decode()`, so expiry does
+   work on 0.7.423. No revocation, only expiry → compensate with a short lifetime
+   (30 days). Price: the admin must rotate; `SERVER_SECRET` must be handled as a first-class secret.
+2. **Build the self-host from `develop`** to get revocable tokens sooner. Price: running an unreleased
+   branch in production, and taking on image builds ourselves — with a platform
+   on life-support maintenance, that risk grows over time.
+3. **Wait** — only reasonable if Huly resumes publishing to npm. Needs a check-in date, not
+   an open-ended wait.
 
-**Khuyến nghị: đi Chọn 1, và đặt lịch kiểm tra npm `@hcengineering/core` mỗi tháng.**
-Nếu ba tháng nữa vẫn không có bản mới thì coi như SDK đóng băng ở 0.7.423 và ta
-pin cứng, không kỳ vọng nâng.
+**Recommendation: take Option 1, and schedule a monthly check on npm `@hcengineering/core`.**
+If there is still no new release in three months, treat the SDK as frozen at 0.7.423 and
+hard-pin it, expecting no upgrade.
 
-### Ba việc nên làm vì Huly chậm lại, không phải bất chấp điều đó
+### Three things to do because Huly slowed down, not in spite of it
 
-1. **Pin cứng dependency + commit lockfile** (đã có `pnpm-lock.yaml`) và ghi rõ
-   trong README rằng SDK dừng ở 0.7.423 — để sau này không ai debug mù.
-2. **Test + CI**: khi upstream ít vá lỗi, hồi quy là việc của ta. Đây là khoảng
-   cách lớn nhất so với họ, và giá trị của nó tăng đúng lúc upstream chậm lại.
-3. **Credential theo request cho HTTP transport**: xoá rủi ro "một token dùng chung",
-   không phụ thuộc phiên bản Huly nào.
+1. **Hard-pin dependencies + commit the lockfile** (`pnpm-lock.yaml` already exists) and state clearly
+   in the README that the SDK stops at 0.7.423 — so nobody debugs blind later.
+2. **Tests + CI**: when upstream patches little, regressions are our problem. This is the biggest
+   gap against them, and its value rises exactly as upstream slows.
+3. **Per-request credentials for the HTTP transport**: removes the "one shared token" risk,
+   independent of any Huly version.
 
-Không đề xuất: đổi tên, đua số lượng tool, hay viết lại theo Effect-TS.
+Not proposing: renaming, racing on tool count, or rewriting in Effect-TS.

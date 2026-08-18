@@ -1,202 +1,202 @@
-# Huly authentication — nghiên cứu (17/08/2026)
+# Huly authentication — research (17/08/2026)
 
-Phạm vi: cơ chế xác thực của Huly platform, đối chiếu với instance đang dùng
-(`https://work.yody.io`, version **0.7.423**, self-hosted) và với những gì
-`huly-skill` đang làm trong [`src/client.ts`](../src/client.ts).
+Scope: Huly platform's authentication mechanisms, checked against the instance we use
+(`https://work.yody.io`, version **0.7.423**, self-hosted) and against what
+`huly-skill` currently does in [`src/client.ts`](../src/client.ts).
 
-**Ràng buộc thực tế tại YODY** (do người dùng cung cấp, quyết định toàn bộ phần
-khuyến nghị): mọi người **đăng nhập qua Google SSO**, và **2FA đang bật**. Vì vậy
-flow `login(email, password)` không dùng được — phần dưới đã tính theo ràng buộc này.
+**Real constraints at YODY** (supplied by the user, and they determine the whole
+recommendation section): everyone **signs in via Google SSO**, and **2FA is on**. So the
+`login(email, password)` flow is unusable — everything below accounts for that constraint.
 
-Nguồn: source code đọc trực tiếp — `@hcengineering/api-client@0.7.423`,
+Sources: source code read directly — `@hcengineering/api-client@0.7.423`,
 `@hcengineering/account-client@0.7.423`, `@hcengineering/client-resources@0.7.423`
-(trong `node_modules`), và `hcengineering/platform` tại tag `v0.7.423` cùng nhánh `develop`.
+(in `node_modules`), and `hcengineering/platform` at tag `v0.7.423` plus the `develop` branch.
 
 ---
 
-## 1. Kiến trúc xác thực
+## 1. Authentication architecture
 
-| Thành phần | Vai trò | URL trên instance YODY |
+| Component | Role | URL on the YODY instance |
 |---|---|---|
-| Front / config | phát `/config.json` chứa endpoint các service | `https://work.yody.io/config.json` |
-| Account service | cấp và ký JWT, quản lý account/workspace/role | `https://huly-account.yody.io` |
-| Transactor (WS) | nhận JWT qua WebSocket, thực thi transaction | endpoint do `selectWorkspace` trả về |
+| Front / config | serves `/config.json` containing service endpoints | `https://work.yody.io/config.json` |
+| Account service | issues and signs JWTs, manages accounts/workspaces/roles | `https://huly-account.yody.io` |
+| Transactor (WS) | receives the JWT over WebSocket, executes transactions | endpoint returned by `selectWorkspace` |
 
-Luồng của `connect()` trong `@hcengineering/api-client`:
+The `connect()` flow in `@hcengineering/api-client`:
 
-1. `loadServerConfig(host)` → lấy `ACCOUNTS_URL`.
-2. `getWorkspaceToken()`: `{ email, password }` → gọi `login()` lấy **account token**;
-   hoặc `{ token }` → dùng luôn.
-3. `selectWorkspace(workspace)` → đổi sang **workspace token** + `endpoint`.
-4. Mở WebSocket: URL là `wss://<transactor>/<token>` — token nằm **trong path**
+1. `loadServerConfig(host)` → get `ACCOUNTS_URL`.
+2. `getWorkspaceToken()`: `{ email, password }` → calls `login()` to get an **account token**;
+   or `{ token }` → used as-is.
+3. `selectWorkspace(workspace)` → exchanges it for a **workspace token** + `endpoint`.
+4. Open the WebSocket: the URL is `wss://<transactor>/<token>` — the token is **in the path**
    (`client-resources/src/index.ts:104`).
 
-## 2. Token là gì
+## 2. What the token is
 
-JWT `HS256`, ký bằng `SERVER_SECRET` chia sẻ giữa các service
+An `HS256` JWT, signed with the `SERVER_SECRET` shared between services
 (`foundations/core/packages/token/src/token.ts`):
 
 ```
 { account, workspace?, extra?, grant?, sub?, exp?, nbf? }
 ```
 
-- `extra` — metadata tự do: `admin: 'true'`, `authMethod: 'password'|'otp'`,
+- `extra` — free-form metadata: `admin: 'true'`, `authMethod: 'password'|'otp'`,
   `service`, `readonly: 'true'`, `apiTokenId`, `guest`.
-- `grant` — `PermissionsGrant`: `{ workspace, role, spaces?, grantedBy? }`. Có
-  `grant` mà không có `sub` thì **bắt buộc** `nbf` + `exp`.
-- `exp` / `nbf` — `jwt-simple@0.5.6` kiểm tra ngay trong `decode()`
-  (`package/lib/jwt.js:97-102`), nên hạn dùng **có hiệu lực kể cả trên 0.7.423**.
-  Không có `exp` = sống tới khi đổi `SERVER_SECRET`.
+- `grant` — `PermissionsGrant`: `{ workspace, role, spaces?, grantedBy? }`. With
+  `grant` but no `sub`, `nbf` + `exp` are **mandatory**.
+- `exp` / `nbf` — `jwt-simple@0.5.6` checks them right inside `decode()`
+  (`package/lib/jwt.js:97-102`), so expiry **is enforced even on 0.7.423**.
+  No `exp` = alive until `SERVER_SECRET` changes.
 
-**Có hai loại token, đừng lẫn:**
+**There are two kinds of token; do not confuse them:**
 
 | | Account token | Workspace token |
 |---|---|---|
-| Payload | `{ account }`, **không** có `workspace` | `{ account, workspace }` |
-| Nguồn | `login()`, SSO redirect, `validateOtp()` | `selectWorkspace()` |
-| Dùng cho `connect()` được? | **chỉ khi** truyền `workspace` = **URL slug** | ✅ (UUID cũng được) |
+| Payload | `{ account }`, **no** `workspace` | `{ account, workspace }` |
+| Source | `login()`, SSO redirect, `validateOtp()` | `selectWorkspace()` |
+| Usable for `connect()`? | **only if** you pass `workspace` = the **URL slug** | ✅ (UUID works too) |
 
-Lý do: `selectWorkspace` tra workspace bằng `getWorkspaceByUrl(url)`; nếu không
-thấy nó fallback sang `getWorkspaceById(decodedToken.workspace)`
-(`server/account/src/utils.ts:733+`). `HULY_WORKSPACE_ID` là UUID nên chỉ chạy
-được nhờ token hiện tại **đã bind workspace**. Nếu chuyển sang account token
-(ví dụ token copy từ SSO redirect) thì phải đổi biến sang **workspace URL slug**,
-nếu không sẽ ăn `WorkspaceNotFound`.
+Reason: `selectWorkspace` looks the workspace up with `getWorkspaceByUrl(url)`; if that
+misses it falls back to `getWorkspaceById(decodedToken.workspace)`
+(`server/account/src/utils.ts:733+`). `HULY_WORKSPACE_ID` is a UUID, so it only works
+because the current token is **already bound to a workspace**. Switching to an account token
+(for example one copied from the SSO redirect) means changing the variable to the **workspace URL slug**,
+otherwise you get `WorkspaceNotFound`.
 
-**Token hiện tại trong `.env`**: `extra` là `{}` rỗng, không `exp`, không `nbf`,
-không `grant` — khớp `generateToken(account, workspace, {})`, tức là do màn hình
-Settings hoặc `dev/tool generate-token` (không `--admin`) sinh ra. Credential
-**vĩnh viễn, không thu hồi riêng lẻ được**.
+**The current token in `.env`**: `extra` is an empty `{}`, no `exp`, no `nbf`,
+no `grant` — matching `generateToken(account, workspace, {})`, i.e. produced by the
+Settings screen or by `dev/tool generate-token` (without `--admin`). It is a
+**permanent credential that cannot be revoked individually**.
 
-## 3. Google SSO + 2FA: điều gì thực sự xảy ra
+## 3. Google SSO + 2FA: what actually happens
 
-**2FA của Huly không áp cho SSO.** `loginOrSignUpWithProvider`
-(`server/account/src/utils.ts:1521`) — hàm mà cả `/auth/google` và `/auth/openid`
-gọi qua `handleProviderAuth` — kết thúc bằng:
+**Huly's 2FA does not apply to SSO.** `loginOrSignUpWithProvider`
+(`server/account/src/utils.ts:1521`) — the function both `/auth/google` and `/auth/openid`
+reach via `handleProviderAuth` — ends with:
 
 ```ts
 token: generateToken(personUuid, undefined, extraToken)
 ```
 
-Không có bất kỳ nhánh `tfaSecret` nào. Đối chiếu: `login()` (password) và
-`validateOtp()` đều mint token với `account = NIL_UUID` + `extra.tfaAccount` khi
-account có `tfaSecret`, và token đó **không** `selectWorkspace` được cho tới khi
-qua `verify2fa(code)`. Kiểm tra thêm trên nhánh `develop`: file `utils.ts` có **0**
-lần xuất hiện `tfaSecret` — nghĩa là Huly chưa từng gate SSO bằng TOTP, không phải
-chuyện riêng của 0.7.423.
+There is no `tfaSecret` branch anywhere. By contrast: `login()` (password) and
+`validateOtp()` both mint a token with `account = NIL_UUID` + `extra.tfaAccount` when the
+account has a `tfaSecret`, and that token **cannot** `selectWorkspace` until it passes
+`verify2fa(code)`. Additional check on the `develop` branch: `utils.ts` contains **0**
+occurrences of `tfaSecret` — meaning Huly has never gated SSO with TOTP; this is not
+specific to 0.7.423.
 
-Hệ quả hai chiều:
+Two-sided consequence:
 
-- *Về mặt vận hành, tốt cho ta*: 2FA **không** phải rào cản để lấy token
-  per-person. Người đăng nhập Google xong là đã có token đầy đủ.
-- *Về mặt bảo mật, cần biết*: nếu YODY coi TOTP là yếu tố thứ hai bắt buộc thì
-  giả định đó **không đúng** với đường Google/OIDC — factor thứ hai thực tế là
-  MFA của Google Workspace, không phải của Huly.
+- *Operationally, good for us*: 2FA is **not** a barrier to obtaining a per-person
+  token. Once someone signs in with Google they already have a full token.
+- *Security-wise, worth knowing*: if YODY treats TOTP as a mandatory second factor, that
+  assumption **does not hold** for the Google/OIDC path — the actual second factor is
+  Google Workspace MFA, not Huly's.
 
-**Token của người dùng SSO nằm ở đâu** (3 chỗ, đều đọc được bởi chính chủ):
+**Where an SSO user's token lives** (3 places, all readable by the owner):
 
-1. URL redirect sau khi Google trả về: `.../login/auth?token=<JWT>`
-   (`pods/authProviders/src/utils.ts:115`) — đây là **account token**.
-2. Cookie `presentation-metadata-Token`, scope `/files/<workspaceUuid>`
-   (`packages/presentation/src/utils.ts:893`) — **workspace token**.
-3. Network tab → WebSocket request: `wss://<transactor>/<JWT>` — **workspace token**.
+1. The redirect URL after Google returns: `.../login/auth?token=<JWT>`
+   (`pods/authProviders/src/utils.ts:115`) — this is an **account token**.
+2. The `presentation-metadata-Token` cookie, scope `/files/<workspaceUuid>`
+   (`packages/presentation/src/utils.ts:893`) — a **workspace token**.
+3. Network tab → WebSocket request: `wss://<transactor>/<JWT>` — a **workspace token**.
 
-## 4. Bốn cách lấy token — đối chiếu ràng buộc SSO + 2FA
+## 4. Four ways to get a token — against the SSO + 2FA constraint
 
-| Cách | Chạy được với SSO+2FA? | Ai làm được | `exp` | Thu hồi | Có ở 0.7.423 |
+| Method | Works with SSO+2FA? | Who can do it | `exp` | Revocable | Present in 0.7.423 |
 |---|---|---|---|---|---|
-| `login(email, password)` | ❌ không có password; 2FA chặn | — | ❌ | ❌ | ✅ |
-| OTP (`loginOtp`/`validateOtp`) | ❌ 2FA chặn (trả `NIL_UUID`) | — | ❌ | ❌ | ✅ |
-| Tự copy token session sau khi SSO | ✅ | mọi member | ❌ | ❌ | ✅ |
-| Settings → General → *Generate API token* | ✅ | chỉ **Owner** | ❌ | ❌ | ✅ |
-| `dev/tool generate-token` / script `generateToken` | ✅ (bypass hoàn toàn) | admin có shell + DB | ⚠️ script thì có | ❌ | ✅ |
-| `createApiToken` (revocable API token) | ✅ | mọi member ≥ `User` | ✅ 1–365 ngày | ✅ | ❌ **chỉ `develop`** |
+| `login(email, password)` | ❌ no password; 2FA blocks it | — | ❌ | ❌ | ✅ |
+| OTP (`loginOtp`/`validateOtp`) | ❌ 2FA blocks it (returns `NIL_UUID`) | — | ❌ | ❌ | ✅ |
+| Copy your own session token after SSO | ✅ | any member | ❌ | ❌ | ✅ |
+| Settings → General → *Generate API token* | ✅ | **Owner** only | ❌ | ❌ | ✅ |
+| `dev/tool generate-token` / a `generateToken` script | ✅ (bypasses everything) | admin with shell + DB | ⚠️ a script can | ❌ | ✅ |
+| `createApiToken` (revocable API token) | ✅ | any member ≥ `User` | ✅ 1–365 days | ✅ | ❌ **`develop` only** |
 
-**Nút trong Settings không sinh API key.** `General.svelte:156` chỉ gọi
-`accountClient.selectWorkspace(workspaceUrl)` rồi in ra popup — là **session token
-của chính Owner đang bấm**. Màn hình bị gate `role: AccountRole.Owner`
-(`models/setting/src/index.ts:284`). Tức là rào "admin-only" là rào **UI**, không
-phải rào hệ thống: token nó trả về không hơn gì token mà member nào cũng tự lấy
-được từ session của mình (mục 3).
+**The Settings button does not create an API key.** `General.svelte:156` only calls
+`accountClient.selectWorkspace(workspaceUrl)` and prints the result in a popup — it is **the session
+token of the Owner who clicked it**. The screen is gated on `role: AccountRole.Owner`
+(`models/setting/src/index.ts:284`). So the "admin-only" fence is a **UI** fence, not a
+system one: the token it returns is no better than the token any member can pull
+out of their own session (section 3).
 
 **Revocable API tokens** — `createApiToken` / `listApiTokens` / `revokeApiToken`:
-self-service từ role `User`, hạn 1–365 ngày, tối đa 100 token sống/account, revoke
-được, transactor check revocation qua `verifyToken()` cache TTL 60s. Commit
-`5a3d673e` ngày 04/08/2026 (PR #10624), đã ở `develop` nhưng **chưa vào tag nào**
-(`v0.7.432` là tag mới nhất, vẫn chưa có), và npm `account-client@0.7.423` chưa
-expose. **Quan trọng với YODY**: flow này xác thực bằng session token sẵn có, nên
-nó hoạt động bình đẳng với SSO — đây là đích đến đúng, chỉ là chưa phát hành.
+self-service from the `User` role, 1–365 day expiry, at most 100 live tokens per account, revocable,
+and the transactor checks revocation via `verifyToken()` with a 60s cache TTL. Commit
+`5a3d673e` dated 04/08/2026 (PR #10624), already on `develop` but **not in any tag**
+(`v0.7.432` is the latest tag and still does not have it), and npm `account-client@0.7.423` does not
+expose it. **Important for YODY**: this flow authenticates with an existing session token, so
+it works equally well with SSO — this is the right destination, it just is not released yet.
 
-## 5. Access link — con đường bị bỏ qua
+## 5. Access links — the path that gets overlooked
 
-`createAccessLink(role, { spaces, nbf, expiration, personalized, extra })` mint
-token cho `GUEST_ACCOUNT` kèm `grant`. Đây là **cơ chế duy nhất ở 0.7.423 cho
-phép token vừa có hạn dùng vừa giới hạn phạm vi** (`spaces`). Trade-off: account
-là guest chung → activity không attribute về người thật, role tối đa bị chặn bởi
-role người tạo link. Phù hợp integration read-only hẹp, không phù hợp agent ghi dữ liệu.
+`createAccessLink(role, { spaces, nbf, expiration, personalized, extra })` mints a
+token for `GUEST_ACCOUNT` with a `grant`. This is **the only mechanism in 0.7.423 that lets
+a token both expire and be scope-limited** (`spaces`). Trade-off: the account
+is a shared guest → activity is not attributed to a real person, and the maximum role is capped by the
+role of whoever created the link. Suitable for narrow read-only integrations, unsuitable for an agent that writes data.
 
-## 6. Lớp bảo vệ khác trên account service
+## 6. Other protection layers on the account service
 
 - **2FA (TOTP)**: `generate2faSecret` / `enable2fa` / `verify2fa` / `disable2fa`
-  — chỉ hiệu lực trên đường password và OTP (mục 3).
+  — only effective on the password and OTP paths (section 3).
 - **Password lockout**: `isAccountPasswordLocked` + `recordFailedLoginAttempt`;
-  lỗi trả về là `AccountNotFound` (không phân biệt sai pass vs không có account).
-- **Password aging**: `passwordAgingRule` (ngày), đặt ở mức workspace.
-- **Read-only guest**: workspace bật `allowReadOnlyGuest` thì token sai/thiếu vẫn
-  `selectWorkspace` được, nhận `role = ReadOnlyGuest` + `extra.readonly = 'true'`.
-- **SSO trên instance YODY**: `GET https://huly-account.yody.io/providers` →
+  the error returned is `AccountNotFound` (no distinction between wrong password and no account).
+- **Password aging**: `passwordAgingRule` (in days), set at the workspace level.
+- **Read-only guest**: if a workspace enables `allowReadOnlyGuest`, a wrong/missing token can still
+  `selectWorkspace`, receiving `role = ReadOnlyGuest` + `extra.readonly = 'true'`.
+- **SSO on the YODY instance**: `GET https://huly-account.yody.io/providers` →
   `[{ google }, { openid, displayName: "Yody" }]`.
-- **`extra.admin === 'true'`**: bỏ qua kiểm tra membership, `selectWorkspace` cấp
-  luôn role `Admin` (`server/account/src/utils.ts:830`). `tool generate-token --admin`
-  sinh loại này — là chìa khóa toàn hệ thống, đừng dùng cho agent.
+- **`extra.admin === 'true'`**: skips the membership check, and `selectWorkspace` grants
+  the `Admin` role outright (`server/account/src/utils.ts:830`). `tool generate-token --admin`
+  produces this kind — it is a key to the whole system, do not use it for an agent.
 
-## 7. Rủi ro của setup hiện tại
+## 7. Risks in the current setup
 
-1. **Token không hạn, không thu hồi được.** Muốn vô hiệu hóa phải đổi
-   `SERVER_SECRET` → kill mọi session của mọi người.
-2. **Token dùng chung = attribution sai.** Huly ghi author theo social ID của
-   account trong token; `HULY_ACTOR` chỉ là nhãn text.
-3. **MCP HTTP transport giữ credential Huly.** `HULY_MCP_AUTH_TOKEN` là bearer
-   duy nhất chắn trước `POST /mcp`; qua được nó là có toàn quyền của token bên dưới.
-4. **Token trong `.env` plaintext** (đã `.gitignore`, xác nhận bằng `git check-ignore`),
-   nhưng mọi process của user đều đọc được.
+1. **The token never expires and cannot be revoked.** Invalidating it requires changing
+   `SERVER_SECRET` → killing everyone's sessions.
+2. **A shared token means wrong attribution.** Huly records the author from the social ID of the
+   account in the token; `HULY_ACTOR` is only a text label.
+3. **The MCP HTTP transport holds a Huly credential.** `HULY_MCP_AUTH_TOKEN` is the only bearer
+   guarding `POST /mcp`; past it you have the full rights of the token underneath.
+4. **The token sits in `.env` in plaintext** (already `.gitignore`d, confirmed with `git check-ignore`),
+   but every process the user runs can read it.
 
-## 8. Khuyến nghị (đã tính SSO + 2FA)
+## 8. Recommendation (accounting for SSO + 2FA)
 
-**Chọn 1 — admin mint token per-person bằng script, có `exp`.**
-Self-host nên ta giữ `SERVER_SECRET`; viết script ~20 dòng gọi
-`generateToken(accountUuid, workspaceUuid, {}, SECRET, { exp })` — mỗi người một
-token, hạn 30–90 ngày, attribution đúng. Bypass SSO/2FA vì mint ở phía server, nên
-ràng buộc Google SSO không ảnh hưởng. Giá phải trả: admin phải chạy lại khi rotate,
-`SERVER_SECRET` bị đưa ra ngoài phạm vi server (phải xử lý như secret hạng nhất),
-và **không có revocation** — chỉ có hết hạn.
+**Option 1 — an admin mints per-person tokens with a script, with `exp`.**
+We self-host so we hold `SERVER_SECRET`; write a ~20-line script calling
+`generateToken(accountUuid, workspaceUuid, {}, SECRET, { exp })` — one token per
+person, 30–90 day expiry, correct attribution. It bypasses SSO/2FA because minting happens server-side, so
+the Google SSO constraint is irrelevant. The price: the admin must re-run it on rotation,
+`SERVER_SECRET` leaves the server's boundary (and must be treated as a first-class secret),
+and **there is no revocation** — only expiry.
 
-**Chọn 2 — mỗi người tự copy session token của mình sau khi đăng nhập Google.**
-Không cần admin, không cần code, chạy ngay hôm nay. Giá phải trả: token vô hạn và
-không revoke được (logout **không** vô hiệu hóa nó); nếu copy từ URL redirect thì
-là account token → phải đổi `HULY_WORKSPACE_ID` sang **workspace URL slug** (mục 2);
-và hướng dẫn cả team tự lấy JWT từ DevTools là một quy trình dễ sai, dễ leak.
+**Option 2 — each person copies their own session token after signing in with Google.**
+No admin needed, no code needed, works today. The price: the token never expires and
+cannot be revoked (logging out does **not** invalidate it); if copied from the redirect URL it is
+an account token → `HULY_WORKSPACE_ID` must change to the **workspace URL slug** (section 2);
+and walking a whole team through pulling a JWT out of DevTools is an error-prone, leak-prone process.
 
-**Chọn 3 — nâng self-host lên bản có PR #10624 rồi dùng revocable API token.**
-Đúng chuẩn nhất và hợp SSO nhất. Chưa có tag phát hành → hoặc build từ `develop`
-(gánh rủi ro chạy nhánh chưa release cho production), hoặc chờ.
+**Option 3 — upgrade the self-host to a build containing PR #10624 and use revocable API tokens.**
+The most correct and most SSO-friendly. No released tag has it → either build from `develop`
+(carrying the risk of running an unreleased branch in production), or wait.
 
-**Đề xuất: Chọn 1 ngay, Chọn 3 là đích.** Lý do: nó là phương án duy nhất vừa
-sống được với SSO+2FA, vừa cho attribution đúng, vừa có hạn dùng — mà không bắt
-cả team làm thao tác DevTools. Chọn 2 chỉ nên dùng như tình thế tạm cho 1–2 người
-trong lúc chờ script. Khi Chọn 3 có bản phát hành thì đổi credential mà không đụng
-kiến trúc, vì cả ba đều đi qua cùng một `ConnectOptions`.
+**Proposal: Option 1 now, Option 3 as the destination.** Reason: it is the only approach that
+survives SSO+2FA, gives correct attribution, and has an expiry — without making
+the whole team do DevTools work. Option 2 should only be a stopgap for 1–2 people
+while the script is being written. When Option 3 ships we swap the credential without touching the
+architecture, because all three go through the same `ConnectOptions`.
 
-Việc cần làm nếu chọn 1: script mint token (input: email → social ID → account
-UUID), quy ước hạn dùng, và lịch rotate. Code `huly-skill` **không cần sửa** — vẫn
-là `HULY_API_KEY`, chỉ khác là mỗi người một giá trị.
+What to do if we pick Option 1: a token-minting script (input: email → social ID → account
+UUID), an expiry convention, and a rotation schedule. `huly-skill`'s code **needs no changes** — it is still
+`HULY_API_KEY`, just a different value per person.
 
-## 9. Cần sửa trong README
+## 9. What needs fixing in the README
 
-- Nút Settings → General được mô tả như "API access token"; chính xác hơn: nó trả
-  về **session workspace token của Owner**, không sinh credential riêng.
-- Câu "latest release expose no token-creation call" cần gắn mốc version: đúng cho
-  `0.7.423`, nhưng `develop` đã có `createApiToken` (PR #10624).
-- Nên bổ sung: với workspace dùng SSO, `HULY_API_KEY` lấy được từ session của
-  chính người dùng, và nếu là account token thì `HULY_WORKSPACE_ID` phải là URL
-  slug chứ không phải UUID.
+- The Settings → General button is described as an "API access token"; more precisely: it returns
+  **the Owner's session workspace token**, it does not create a separate credential.
+- The sentence "latest release expose no token-creation call" needs a version anchor: true for
+  `0.7.423`, but `develop` already has `createApiToken` (PR #10624).
+- Should be added: for a workspace using SSO, `HULY_API_KEY` can be taken from the user's
+  own session, and if it is an account token then `HULY_WORKSPACE_ID` must be the URL
+  slug, not the UUID.

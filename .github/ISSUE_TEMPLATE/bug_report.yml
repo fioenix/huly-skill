@@ -1,0 +1,41 @@
+name: Bug report
+description: Something behaves differently from what the docs say
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command or tool call, and what came back. Redact the token.
+      placeholder: |
+        $ huly tasks --project DELTA --json
+        {"status":"error","error":"...","code":"connection","retryable":true}
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `huly --version`, or the version in the MCP initialize handshake.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Configuration
+      description: >
+        Output of `huly whoami --offline` (CLI) or the `huly_context` tool (MCP).
+        Neither returns your token. Include the Huly server version if you know it.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options: [CLI, MCP server (stdio), MCP server (HTTP), Skill on claude.ai]
+    validations:
+      required: true

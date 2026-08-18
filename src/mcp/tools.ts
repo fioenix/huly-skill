@@ -62,7 +62,7 @@ async function withHuly(fn: (client: HulyClient) => Promise<Record<string, any>>
 async function resolveTeamspace(client: HulyClient, input: string): Promise<any> {
     const teamspaces = await client.getTeamspaces();
     const ts = teamspaces.find((t: any) => t.name === input || t._id === input);
-    if (!ts) throw new Error(`Khong tim thay teamspace: ${input}`);
+    if (!ts) throw new Error(`Teamspace not found: ${input}`);
     return ts;
 }
 
@@ -404,7 +404,7 @@ export function registerHulyTools(server: McpServer): void {
             const docs = await client.getDocuments(ts._id);
             const titleLower = title.toLowerCase();
             const doc = docs.find((d: any) => d.title?.toLowerCase().includes(titleLower) || d._id === title);
-            if (!doc) throw new Error(`Khong tim thay tai lieu: "${title}"`);
+            if (!doc) throw new Error(`Document not found: "${title}"`);
             const content = await client.getDocumentContent(doc);
             return { document: { ...doc, markdownContent: content } };
         }),
@@ -592,7 +592,7 @@ export function registerHulyTools(server: McpServer): void {
         },
         async ({ messageId }) => withHuly(async (client) => {
             const comment = await getCommentById(client, messageId);
-            if (!comment) throw new Error(`Khong tim thay comment: ${messageId}`);
+            if (!comment) throw new Error(`Comment not found: ${messageId}`);
             return { comment };
         }),
     );

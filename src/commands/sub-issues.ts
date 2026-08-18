@@ -28,18 +28,18 @@ export function listSubIssuesCommand() {
                     }
 
                     if (result.totalCount === 0) {
-                        printToConsole(`Task ${result.parent} khong co sub-issue nao.`);
+                        printToConsole(`Task ${result.parent} has no sub-issues.`);
                         return;
                     }
 
-                    let output = `SUB-ISSUES cua ${result.parent} (${result.totalCount} tong, ${result.directChildren} direct)\n`;
+                    let output = `SUB-ISSUES of ${result.parent} (${result.totalCount} total, ${result.directChildren} direct)\n`;
                     output += '='.repeat(70) + '\n';
                     output += renderTree(result.data);
                     printToConsole(output);
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -73,7 +73,7 @@ export function getTaskByIdCommand() {
                     const task = await client.getTaskByInternalId(internalId);
                     if (!task) {
                         if (isJsonMode()) outputJson(errorPayload(hulyError('not_found', `Task not found: ${internalId}`)));
-                        else console.error(`Khong tim thay task voi _id: ${internalId}`);
+                        else console.error(`No task with _id: ${internalId}`);
                         process.exitCode = EXIT_STATUS.not_found;
                         return;
                     }
@@ -85,7 +85,7 @@ export function getTaskByIdCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

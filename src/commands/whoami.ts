@@ -18,21 +18,21 @@ export function whoamiCommand() {
                         outputJson({ status: 'ok', data: context });
                         return;
                     }
-                    let output = `🔍 Cau hinh (khong ket noi)\n\n`;
-                    output += `📦 Phien ban: ${context.version}\n`;
-                    output += `🌐 Host: ${context.host ?? '(chua dat)'}\n`;
-                    output += `🏢 Workspace: ${context.workspace ?? '(chua dat)'}\n`;
-                    output += `🔑 API Key: ${context.apiKey.masked || '(chua dat)'}\n`;
+                    let output = `🔍 Configuration (no connection)\n\n`;
+                    output += `📦 Version: ${context.version}\n`;
+                    output += `🌐 Host: ${context.host ?? '(not set)'}\n`;
+                    output += `🏢 Workspace: ${context.workspace ?? '(not set)'}\n`;
+                    output += `🔑 API Key: ${context.apiKey.masked || '(not set)'}\n`;
                     if (context.apiKey.claims) {
-                        output += `   ↳ token thuoc account: ${context.apiKey.claims.account ?? 'N/A'}\n`;
-                        output += `   ↳ token gan workspace: ${context.apiKey.claims.workspace ?? '(khong gan)'}\n`;
+                        output += `   ↳ token belongs to account: ${context.apiKey.claims.account ?? 'N/A'}\n`;
+                        output += `   ↳ token bound to workspace: ${context.apiKey.claims.workspace ?? '(unbound)'}\n`;
                         if (context.apiKey.claims.expiresOn) {
-                            output += `   ↳ het han: ${context.apiKey.claims.expiresOn}\n`;
+                            output += `   ↳ expires: ${context.apiKey.claims.expiresOn}\n`;
                         }
                     }
-                    output += `🙋 HULY_ACTOR: ${context.actor ?? '(chua dat)'}\n`;
-                    if (context.defaultAssignee) output += `📌 Assignee mac dinh: ${context.defaultAssignee}\n`;
-                    if (context.proxy) output += `🛡️  Proxy: dang bat\n`;
+                    output += `🙋 HULY_ACTOR: ${context.actor ?? '(not set)'}\n`;
+                    if (context.defaultAssignee) output += `📌 Default assignee: ${context.defaultAssignee}\n`;
+                    if (context.proxy) output += `🛡️  Proxy: on\n`;
                     for (const warning of context.warnings) output += `\n⚠️  ${warning}`;
                     printToConsole(output);
                     return;
@@ -83,23 +83,23 @@ export function whoamiCommand() {
                             }
                         });
                     } else {
-                        let output = `✅ Ket noi thanh cong!\n\n`;
+                        let output = `✅ Connected.\n\n`;
                         output += `🌐 Host: ${host}\n`;
                         output += `🏢 Workspace: ${workspace}\n`;
                         output += `🔑 API Key: ${maskToken(apiKey)}\n`;
-                        output += `👤 Account (chu token): ${account.email || account.uuid || 'Unknown'}\n`;
+                        output += `👤 Account (token owner): ${account.email || account.uuid || 'Unknown'}\n`;
                         if (actor) {
                             output += actorError
-                                ? `🙋 HULY_ACTOR: "${actor}" — KHONG resolve duoc: ${actorError}\n`
-                                : `🙋 HULY_ACTOR: ${actorName} ("me" tro ve nguoi nay)\n`;
+                                ? `🙋 HULY_ACTOR: "${actor}" — did NOT resolve: ${actorError}\n`
+                                : `🙋 HULY_ACTOR: ${actorName} ("me" resolves to them)\n`;
                             if (actorIsTokenOwner === false) {
-                                output += `⚠️  HULY_ACTOR khac chu token: Huly van ghi tac gia la chu token, `;
-                                output += `${actorName} chi xuat hien o dong "Requested by".\n`;
+                                output += `⚠️  HULY_ACTOR is not the token owner: Huly still records the token owner as author, `;
+                                output += `${actorName} only appears on the "Requested by" line.\n`;
                             }
                         } else {
-                            output += `🙋 HULY_ACTOR: chua dat ("me" = chu token)\n`;
+                            output += `🙋 HULY_ACTOR: not set ("me" = the token owner)\n`;
                         }
-                        if (defaultAssignee) output += `📌 Assignee mac dinh: ${defaultAssignee}\n`;
+                        if (defaultAssignee) output += `📌 Default assignee: ${defaultAssignee}\n`;
                         if (account.fullSocialIds?.length > 0) {
                             output += `🆔 Person UUID: ${account.fullSocialIds[0].personUuid || 'N/A'}\n`;
                         }
@@ -108,7 +108,7 @@ export function whoamiCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`❌ Ket noi that bai: ${e.message}`);
+                else console.error(`❌ Connection failed: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
