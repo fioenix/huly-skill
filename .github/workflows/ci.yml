@@ -9,12 +9,12 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # pnpm 11, matching the version that produced pnpm-lock.yaml. pnpm 9
       # rejects this repo's pnpm-workspace.yaml, which carries `allowBuilds`
       # and no `packages` field.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11
 
@@ -25,7 +25,7 @@ jobs:
       # Node 22: pnpm 11 needs node:sqlite, which Node 20 does not have. The
       # package's floor stays Node 20 — esbuild bundles with --target=node20,
       # which is what actually guarantees it.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
 
