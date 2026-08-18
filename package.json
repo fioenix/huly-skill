@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.43",
     "esbuild": "^0.27.3",
     "ts-node": "^10.9.0",
     "tsx": "^4.21.0",
