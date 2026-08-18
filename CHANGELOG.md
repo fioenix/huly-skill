@@ -3,6 +3,26 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## 1.10.1
+
+### Changed — dependencies, and an honest Node floor
+- `@modelcontextprotocol/sdk` 1.29.0 → 1.30.0, `https-proxy-agent` 9.0.0 →
+  9.1.0, `commander` 12.1.0 → 14.0.3, `undici` 6.25.0 → 7.29.0. No interface
+  changes; the CLI's argument parsing and the proxy-aware fetch path were both
+  exercised against a live workspace.
+- `engines.node` now says `>=20.18.1` instead of `>=20.0.0`, which is what the
+  package has actually required since `undici` 7 landed. Anyone on Node 20 is
+  almost certainly past 20.18.1 (November 2024).
+- Dependabot proposed `commander` 15 (needs Node 22.12), `undici` 8 (needs
+  22.19) and `@types/node` 26. All three were declined: the first two would
+  raise the floor for every Node 20 user, and type definitions must describe the
+  *oldest* supported runtime or an API added in a newer Node passes typecheck
+  and crashes on the floor. `.github/dependabot.yml` now carries those reasons
+  and stops re-proposing them, alongside a rule keeping `@hcengineering/*` in
+  step with the Huly server version.
+- CI actions updated: `actions/checkout` v7, `actions/setup-node` v7,
+  `pnpm/action-setup` v6.
+
 ## 1.10.0
 
 ### Changed — human-readable output is now English
