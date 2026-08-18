@@ -1,9 +1,14 @@
 {
   "name": "huly-skill",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "type": "module",
   "description": "CLI tool and agent skill for managing tasks, projects, labels, documents, and milestones in Huly",
   "license": "MIT",
+  "author": "fioenix",
+  "homepage": "https://github.com/fioenix/huly-skill#readme",
+  "bugs": {
+    "url": "https://github.com/fioenix/huly-skill/issues"
+  },
   "main": "bin/bundle.cjs",
   "bin": {
     "huly": "./bin/huly.cjs",

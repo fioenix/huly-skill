@@ -32,7 +32,7 @@ export function activityCommand() {
                     }
 
                     if (events.length === 0) {
-                        printToConsole(`Task ${result.taskIdentifier} chua co activity nao.`);
+                        printToConsole(`Task ${result.taskIdentifier} has no activity yet.`);
                         return;
                     }
 
@@ -43,7 +43,7 @@ export function activityCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

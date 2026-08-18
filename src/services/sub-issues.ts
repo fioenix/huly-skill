@@ -53,7 +53,7 @@ export async function getSubIssueTree(
     recursive: boolean = true,
 ): Promise<SubIssueTreeResult> {
     const parent = await client.getTask(taskIdentifier);
-    if (!parent) throw new Error(`Khong tim thay task: ${taskIdentifier}`);
+    if (!parent) throw new Error(`Task not found: ${taskIdentifier}`);
 
     const statusMap = await getStatusMap(client);
     const persons = await client.getPersons();

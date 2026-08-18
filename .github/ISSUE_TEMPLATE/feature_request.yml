@@ -1,0 +1,26 @@
+name: Feature request
+description: A command or tool that does not exist yet
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What are you trying to do
+      description: >
+        The task, not the API call. This project adds surface only when someone
+        actually needs it — every MCP tool costs context in every session that
+        loads the server, called or not.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today instead
+      description: Existing commands, the Huly UI, or nothing.
+    validations:
+      required: true
+  - type: textarea
+    id: shape
+    attributes:
+      label: What it might look like
+      description: A command line or a tool call, if you have one in mind.

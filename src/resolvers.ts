@@ -48,9 +48,9 @@ export async function resolvePerson(client: HulyClient, input: string): Promise<
         const persons = await client.getPersons();
         const me = persons.find((p: any) => p.personUuid === personUuid);
         if (!me) {
-            throw new Error('Khong the xac minh tai khoan cua ban (me) tren he thong.');
+            throw new Error('Cannot verify your own account (me) on this workspace.');
         }
-        return { _id: me._id, name: me.name || 'Ban' };
+        return { _id: me._id, name: me.name || 'You' };
     }
 
     const persons = await client.getPersons();
@@ -60,7 +60,7 @@ export async function resolvePerson(client: HulyClient, input: string): Promise<
         p.email?.toLowerCase() === input.toLowerCase()
     );
     if (!match) {
-        throw new Error(`Khong tim thay nguoi dung: ${input}`);
+        throw new Error(`User not found: ${input}`);
     }
     return { _id: match._id, name: match.name || input };
 }
@@ -76,7 +76,7 @@ export async function resolveProject(client: HulyClient, input: string): Promise
         p._id === input
     );
     if (!match) {
-        throw new Error(`Du an khong ton tai: ${input}`);
+        throw new Error(`Project not found: ${input}`);
     }
     return { _id: match._id, identifier: match.identifier || '', name: match.name || '' };
 }
@@ -90,7 +90,7 @@ export async function resolveProject(client: HulyClient, input: string): Promise
 export async function resolveTaskId(client: HulyClient, input: string): Promise<string> {
     if (input.includes('-') && /[A-Za-z]/.test(input)) {
         const task = await client.getTask(input);
-        if (!task) throw new Error(`Khong tim thay task: ${input}`);
+        if (!task) throw new Error(`Task not found: ${input}`);
         return task._id;
     }
     return input;
@@ -118,7 +118,7 @@ export async function resolveStatus(client: HulyClient, input: string, spaceId?:
     );
     if (global) return { _id: global._id, name: global.name || input };
 
-    throw new Error(`Khong tim thay trang thai: '${input}'`);
+    throw new Error(`Status not found: '${input}'`);
 }
 
 /**
@@ -159,10 +159,11 @@ export async function getStatusMap(client: HulyClient): Promise<Map<string, any>
 }
 
 const PRIORITY_MAP: Record<string, number> = {
-    'low': 1, 'thap': 1,
-    'medium': 2, 'trung binh': 2,
-    'high': 3, 'cao': 3,
-    'urgent': 4, 'khan cap': 4,
+    'none': 0,
+    'low': 1,
+    'medium': 2,
+    'high': 3,
+    'urgent': 4,
 };
 
 /**
@@ -200,7 +201,7 @@ export function parseRawFields(pairs: string[]): Record<string, any> {
         if (idx === -1) continue;
         const key = pair.slice(0, idx);
         if (RESERVED_FIELD_KEYS.has(key)) {
-            console.error(`⚠️ Khong the set reserved field '${key}' qua --set-field. Dung flag rieng.`);
+            console.error(`⚠️ Reserved field '${key}' cannot be set through --set-field. Use its own flag.`);
             continue;
         }
         const raw = pair.slice(idx + 1);

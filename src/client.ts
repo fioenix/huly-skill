@@ -511,7 +511,7 @@ export class HulyClient {
      */
     async updateComment(messageId: string, message: string): Promise<void> {
         const comment = await this.getCommentById(messageId);
-        if (!comment) throw new Error(`Khong tim thay comment: ${messageId}`);
+        if (!comment) throw new Error(`Comment not found: ${messageId}`);
         await this.client!.updateCollection(
             comment._class,
             comment.space,
@@ -527,7 +527,7 @@ export class HulyClient {
 
     async deleteComment(messageId: string): Promise<void> {
         const comment = await this.getCommentById(messageId);
-        if (!comment) throw new Error(`Khong tim thay comment: ${messageId}`);
+        if (!comment) throw new Error(`Comment not found: ${messageId}`);
         await this.client!.removeCollection(
             comment._class,
             comment.space,

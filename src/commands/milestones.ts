@@ -32,7 +32,7 @@ export function milestonesCommand() {
                     }
 
                     if (milestones.length === 0) {
-                        printToConsole(`Du an ${project.identifier} khong co milestone nao.`);
+                        printToConsole(`Project ${project.identifier} has no milestones.`);
                         return;
                     }
 
@@ -48,7 +48,7 @@ export function milestonesCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -69,12 +69,12 @@ export function milestonesCommand() {
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', data: milestone });
                     } else {
-                        printToConsole(`Da tao milestone: "${milestone.label}" trong ${project.identifier}\n  ID: ${milestone._id}\n  Target: ${formatDate(milestone.targetDate)}`);
+                        printToConsole(`Created milestone: "${milestone.label}" in ${project.identifier}\n  ID: ${milestone._id}\n  Target: ${formatDate(milestone.targetDate)}`);
                     }
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi khi tao milestone: ${e.message}`);
+                else console.error(`Could not create the milestone: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -125,7 +125,7 @@ export function milestonesCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -145,12 +145,12 @@ export function milestonesCommand() {
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', milestoneId, action: 'completed' });
                     } else {
-                        printToConsole(`Da danh dau milestone "${milestoneId}" la hoan thanh.`);
+                        printToConsole(`Marked milestone "${milestoneId}" complete.`);
                     }
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

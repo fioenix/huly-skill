@@ -14,7 +14,7 @@ export function getTaskCommand() {
                     const task = await client.getTask(taskId);
                     if (!task) {
                         if (isJsonMode()) outputJson(errorPayload(hulyError('not_found', `Task not found: ${taskId}`)));
-                        else console.error(`❌ Khong tim thay cong viec: ${taskId}`);
+                        else console.error(`❌ Task not found: ${taskId}`);
                         process.exitCode = EXIT_STATUS.not_found;
                         return;
                     }
@@ -29,7 +29,7 @@ export function getTaskCommand() {
                     const project = projectMap.get(task.space);
                     const status = statusMap.get(task.status);
 
-                    let assigneeName = 'Chua giao';
+                    let assigneeName = 'Unassigned';
                     if (task.assignee) {
                         const persons = await client.getPersons();
                         const assignee = persons.find((p: any) => p._id === task.assignee);
@@ -38,24 +38,24 @@ export function getTaskCommand() {
                         }
                     }
 
-                    let output = `📋 CHI TIET CONG VIEC: ${task.identifier}\n\n`;
-                    output += `📌 Tieu de: ${task.title || 'N/A'}\n`;
-                    output += `📁 Du an: ${project?.identifier || 'Unknown'} - ${project?.name || 'Unknown'}\n`;
-                    output += `📊 Trang thai: ${status?.name || 'Unknown'}\n`;
-                    output += `🎯 Muc uu tien: ${PRIORITY_LABELS[task.priority] || 'KHONG UU TIEN'}\n`;
-                    output += `👤 Nguoi thuc hien: ${assigneeName}\n\n`;
+                    let output = `📋 TASK: ${task.identifier}\n\n`;
+                    output += `📌 Title: ${task.title || 'N/A'}\n`;
+                    output += `📁 Project: ${project?.identifier || 'Unknown'} - ${project?.name || 'Unknown'}\n`;
+                    output += `📊 Status: ${status?.name || 'Unknown'}\n`;
+                    output += `🎯 Priority: ${PRIORITY_LABELS[task.priority] || 'NONE'}\n`;
+                    output += `👤 Assignee: ${assigneeName}\n\n`;
 
-                    output += `📅 Ngay tao: ${formatDate(task.createdOn, true)}\n`;
-                    output += `📅 Cap nhat: ${formatDate(task.modifiedOn, true)}\n`;
-                    output += `⏰ Han chot: ${task.dueDate ? formatDate(task.dueDate) : 'N/A'}\n\n`;
+                    output += `📅 Created: ${formatDate(task.createdOn, true)}\n`;
+                    output += `📅 Updated: ${formatDate(task.modifiedOn, true)}\n`;
+                    output += `⏰ Due: ${task.dueDate ? formatDate(task.dueDate) : 'N/A'}\n\n`;
 
                     if (task.description) {
                         try {
                             const descContent = await client.fetchMarkup(task, 'description');
-                            if (descContent) output += `📝 Mo ta:\n${descContent}\n`;
-                            else output += `📝 Mo ta: (khong doc duoc noi dung)\n`;
+                            if (descContent) output += `📝 Description:\n${descContent}\n`;
+                            else output += `📝 Description: (could not be read)\n`;
                         } catch {
-                            output += `📝 Mo ta: (khong doc duoc noi dung)\n`;
+                            output += `📝 Description: (could not be read)\n`;
                         }
                     }
 
@@ -64,18 +64,18 @@ export function getTaskCommand() {
                     }
 
                     if (task.attachments && task.attachments > 0) {
-                        output += `📎 Dinh kem: ${task.attachments}\n`;
+                        output += `📎 Attachments: ${task.attachments}\n`;
                     }
 
                     if (task.comments && task.comments > 0) {
-                        output += `💬 Binh luan: ${task.comments}\n`;
+                        output += `💬 Comments: ${task.comments}\n`;
                     }
 
                     printToConsole(output);
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`❌ Loi: ${e.message}`);
+                else console.error(`❌ Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

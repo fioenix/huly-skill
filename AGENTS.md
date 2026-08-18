@@ -219,7 +219,7 @@ person.
 
 ## Error Handling
 
-Errors appear in Vietnamese with prefix `Loi:`. Parse and relay the message to the user. Never call Huly API routes directly — the CLI is the single source of truth.
+Errors appear with an `Error:` prefix. Parse and relay the message to the user. Never call Huly API routes directly — the CLI is the single source of truth.
 
 ## Common Workflows
 

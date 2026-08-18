@@ -45,10 +45,10 @@ const HINTS: Partial<Record<ErrorCode, string>> = {
  * half. Patterns cover both languages this project speaks.
  */
 const PATTERNS: [ErrorCode, RegExp][] = [
-    ['auth', /HULY_(HOST|WORKSPACE_ID|API_KEY)|unauthori[sz]ed|forbidden|\b401\b|\b403\b|invalid token|token (expired|invalid)|xac minh tai khoan/i],
+    ['auth', /HULY_(HOST|WORKSPACE_ID|API_KEY)|unauthori[sz]ed|forbidden|\b401\b|\b403\b|invalid token|token (expired|invalid)|cannot verify/i],
     ['connection', /ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|EPIPE|socket|websocket|network|fetch failed|timed? ?out|not connected|connection closed/i],
-    ['not_found', /not found|khong tim thay|khong ton tai/i],
-    ['invalid_input', /invalid|unrecognized|unrecognised|required|khong hop le|chi chap nhan|not confirmed/i],
+    ['not_found', /not found|no such/i],
+    ['invalid_input', /invalid|unrecognized|unrecognised|required|only accepts|not confirmed/i],
 ];
 
 /**

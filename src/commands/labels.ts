@@ -20,11 +20,11 @@ export function labelsCommand() {
                     }
 
                     if (labels.length === 0) {
-                        printToConsole('Khong co label nao trong workspace.');
+                        printToConsole('No labels in this workspace.');
                         return;
                     }
 
-                    let output = `DANH SACH LABELS (${labels.length})\n`;
+                    let output = `LABELS (${labels.length})\n`;
                     output += '='.repeat(50) + '\n';
                     for (const label of labels) {
                         output += `  [${label.color}] ${label.title}\n`;
@@ -34,7 +34,7 @@ export function labelsCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -51,12 +51,12 @@ export function labelsCommand() {
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', data: label });
                     } else {
-                        printToConsole(`Da tao label: "${label.title}" (ID: ${label._id})`);
+                        printToConsole(`Created label: "${label.title}" (ID: ${label._id})`);
                     }
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi khi tao label: ${e.message}`);
+                else console.error(`Could not create the label: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -72,7 +72,7 @@ export function labelsCommand() {
                 await withClient(async (client) => {
                     const task = await client.getTask(taskId);
                     if (!task) {
-                        const e = hulyError('not_found', `Khong tim thay task: ${taskId}`);
+                        const e = hulyError('not_found', `Task not found: ${taskId}`);
                         if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
                         process.exitCode = exitStatusFor(e);
                         return;
@@ -84,12 +84,12 @@ export function labelsCommand() {
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', taskId, labelId });
                     } else {
-                        printToConsole(`Da gan label "${displayTitle}" vao task ${taskId}`);
+                        printToConsole(`Assigned label "${displayTitle}" to task ${taskId}`);
                     }
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });
@@ -102,7 +102,7 @@ export function labelsCommand() {
                 await withClient(async (client) => {
                     const task = await client.getTask(taskId);
                     if (!task) {
-                        const e = hulyError('not_found', `Khong tim thay task: ${taskId}`);
+                        const e = hulyError('not_found', `Task not found: ${taskId}`);
                         if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
                         process.exitCode = exitStatusFor(e);
                         return;
@@ -116,11 +116,11 @@ export function labelsCommand() {
                     }
 
                     if (labels.length === 0) {
-                        printToConsole(`Task ${taskId} khong co label nao.`);
+                        printToConsole(`Task ${taskId} has no labels.`);
                         return;
                     }
 
-                    let output = `Labels cua ${taskId} (${labels.length}):\n`;
+                    let output = `Labels on ${taskId} (${labels.length}):\n`;
                     for (const label of labels) {
                         output += `  - ${label.title}\n`;
                     }
@@ -128,7 +128,7 @@ export function labelsCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi: ${e.message}`);
+                else console.error(`Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

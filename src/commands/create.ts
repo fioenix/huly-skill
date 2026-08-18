@@ -20,7 +20,7 @@ export function createTaskCommand() {
         .option('--set-field <fields...>', 'Set custom field (key=value, supports null/true/false/number)')
         .action(async (type, title, options) => {
             if (!options.project) {
-                console.error('❌ Phai co co --project (VD: --project DELTA)');
+                console.error('❌ --project is required (e.g. --project DELTA)');
                 process.exitCode = EXIT_STATUS.invalid_input;
                 return;
             }
@@ -47,20 +47,20 @@ export function createTaskCommand() {
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', data: task });
                     } else {
-                        let output = `✅ DA TAO TASK MOI\n\n`;
+                        let output = `✅ TASK CREATED\n\n`;
                         output += `📋 ${task.identifier}: ${task.title}\n\n`;
                         output += `🆔 Task ID: ${task._id}\n`;
-                        output += `📁 Du an: ${result.projectIdentifier}\n`;
-                        output += `🎯 Muc uu tien: ${PRIORITY_LABELS[task.priority] || 'Trung binh'}\n`;
-                        output += `📅 Ngay het han: ${task.dueDate ? formatDate(task.dueDate) : 'Khong co'}\n`;
-                        output += `👤 Nguoi thuc hien: ${result.assigneeName}\n`;
+                        output += `📁 Project: ${result.projectIdentifier}\n`;
+                        output += `🎯 Priority: ${PRIORITY_LABELS[task.priority] || 'MEDIUM'}\n`;
+                        output += `📅 Due: ${task.dueDate ? formatDate(task.dueDate) : 'none'}\n`;
+                        output += `👤 Assignee: ${result.assigneeName}\n`;
                         output += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
                         printToConsole(output);
                     }
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`❌ Loi khi tao task: ${e.message}`);
+                else console.error(`❌ Could not create the task: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

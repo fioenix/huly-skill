@@ -19,16 +19,16 @@ export function usersCommand() {
                     }
 
                     if (users.length === 0) {
-                        printToConsole('Khong tim thay nguoi dung nao.');
+                        printToConsole('No users found.');
                         return;
                     }
 
                     users.sort((a, b) => a.name.localeCompare(b.name));
 
-                    let output = `NGUOI DUNG (${users.length})\n`;
+                    let output = `USERS (${users.length})\n`;
                     output += '='.repeat(50) + '\n';
                     for (const u of users) {
-                        const status = u.active === null ? 'khong phai thanh vien' : (u.active ? 'active' : 'inactive');
+                        const status = u.active === null ? 'not a member' : (u.active ? 'active' : 'inactive');
                         output += `  ${u.name} [${status}${u.role ? ', ' + u.role : ''}]\n`;
                         output += `    ID: ${u._id}\n`;
                     }
@@ -36,7 +36,7 @@ export function usersCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`Loi khi tai danh sach nguoi dung: ${e.message}`);
+                else console.error(`Could not load users: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

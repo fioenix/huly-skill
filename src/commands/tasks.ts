@@ -57,13 +57,13 @@ export function listTasksCommand() {
                     }
 
                     if (activeTasks.length === 0) {
-                        printToConsole('✅ Khong tim thay cong viec nao phu hop voi bo loc!');
+                        printToConsole('✅ No tasks match these filters.');
                         return;
                     }
 
                     let output = truncated
-                        ? `📋 DANH SACH CONG VIEC (${shown.length}/${activeTasks.length} — gioi han boi --limit)\n`
-                        : `📋 DANH SACH CONG VIEC (${activeTasks.length})\n`;
+                        ? `📋 TASKS (${shown.length}/${activeTasks.length} — capped by --limit)\n`
+                        : `📋 TASKS (${activeTasks.length})\n`;
                     output += '━'.repeat(60) + '\n';
 
                     for (const task of shown) {
@@ -74,8 +74,8 @@ export function listTasksCommand() {
                         const dueStr = task.dueDate ? formatDate(task.dueDate) : 'N/A';
 
                         output += `📌 [${priorityLabel}] ${task.identifier}: ${task.title}\n`;
-                        output += `   📁 Du an: ${projectName} | 📊 Trang thai: ${statusName}\n`;
-                        output += `   📅 Han chot: ${dueStr}\n`;
+                        output += `   📁 Project: ${projectName} | 📊 Status: ${statusName}\n`;
+                        output += `   📅 Due: ${dueStr}\n`;
                         output += `   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
                     }
 
@@ -83,7 +83,7 @@ export function listTasksCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`❌ Loi: ${e.message}`);
+                else console.error(`❌ Error: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

@@ -1,5 +1,9 @@
 # Huly Skill
 
+[![CI](https://github.com/fioenix/huly-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/fioenix/huly-skill/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/%40fioenix%2Fhuly-mcp)](https://www.npmjs.com/package/@fioenix/huly-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
 A CLI + MCP server for managing tasks, projects, labels, documents, milestones, and comments in [Huly](https://huly.io) — built on the official [`@hcengineering/api-client`](https://github.com/hcengineering/huly-examples).
 
 A portable integration for **Claude** (Code / Desktop), **Google Antigravity**, and **OpenAI Codex**. The same capabilities ship two ways:
@@ -198,7 +202,7 @@ huly tasks --assignee me --json
 
 Success is `{ "status": "ok", … }`; failure is:
 ```json
-{ "status": "error", "error": "Khong tim thay task: DELTA-9", "code": "not_found", "retryable": false }
+{ "status": "error", "error": "Task not found: DELTA-9", "code": "not_found", "retryable": false }
 ```
 `code` is one of `auth`, `connection`, `not_found`, `invalid_input`, `unknown`, and
 only `connection` is retryable — repeating any other call unchanged fails the same
@@ -307,6 +311,13 @@ and both be right: theirs goes wide, this one stays small enough to read in one
 sitting. A criterion-by-criterion comparison, including where they are ahead and
 where we deliberately diverge, is in
 [reference/comparison.md](./reference/comparison.md).
+
+## Contributing
+
+Bug reports, feature requests and pull requests are welcome — see
+[CONTRIBUTING.md](./CONTRIBUTING.md) for how to build, test and verify a change,
+and for what this project deliberately says no to. Vulnerabilities go through
+[SECURITY.md](./SECURITY.md) rather than a public issue.
 
 ## License
 

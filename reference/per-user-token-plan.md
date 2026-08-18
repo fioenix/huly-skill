@@ -1,118 +1,118 @@
-# Mục tiêu: API token đi theo từng user — nhược điểm của ta và cách sửa
+# Goal: an API token per user — our shortcomings and how to fix them
 
-Ngày: 17/08/2026. Mục tiêu đã được chốt lại: **mỗi người một token, để Huly ghi
-đúng ai làm gì**. Revocation và hạn dùng **không** phải mục tiêu.
+Date: 17/08/2026. The goal has been narrowed: **one token per person, so Huly records
+who did what correctly**. Revocation and expiry are **not** goals.
 
-## Điều này thay đổi bức tranh
+## What this changes
 
-Với mục tiêu đó, **Huly không còn là blocker**. PR #10624 (revocable API tokens),
-tag chưa phát hành, npm ngừng publish từ 10/05/2026 — tất cả đều chỉ liên quan tới
-*revocation* và *exp*. Token per-user thì làm được **ngay hôm nay** trên 0.7.423,
-bằng hai đường đã kiểm chứng ([huly-auth.md](./huly-auth.md)):
+With that goal, **Huly is no longer the blocker**. PR #10624 (revocable API tokens),
+the unreleased tag, npm publishing stopped since 10/05/2026 — all of that concerns only
+*revocation* and *exp*. Per-user tokens are achievable **today** on 0.7.423,
+via two verified paths ([huly-auth.md](./huly-auth.md)):
 
-- **Self-service**: mỗi người đăng nhập Google SSO rồi lấy token của chính mình
-  (URL `/login/auth?token=`, cookie `presentation-metadata-Token`, hoặc WS URL
-  `wss://<transactor>/<JWT>`). Không cần admin. 2FA không chặn vì đường SSO không
-  kiểm `tfaSecret`.
-- **Admin mint**: `generateToken(accountUuid, workspaceUuid, {})` bằng
-  `SERVER_SECRET`, hoặc `tool generate-token <email> <workspace>`.
+- **Self-service**: each person signs in with Google SSO and takes their own token
+  (URL `/login/auth?token=`, the `presentation-metadata-Token` cookie, or the WS URL
+  `wss://<transactor>/<JWT>`). No admin needed. 2FA does not block it because the SSO path does not
+  check `tfaSecret`.
+- **Admin mint**: `generateToken(accountUuid, workspaceUuid, {})` with
+  `SERVER_SECRET`, or `tool generate-token <email> <workspace>`.
 
-Vậy cái chặn ta **là kiến trúc và tooling của ta**, không phải upstream.
+So what blocks us is **our own architecture and tooling**, not upstream.
 
-## Nhược điểm của ta, đo theo đúng mục tiêu này
+## Our shortcomings, measured against this exact goal
 
-Ghi chú phạm vi: mục tiêu là **hỗ trợ thêm** token theo user, **không bỏ** token
-chung. Token chung vẫn là mặc định hợp lệ cho integration/automation không có người
-đứng sau; per-user là đường thêm vào cho những ai muốn ghi đúng danh nghĩa mình.
+Scope note: the goal is to **add** per-user tokens, **not remove** the shared
+token. The shared token remains a valid default for integrations/automation with no person
+behind them; per-user is an added path for anyone who wants writes attributed to themselves.
 
-**1. Credential bị đọc từ `process.env` ở sâu trong lõi.** `getApiKey()` /
-`getHost()` / `getWorkspaceId()` ([src/utils/auth.ts](../src/utils/auth.ts)) được gọi
-ngay trong `HulyClient.connect()` ([src/client.ts:128](../src/client.ts)). Hệ quả:
-**một process = một identity**, không có đường nào truyền identity khác vào. Đây là
-gốc của mọi nhược điểm còn lại.
+**1. Credentials are read from `process.env` deep in the core.** `getApiKey()` /
+`getHost()` / `getWorkspaceId()` ([src/utils/auth.ts](../src/utils/auth.ts)) are called
+directly inside `HulyClient.connect()` ([src/client.ts:128](../src/client.ts)). Consequence:
+**one process = one identity**, with no way to pass a different identity in. This is the
+root of every other shortcoming.
 
-**2. HTTP transport phá vỡ mục tiêu hoàn toàn.** `POST /mcp`
-([src/mcp/index.ts:56](../src/mcp/index.ts)) tạo server mới mỗi request — kiến trúc
-đã sẵn sàng cho per-request credential — nhưng credential vẫn lấy từ env, nên **mọi
-caller ghi dưới danh nghĩa một người**. `HULY_MCP_AUTH_TOKEN` chỉ chặn cửa, không
-phân biệt ai.
+**2. The HTTP transport defeats the goal entirely.** `POST /mcp`
+([src/mcp/index.ts:56](../src/mcp/index.ts)) creates a new server per request — the architecture
+is already ready for per-request credentials — but the credential still comes from env, so **every
+caller writes under one person's name**. `HULY_MCP_AUTH_TOKEN` only guards the door, it does not
+distinguish who is at it.
 
-**3. `HULY_ACTOR` là attribution giả, và nó che mất vấn đề.** Nó chỉ dán
-`Requested by: <tên>` vào task; Huly vẫn ghi author = chủ token. Ai đọc log Huly
-sẽ thấy sai người. Nó tồn tại **vì** ta chưa giải được per-user — giữ nó sau khi
-giải xong sẽ thành hai nguồn sự thật.
+**3. `HULY_ACTOR` is fake attribution, and it hides the problem.** It just pastes
+`Requested by: <name>` onto the task; Huly still records the author as the token owner. Anyone reading
+Huly's logs sees the wrong person. It exists **because** we have not solved per-user — keeping it
+after we do would give us two sources of truth.
 
-**4. README dạy sai đường.** Nó nói token "issued from workspace settings,
-admin-only", nên người đọc kết luận phải xin admin từng cái. Thực tế mỗi người tự
-lấy được từ session SSO của mình — đúng cái ta cần cho per-user.
+**4. The README teaches the wrong path.** It says the token is "issued from workspace settings,
+admin-only", so readers conclude they must request one from an admin each time. In reality anyone can
+take one from their own SSO session — exactly what we need for per-user.
 
-**5. Không có cửa kiểm tra danh tính trước khi ghi.** `whoami` in ra cả actor và
-chủ token nhưng **không cảnh báo khi hai cái lệch nhau**
-([src/commands/whoami.ts:50-57](../src/commands/whoami.ts)), và phải kết nối được
-mới nói được gì. Ghi sai danh nghĩa là lỗi im lặng.
+**5. There is no identity check before writing.** `whoami` prints both the actor and the
+token owner but **does not warn when the two differ**
+([src/commands/whoami.ts:50-57](../src/commands/whoami.ts)), and it has to connect before it can say
+anything. Writing under the wrong name is a silent failure.
 
-**6. `HULY_WORKSPACE_ID` chỉ được doc là UUID.** Nếu ai lấy account token từ URL
-redirect SSO (loại không bind workspace) thì `selectWorkspace` fail
-`WorkspaceNotFound` — vì UUID chỉ chạy khi token đã bind workspace. Đúng cái bẫy mà
-đường self-service sẽ đụng.
+**6. `HULY_WORKSPACE_ID` is documented only as a UUID.** If someone takes an account token from the
+SSO redirect URL (the kind not bound to a workspace) then `selectWorkspace` fails with
+`WorkspaceNotFound` — because a UUID only works when the token is already bound to a workspace. Exactly the trap
+the self-service path will hit.
 
-**7. Không test, không CI.** Refactor tầng credential mà không có lưới an toàn.
+**7. No tests, no CI.** Refactoring the credential layer without a safety net.
 
-## Kế hoạch sửa, xếp theo giá trị/chi phí
+## Fix plan, ordered by value/cost
 
-### P0 — bắt buộc để đạt mục tiêu
+### P0 — required to reach the goal
 
-**a. Đưa credential thành tham số tường minh.** Thêm `resolveCredentials(source)`
-trả `{ host, workspace, token }`; `HulyClient.connect(creds)` và
-`withClient(creds, fn)` nhận nó; `process.env` chỉ còn là **một** nguồn ở biên
-(CLI đọc env, HTTP đọc header). Đây là thay đổi nhỏ nhưng mở khoá tất cả phần sau.
-Phạm vi: `src/utils/auth.ts`, `src/client.ts:126-135`, `src/client.ts:838`.
+**a. Make credentials an explicit parameter.** Add `resolveCredentials(source)`
+returning `{ host, workspace, token }`; `HulyClient.connect(creds)` and
+`withClient(creds, fn)` take it; `process.env` becomes just **one** source at the edge
+(the CLI reads env, HTTP reads headers). Small change, but it unlocks everything after it.
+Scope: `src/utils/auth.ts`, `src/client.ts:126-135`, `src/client.ts:838`.
 
-**b. HTTP transport nhận credential theo request — thêm, không thay.** Header
-`x-huly-token` (+ `x-huly-url`, `x-huly-workspace` nếu multi-instance). Token chung
-trong env **vẫn giữ nguyên** làm mặc định; token theo caller chỉ ghi đè khi có header.
+**b. HTTP transport takes credentials per request — additive, not a replacement.** Header
+`x-huly-token` (+ `x-huly-url`, `x-huly-workspace` if multi-instance). The shared token
+in env **stays exactly as it is** as the default; the caller's token only overrides it when the header is present.
 
-Thứ tự ưu tiên: header của request → env của process. Kèm một cờ
-`HULY_REQUIRE_CALLER_TOKEN=true` để deployment nào muốn siết thì bật fail-closed
-(thiếu header → `401`); mặc định **tắt**, nên cấu hình đang chạy không đổi hành vi.
+Priority order: request header → process env. Plus a
+`HULY_REQUIRE_CALLER_TOKEN=true` flag so a deployment that wants to tighten up can go fail-closed
+(missing header → `401`); **off** by default, so running configurations do not change behavior.
 
-Điều kiện bắt buộc dù dùng nguồn nào: mọi response phải nói rõ **đang ghi dưới danh
-nghĩa ai** (xem P1-d), để "rơi về token chung" là một lựa chọn thấy được chứ không
-phải chuyện xảy ra im lặng.
+A requirement regardless of source: every response must state clearly **whose name the write is
+under** (see P1-d), so that "falling back to the shared token" is a visible choice rather than
+something that happens silently.
 
-**c. Test + CI cho đúng tầng này.** Bốn ca tối thiểu: thứ tự ưu tiên nguồn
-credential; fail-closed khi thiếu header; `maskToken` không lộ token; không có
-token nào rơi vào stdout/stderr. Cộng một workflow chạy `typecheck` + `test`.
+**c. Tests + CI for exactly this layer.** Four minimum cases: credential source
+priority order; fail-closed when the header is missing; `maskToken` not leaking the token; no
+token reaching stdout/stderr. Plus a workflow running `typecheck` + `test`.
 
-### P1 — chống ghi sai danh nghĩa
+### P1 — preventing writes under the wrong name
 
-**d. Chẩn đoán không cần kết nối.** `huly whoami --offline` / tool `huly_context`:
-decode payload JWT tại chỗ (không verify) để in `account`, `workspace`, host,
-nguồn credential. Bắt được 90% lỗi cấu hình trước khi chạm Huly.
+**d. Diagnostics without a connection.** `huly whoami --offline` / the `huly_context` tool:
+decode the JWT payload locally (without verifying) to print `account`, `workspace`, host,
+credential source. Catches 90% of config errors before touching Huly.
 
-**e. Cảnh báo khi `HULY_ACTOR` ≠ chủ token**, và ghi rõ trong README rằng
-`HULY_ACTOR` là **giải pháp tạm cho token dùng chung**; khi đã per-user thì bỏ nó.
-Không xoá ngay để không phá cấu hình đang chạy.
+**e. Warn when `HULY_ACTOR` ≠ the token owner**, and state clearly in the README that
+`HULY_ACTOR` is a **stopgap for a shared token**; once per-user is in place, drop it.
+Do not remove it immediately, so running configurations do not break.
 
-**f. Nhận cả UUID và URL slug cho workspace**, kèm lỗi rõ ràng: "token này không
-bind workspace → `HULY_WORKSPACE_ID` phải là URL slug". Cộng một mục README hướng
-dẫn mỗi người tự lấy token qua SSO.
+**f. Accept both a UUID and a URL slug for the workspace**, with a clear error: "this token is not
+bound to a workspace → `HULY_WORKSPACE_ID` must be the URL slug". Plus a README section
+walking each person through getting their own token via SSO.
 
-### P2 — chỉ khi cần
+### P2 — only if needed
 
-**g. `exp` cho token admin mint.** Không phục vụ mục tiêu per-user, chỉ giảm rủi ro
-token vĩnh viễn. `jwt-simple` đã enforce `exp` ở `decode()` nên dùng được ngay trên
-0.7.423 nếu muốn.
+**g. `exp` on admin-minted tokens.** Does not serve the per-user goal, it only reduces the risk of
+permanent tokens. `jwt-simple` already enforces `exp` in `decode()`, so it works today on
+0.7.423 if we want it.
 
-## Phạm vi thực tế nên làm trước
+## The realistic scope to do first
 
-`.env` hiện tại đặt `HULY_MCP_TRANSPORT=stdio`. Với stdio, **mỗi người chạy process
-riêng nên per-user đạt được chỉ bằng việc mỗi người đặt token của mình vào config
-MCP** — không cần P0-b. Vậy thứ tự thực dụng:
+The current `.env` sets `HULY_MCP_TRANSPORT=stdio`. With stdio, **each person runs their own
+process, so per-user is achieved simply by each person putting their own token into their MCP
+config** — no need for P0-b. So the pragmatic order:
 
-1. **P0-a** (tham số hoá credential) + **P1-d/e/f** + **P0-c** → đủ để triển khai
-   per-user trên stdio ngay, an toàn và có cảnh báo khi sai.
-2. **P0-b** (header per-request) khi nào thực sự dựng deployment HTTP dùng chung.
+1. **P0-a** (parameterize credentials) + **P1-d/e/f** + **P0-c** → enough to roll out
+   per-user on stdio right away, safely and with warnings when something is wrong.
+2. **P0-b** (per-request headers) whenever we actually stand up a shared HTTP deployment.
 
-Không làm: đua số lượng tool, đổi tên repo, viết lại theo Effect-TS, hay chờ Huly
-phát hành PR #10624.
+Not doing: racing on tool count, renaming the repo, rewriting in Effect-TS, or waiting for Huly
+to release PR #10624.

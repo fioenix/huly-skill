@@ -1,6 +1,9 @@
-# Original Specification (Historical Reference)
+# Original specification (historical reference)
 
-This file preserves the original requirements spec used to build huly-assist. It is kept for historical context and is not part of the public skill interface.
+The requirements this project was first built from, kept for context. It describes
+`huly-assist`, the name it had then, and does not describe the current interface —
+`README.md` and `AGENTS.md` do. Renamed from `CLAUDE.md`, which made it look like
+agent instructions rather than an archived document.
 
 ## Context
 

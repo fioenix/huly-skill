@@ -11,8 +11,8 @@ export function deleteTaskCommand() {
         .action(async (type, taskId, options) => {
             if (!options?.yes) {
                 printToConsole(
-                    `⚠️ Lenh nay se XOA VINH VIEN task ${taskId}.\n` +
-                    `De xac nhan, hay chay lai voi co --yes:\n\n` +
+                    `⚠️ This will PERMANENTLY DELETE task ${taskId}.\n` +
+                    `To confirm, run it again with --yes:\n\n` +
                     `huly delete task ${taskId} --yes\n`
                 );
                 return;
@@ -22,7 +22,7 @@ export function deleteTaskCommand() {
                 await withClient(async (client) => {
                     const task = await client.getTask(taskId);
                     if (!task) {
-                        const e = hulyError('not_found', `Khong tim thay task voi Identifier: ${taskId}`);
+                        const e = hulyError('not_found', `Task not found: ${taskId}`);
                         if (isJsonMode()) outputJson(errorPayload(e)); else console.error(`❌ ${e.message}`);
                         process.exitCode = exitStatusFor(e);
                         return;
@@ -33,14 +33,14 @@ export function deleteTaskCommand() {
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', deleted: { identifier: task.identifier, title: task.title } });
                     } else {
-                        let output = `✅ DA XOA TASK THANH CONG\n\n`;
-                        output += `🗑️ Task da xoa: [${task.identifier}] ${task.title}\n`;
+                        let output = `✅ TASK DELETED\n\n`;
+                        output += `🗑️ Deleted: [${task.identifier}] ${task.title}\n`;
                         printToConsole(output);
                     }
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`❌ Loi khi xoa task: ${e.message}`);
+                else console.error(`❌ Could not delete the task: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

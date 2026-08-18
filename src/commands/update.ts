@@ -38,16 +38,16 @@ export function updateTaskCommand() {
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', taskId, changes });
                     } else if (changes.length === 0) {
-                        printToConsole(`ℹ️ Khong co thong tin gi de cap nhat cho ${taskId}`);
+                        printToConsole(`ℹ️ Nothing to update on ${taskId}`);
                     } else {
-                        let output = `✅ Cap nhat hoan tat cho ${taskId}:\n`;
+                        let output = `✅ Updated ${taskId}:\n`;
                         for (const c of changes) output += `  • ${c}\n`;
                         printToConsole(output);
                     }
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`❌ Loi cap nhat task: ${e.message}`);
+                else console.error(`❌ Could not update the task: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

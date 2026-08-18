@@ -1,0 +1,6 @@
+# The bundles and the skill archive are build output, committed because local
+# clients run them from a checkout. Keep them out of diffs and language stats.
+bin/*.cjs linguist-generated=true -diff
+npm-package/huly-mcp.cjs linguist-generated=true -diff
+huly-skill.zip binary
+* text=auto eol=lf

@@ -17,19 +17,19 @@ export function projectsCommand() {
                     }
 
                     if (!projects || projects.length === 0) {
-                        printToConsole('✅ Khong tim thay du an nao trong khong gian lam viec.');
+                        printToConsole('✅ No projects in this workspace.');
                         return;
                     }
 
                     projects.sort((a, b) => (a.identifier || '').localeCompare(b.identifier || ''));
 
-                    let output = `📋 DANH SACH DU AN (${projects.length})\n`;
+                    let output = `📋 PROJECTS (${projects.length})\n`;
                     output += '━'.repeat(60) + '\n';
 
                     for (const p of projects) {
-                        output += `📌 [${p.identifier || 'N/A'}] ${p.name || 'Khong co ten'}\n`;
+                        output += `📌 [${p.identifier || 'N/A'}] ${p.name || 'Untitled'}\n`;
                         output += `   🆔 ID: ${p._id}\n`;
-                        output += `   📅 Cap nhat: ${p.modifiedOn ? formatDate(p.modifiedOn) : 'N/A'}\n`;
+                        output += `   📅 Updated: ${p.modifiedOn ? formatDate(p.modifiedOn) : 'N/A'}\n`;
                         output += `   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
                     }
 
@@ -37,7 +37,7 @@ export function projectsCommand() {
                 });
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
-                else console.error(`❌ Loi khi tai danh sach du an: ${e.message}`);
+                else console.error(`❌ Could not load projects: ${e.message}`);
                 process.exitCode = exitStatusFor(e);
             }
         });

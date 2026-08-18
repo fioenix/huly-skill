@@ -188,15 +188,15 @@ huly milestones complete <milestoneId> --project DELTA
 
 ## Priority levels
 
-| Value | English | Vietnamese |
-|-------|---------|------------|
-| 0 | None | KHONG UU TIEN |
-| 1 | Low | THAP |
-| 2 | Medium | TRUNG BINH |
-| 3 | High | CAO |
-| 4 | Urgent | KHAN CAP |
+| Value | Name |
+|-------|------|
+| 0 | None |
+| 1 | Low |
+| 2 | Medium |
+| 3 | High |
+| 4 | Urgent |
 
-Input accepts a number (0–4), the English name, or the Vietnamese name.
+Input accepts a number (0–4) or the name, case-insensitive.
 
 ## Date formats
 
@@ -214,7 +214,7 @@ Listings wrap rows in `data` with a `count`. Reports (`report daily|weekly`) put
 their payload at the top level — there is no `data` key. Check the shape before
 writing a `jq` path.
 
-Errors print in Vietnamese with a `Loi:` prefix in human mode. In `--json` mode
+Errors print with an `Error:` prefix in human mode. In `--json` mode
 read `code` (`auth`, `connection`, `not_found`, `invalid_input`, `unknown`) and
 `retryable` instead of the message: only `connection` is worth the same call
 again. Exit status also follows the class — 2 auth, 3 not_found, 4 invalid_input,

@@ -120,14 +120,14 @@ export async function updateComment(
 ): Promise<CommentItem> {
     await client.updateComment(messageId, message);
     const updated = await getCommentById(client, messageId);
-    if (!updated) throw new Error(`Khong tim thay comment sau khi cap nhat: ${messageId}`);
+    if (!updated) throw new Error(`Comment not found after the update: ${messageId}`);
     return updated;
 }
 
 /** Delete a comment, returning what was deleted for the caller to report. */
 export async function deleteComment(client: HulyClient, messageId: string): Promise<CommentItem> {
     const existing = await getCommentById(client, messageId);
-    if (!existing) throw new Error(`Khong tim thay comment: ${messageId}`);
+    if (!existing) throw new Error(`Comment not found: ${messageId}`);
     await client.deleteComment(messageId);
     return existing;
 }
