@@ -9,7 +9,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # pnpm 11, matching the version that produced pnpm-lock.yaml. pnpm 9
       # rejects this repo's pnpm-workspace.yaml, which carries `allowBuilds`
