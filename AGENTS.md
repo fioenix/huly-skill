@@ -59,7 +59,9 @@ Listings wrap rows in `data`; reports put their payload at the top level, with n
 
 On failure, `code` is one of `auth`, `connection`, `not_found`, `invalid_input`,
 `unknown`, and only `connection` is `retryable` — repeating any other call with
-the same arguments will fail the same way. `auth` errors carry a `hint`.
+the same arguments will fail the same way. `auth` errors carry a `hint`. The CLI
+exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, and
+1 on anything else.
 
 ## Command Reference
 
@@ -160,6 +162,8 @@ person.
 |---------|---------|
 | `huly comments list <objectId> [--class <c>] [--limit <n>]` | List comments on any object by internal _id (issue, milestone, doc, …); thread replies nested in `replies` |
 | `huly comments get <messageId>` | Get one comment by its `_id` (the `message` param in a chunter link) |
+| `huly comments update <messageId> <message>` | Edit a comment in place; the result carries `editedOn` |
+| `huly comments delete <messageId> --yes` | Delete a comment; irreversible |
 
 - `--class` accepts a friendly alias (`issue`/`milestone`/`component`/`project`/`document`) or a raw ref (`tracker:class:Milestone`); omit to match any class on that `_id`.
 - For comments on an issue, `huly activity <identifier>` is friendlier (takes `LAMBD-568`, merges changes + comments).

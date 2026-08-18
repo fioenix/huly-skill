@@ -504,6 +504,40 @@ export class HulyClient {
         );
     }
 
+    /**
+     * Edit a comment in place. Works for both ChatMessage and its ThreadMessage
+     * replies — the collection coordinates come off the stored document, so the
+     * caller only needs the message id.
+     */
+    async updateComment(messageId: string, message: string): Promise<void> {
+        const comment = await this.getCommentById(messageId);
+        if (!comment) throw new Error(`Khong tim thay comment: ${messageId}`);
+        await this.client!.updateCollection(
+            comment._class,
+            comment.space,
+            comment._id,
+            comment.attachedTo,
+            comment.attachedToClass,
+            comment.collection,
+            // Huly's own editor stamps editedOn; without it a listing cannot tell
+            // an edited comment from an original one.
+            { message, editedOn: Date.now() } as any
+        );
+    }
+
+    async deleteComment(messageId: string): Promise<void> {
+        const comment = await this.getCommentById(messageId);
+        if (!comment) throw new Error(`Khong tim thay comment: ${messageId}`);
+        await this.client!.removeCollection(
+            comment._class,
+            comment.space,
+            comment._id,
+            comment.attachedTo,
+            comment.attachedToClass,
+            comment.collection
+        );
+    }
+
     async deleteTask(taskId: string): Promise<void> {
         const task = await this.getTask(taskId);
         if (!task) {

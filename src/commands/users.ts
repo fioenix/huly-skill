@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
-import { errorPayload } from '../utils/errors.js';
+import { errorPayload, exitStatusFor } from '../utils/errors.js';
 
 export function usersCommand() {
     return new Command('users')
@@ -37,7 +37,7 @@ export function usersCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`Loi khi tai danh sach nguoi dung: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 }

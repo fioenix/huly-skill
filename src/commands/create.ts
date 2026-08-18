@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
-import { errorPayload } from '../utils/errors.js';
+import { EXIT_STATUS, errorPayload, exitStatusFor } from '../utils/errors.js';
 import { parseRawFields } from '../resolvers.js';
 import { createIssue } from '../services/issues.js';
 
@@ -21,7 +21,7 @@ export function createTaskCommand() {
         .action(async (type, title, options) => {
             if (!options.project) {
                 console.error('❌ Phai co co --project (VD: --project DELTA)');
-                process.exitCode = 1;
+                process.exitCode = EXIT_STATUS.invalid_input;
                 return;
             }
 
@@ -61,7 +61,7 @@ export function createTaskCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Loi khi tao task: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 }

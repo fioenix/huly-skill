@@ -116,6 +116,8 @@ huly comments list <objectId>                      # all comments on an object (
 huly comments list <milestoneId> --class milestone  # issue|milestone|component|project|document, or a raw ref
 huly comments list <objectId> --limit 50 --json    # cap count, JSON
 huly comments get <messageId>                      # one comment by _id (the `message` param in a chunter link)
+huly comments update <messageId> "new body"        # edit a comment in place (marks it edited)
+huly comments delete <messageId> --yes             # irreversible
 ```
 
 For comments on an **issue**, prefer `huly activity <identifier>` — it takes the
@@ -215,6 +217,7 @@ writing a `jq` path.
 Errors print in Vietnamese with a `Loi:` prefix in human mode. In `--json` mode
 read `code` (`auth`, `connection`, `not_found`, `invalid_input`, `unknown`) and
 `retryable` instead of the message: only `connection` is worth the same call
-again. `not_found` means change the identifier; `invalid_input` means change the
+again. Exit status also follows the class — 2 auth, 3 not_found, 4 invalid_input,
+5 connection, 1 anything else — so a shell can branch without parsing output. `not_found` means change the identifier; `invalid_input` means change the
 arguments; `auth` carries a `hint` and needs `huly whoami --offline`. Never fall
 back to calling Huly APIs directly.

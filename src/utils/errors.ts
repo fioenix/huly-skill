@@ -51,6 +51,23 @@ const PATTERNS: [ErrorCode, RegExp][] = [
     ['invalid_input', /invalid|unrecognized|unrecognised|required|khong hop le|chi chap nhan|not confirmed/i],
 ];
 
+/**
+ * Process exit status per error class, for shell callers that branch on `$?`
+ * rather than parsing JSON. 1 stays "something failed" so existing scripts that
+ * only test for nonzero keep working.
+ */
+export const EXIT_STATUS: Record<ErrorCode, number> = {
+    unknown: 1,
+    auth: 2,
+    not_found: 3,
+    invalid_input: 4,
+    connection: 5,
+};
+
+export function exitStatusFor(e: unknown): number {
+    return EXIT_STATUS[classifyError(e)];
+}
+
 /** Error carrying an explicit code, for cases the caller already knows. */
 export function hulyError(code: ErrorCode, message: string): Error & { code: ErrorCode } {
     return Object.assign(new Error(message), { code });

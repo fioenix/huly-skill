@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
-import { errorPayload } from '../utils/errors.js';
+import { errorPayload, exitStatusFor } from '../utils/errors.js';
 import { parseRawFields, safeReadFile } from '../resolvers.js';
 import { updateIssue } from '../services/issues.js';
 
@@ -48,7 +48,7 @@ export function updateTaskCommand() {
             } catch (e: any) {
                 if (isJsonMode()) outputJson(errorPayload(e));
                 else console.error(`❌ Loi cap nhat task: ${e.message}`);
-                process.exitCode = 1;
+                process.exitCode = exitStatusFor(e);
             }
         });
 }
