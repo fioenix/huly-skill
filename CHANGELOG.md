@@ -3,6 +3,19 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## 1.10.2
+
+### Changed — remaining dependency updates
+- `zod` 3.25.76 → 4.4.3. zod generates the JSON Schema every MCP client sees, so
+  this was verified by comparing output: `tools/list` stays byte-identical at 31
+  tools / 19,589 B (only the position of the `$schema` key moves), all 31 tools
+  keep `additionalProperties: false`, and strict rejection still answers
+  `Unrecognized key: "nope"` — the behaviour 1.6.0 and 1.6.1 existed to get right.
+- `typescript` 5.9.3 → 7.0.2, `esbuild` 0.27.3 → 0.28.2, `tsx` 4.21.0 → 4.23.12,
+  `@types/node` 20.19.37 → 20.19.43 (a patch inside the Node 20 line).
+  `src/hcengineering.d.ts` still satisfies the new compiler unchanged, and
+  typecheck still runs in about two seconds.
+
 ## 1.10.1
 
 ### Changed — dependencies, and an honest Node floor
