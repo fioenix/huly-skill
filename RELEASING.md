@@ -35,6 +35,7 @@ rest still need a human.
    local MCP clients run `bin/mcp.cjs` from a checkout, not from npm, so a
    forgotten rebuild ships stale code to every local client. Then:
    ```bash
+   pnpm pack:skill      # huly-skill.zip, uploaded to claude.ai as a Skill
    pnpm verify:release --packed
    ```
    It asks the binaries what version they report rather than grepping for it,
