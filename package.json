@@ -1,6 +1,6 @@
 {
   "name": "huly-skill",
-  "version": "1.10.3",
+  "version": "1.10.4",
   "type": "module",
   "description": "CLI tool and agent skill for managing tasks, projects, labels, documents, and milestones in Huly",
   "license": "MIT",
@@ -46,6 +46,7 @@
     "@hcengineering/api-client": "^0.7.423",
     "@hcengineering/chunter": "^0.7.423",
     "@hcengineering/core": "^0.7.423",
+    "@hcengineering/rank": "^0.7.423",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "commander": "^14.0.3",
     "express": "^5.2.1",

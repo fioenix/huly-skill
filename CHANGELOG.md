@@ -3,6 +3,32 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## 1.10.4
+
+### Fixed — ranks the Huly UI can actually parse
+- `makeRank` was a hand-rolled approximation that incremented the last character
+  of the previous rank by one ASCII code point. Starting from a real rank like
+  `0|i005ef:` it walked out of LexoRank's base-36 alphabet within a single
+  character — `0|i005ef;`, `0|i005ef<`, … `0|i005efT` — and every rank it wrote
+  after that was unparseable. The Huly UI reads the last issue's rank to place
+  the next one, so once such a rank existed, creating an issue in that project
+  failed in the UI with `Failed to make rank: 0|i005efT undefined Not valid
+  digit: T`. It now delegates to `@hcengineering/rank`, the same implementation
+  the UI uses, and falls back to a fresh rank when handed one of the corrupted
+  values instead of propagating the parse error.
+- `tests/rank.test.ts` covers the alphabet, monotonicity, insertion between two
+  ranks, and recovery from an already-corrupted input.
+- `scripts/fix-ranks.ts` repairs ranks written by earlier versions: it reports by
+  default and rewrites only with `APPLY=1`. It replaces just the offending
+  characters, in byte space rather than through LexoRank arithmetic — ranks sort
+  as plain strings in the database, and this data also holds ranks whose numeric
+  LexoRank value disagrees with their byte position, so interpolating between
+  those crossed the neighbours over. Every rewrite is checked to still land
+  between the same two neighbouring ranks, so the visible order does not change.
+  It ran against the YODY workspace: 191 ranks across ITDXC, OMEGA, LAMBD and
+  GAMMA. The 59 issues that carry no `rank` at all are left alone — the UI reads
+  the highest rank, and a missing one never reaches its parser.
+
 ## 1.10.3
 
 ### Fixed — every advisory that reached a shipped bundle

@@ -28,6 +28,11 @@ declare module '@hcengineering/core' {
     export default core;
 }
 
+declare module '@hcengineering/rank' {
+    export function makeRank(prev: string | undefined, next: string | undefined): string;
+    export function genRanks(count: number): string[];
+}
+
 declare module '@hcengineering/api-client' {
     const apiClient: any;
     export default apiClient;
