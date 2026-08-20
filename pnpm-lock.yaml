@@ -28,6 +28,9 @@ importers:
       '@hcengineering/core':
         specifier: ^0.7.423
         version: 0.7.423
+      '@hcengineering/rank':
+        specifier: ^0.7.423
+        version: 0.7.423
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.0
         version: 1.30.0(zod@4.4.3)
@@ -298,6 +301,9 @@ packages:
 
   '@hcengineering/preference@0.7.423':
     resolution: {integrity: sha512-zMdOkbyXw0sSkrSJ7Dah2fywCyQAk7898SypQxMOTobrFxqgtBkVH/R0cVcfByH72ylAT+4tjy7LiWgbDAdNrQ==}
+
+  '@hcengineering/rank@0.7.423':
+    resolution: {integrity: sha512-/Kc4LjpaboHoZGGMl2Bt/IaeQskzeN37VzMBBgv8HbrBmOW8P3Wfbvj5alq6KvyyvtZhnjoODL3zTE20EAYYJg==}
 
   '@hcengineering/rpc@0.7.423':
     resolution: {integrity: sha512-exoPef84nB3bNTEIP0yX4kIQIjUkfxpGvVceu/tsAoljSEqrwjpxGfJbqSbbeRcYpjWQ7jPIOAJuj9BiMLEhVw==}
@@ -1121,6 +1127,9 @@ packages:
   json-schema-typed@8.0.2:
     resolution: {integrity: sha512-fQhoXdcvc3V28x7C7BMs4P5+kNlgUURe2jmUT1T//oBRMDrqy1QPelJimwZGo7Hg9VPV3EQV5Bnq4hbFy2vetA==}
 
+  lexorank@1.0.5:
+    resolution: {integrity: sha512-K1B/Yr/gIU0wm68hk/yB0p/mv6xM3ShD5aci42vOwcjof8slG8Kpo3Q7+1WTv7DaRHKWRgLPqrFDt+4GtuFAtA==}
+
   linkify-it@5.0.2:
     resolution: {integrity: sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q==}
 
@@ -1719,6 +1728,11 @@ snapshots:
       '@hcengineering/core': 0.7.423
       '@hcengineering/platform': 0.7.423
       '@hcengineering/ui': 0.7.423
+
+  '@hcengineering/rank@0.7.423':
+    dependencies:
+      '@hcengineering/core': 0.7.423
+      lexorank: 1.0.5
 
   '@hcengineering/rpc@0.7.423':
     dependencies:
@@ -2610,6 +2624,8 @@ snapshots:
   json-schema-traverse@1.0.0: {}
 
   json-schema-typed@8.0.2: {}
+
+  lexorank@1.0.5: {}
 
   linkify-it@5.0.2:
     dependencies:

@@ -1,14 +1,17 @@
 /**
  * Local type definitions for Huly platform classes.
  * Since @hcengineering/tracker, @hcengineering/contact, @hcengineering/document,
- * @hcengineering/tags, @hcengineering/rank are not installable without a GitHub PAT
- * with read:packages scope, we define the class references and types locally.
+ * @hcengineering/tags are not installable without a GitHub PAT with
+ * read:packages scope, we define the class references and types locally.
  *
  * These match the official huly-examples patterns from:
  * https://github.com/hcengineering/huly-examples
  */
 
 import type { Ref, Class, Doc, Space, AttachedDoc } from '@hcengineering/core';
+// Imported as a namespace, not by name: the package is CJS built with esbuild,
+// so ESM named-export detection fails on it (same interop dance as client.ts).
+import * as rankModule from '@hcengineering/rank';
 
 // ---------------------------------------------------------------------------
 // Tracker module class references
@@ -151,47 +154,21 @@ export enum AvatarType {
 }
 
 // ---------------------------------------------------------------------------
-// Rank utility (simplified version of @hcengineering/rank makeRank)
-// Uses lexorank-style string ranking.
+// Rank utility — delegates to the platform's LexoRank implementation.
+// A hand-rolled version used to emit ranks outside LexoRank's base-36 alphabet
+// (e.g. "0|i005efT"), which the Huly UI then refuses to parse — every attempt to
+// create an issue in that project failed with "Failed to make rank … Not valid
+// digit". Only the real implementation is safe to write into `rank`.
 // ---------------------------------------------------------------------------
-const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const platformMakeRank = (((rankModule as any).default ?? rankModule) as any).makeRank as
+    (prev?: string, next?: string) => string;
 
 export function makeRank(prev?: string, next?: string): string {
-  if (!prev && !next) return 'a0';
-
-  if (!prev) {
-    // Insert before next
-    const code = next!.charCodeAt(0);
-    if (code > 49) { // '1'
-      return String.fromCharCode(code - 1) + '0';
-    }
-    return next! + '0';
+  // Ranks already corrupted by earlier releases cannot be parsed; ignore them
+  // rather than propagating the failure, so a fresh valid rank is issued.
+  try {
+    return platformMakeRank(prev, next);
+  } catch {
+    return platformMakeRank(undefined, undefined);
   }
-
-  if (!next) {
-    // Insert after prev
-    const lastChar = prev.charCodeAt(prev.length - 1);
-    if (lastChar < 122) { // 'z'
-      return prev.slice(0, -1) + String.fromCharCode(lastChar + 1);
-    }
-    return prev + '0';
-  }
-
-  // Insert between prev and next
-  // Find midpoint
-  let i = 0;
-  while (i < prev.length && i < next.length && prev[i] === next[i]) {
-    i++;
-  }
-
-  if (i < prev.length && i < next.length) {
-    const prevCode = ALPHABET.indexOf(prev[i]);
-    const nextCode = ALPHABET.indexOf(next[i]);
-    if (nextCode - prevCode > 1) {
-      const midIdx = Math.floor((prevCode + nextCode) / 2);
-      return prev.slice(0, i) + ALPHABET[midIdx];
-    }
-  }
-
-  return prev + 'V'; // midpoint fallback
 }
