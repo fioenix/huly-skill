@@ -68,5 +68,8 @@ teamspaces, milestones, labels, priorities, dates, pasted-link resolution:
   `retryable` say whether another attempt can help.
 - Never call Huly HTTP/WS APIs directly; the CLI is the source of truth.
 
-Codex has no skill system: it uses [`AGENTS.md`](../../AGENTS.md) with the
-`@fioenix/huly-mcp` server, which exposes the same operations as `huly_*` tools.
+Codex supports this skill as well as the `@fioenix/huly-mcp` server, which
+exposes the same operations as `huly_*` tools. The packaged `huly-skill.zip`
+includes the CLI under `<skill-dir>/bin/`. An instructions-only install from
+`skills/huly-skill/` does not include `bin/`; use `node /path/to/huly-skill/bin/huly.cjs`
+from a clone in that case. Repository guidance also lives in `AGENTS.md`.
