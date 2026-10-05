@@ -1,0 +1,10 @@
+{
+  "status": "ok",
+  "count": 2,
+  "total": 2,
+  "truncated": false,
+  "data": [
+    { "identifier": "DEMO-1", "title": "Draft the sample onboarding guide" },
+    { "identifier": "DEMO-2", "title": "Review the sample release checklist" }
+  ]
+}
