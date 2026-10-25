@@ -3,6 +3,24 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Changed — MCP inputs over 16 elements are rejected
+- Bound recursive argument object members and array entries before schema
+  validation. Existing tools use at most 11 scalar fields; string lengths are
+  unaffected. Over-limit calls return the SDK's `isError` result without
+  invoking a tool. The HTTP JSON limit remains 100kb, now explicit; compressed
+  requests are still supported and the limit applies after decompression.
+
+### Security — shipped dependency updates
+- Update the MCP SDK, undici and Zod and raise compatible transitive overrides
+  for fast-uri, markdown-it, body-parser, qs, proxy-addr and prosemirror-view.
+  The aligned Huly 0.7.423 / Tiptap 2.x family is retained.
+- The shipped audit drops from 39 advisories to one known Tiptap advisory.
+  Its published fix is in v3 and crosses the current Huly text compatibility
+  contract; it remains visible and the audit gate remains failing. No advisory
+  is suppressed. See [the remediation note](reference/security-remediation-2026-10.md).
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse

@@ -37,13 +37,18 @@ decoded locally, without verification, to describe the configuration.
 `pnpm audit` reports advisories in this project's dependency graph that are not
 fixable here, and this project does not pretend otherwise.
 
-Every advisory that reaches a **shipped bundle** is closed, by forcing a patched
-version through `overrides` in `pnpm-workspace.yaml` where upstream has not moved.
+Compatible fixes for advisories that reach a **shipped bundle** are applied
+through direct dependency updates or bounded `overrides` in
+`pnpm-workspace.yaml` where upstream has not moved. One known shipped advisory
+remains in `@tiptap/core` 2.x: the published fix is 3.30.4, which crosses the
+Huly text package's 2.x dependency contract. It is not suppressed; its browser
+attribute/DOM preconditions have not been demonstrated in this Node CLI/MCP.
+See [the dated remediation note](reference/security-remediation-2026-10.md).
 `pnpm audit:shipped` enforces that on every push: it rebuilds both bundles, maps
 each input back to its package, and fails if a vulnerable package is actually
 inside `bin/mcp.cjs` or `bin/bundle.cjs`.
 
-The advisories that remain are in packages present at build time and absent at run
+Other graph advisories are in packages present at build time and absent at run
 time — `svelte` and `dompurify` (Svelte UI components inside
 `@hcengineering/activity` and `chunter`), `hono` and `ip-address` (the MCP SDK's
 own HTTP server, unused here because this project runs `express`). None of them

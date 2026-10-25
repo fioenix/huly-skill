@@ -18,7 +18,13 @@ const INSTRUCTIONS = [
 export function createHulyMcpServer(): McpServer {
     const server = new McpServer(
         { name: 'huly-mcp', version: VERSION },
-        { instructions: INSTRUCTIONS },
+        {
+            instructions: INSTRUCTIONS,
+            // Current tools have at most 11 scalar members. Bound recursive
+            // keys/array entries before validation can allocate error objects;
+            // strings (including document bodies) retain their byte allowance.
+            maxToolInputElements: 16,
+        },
     );
     registerHulyTools(server);
     return server;
