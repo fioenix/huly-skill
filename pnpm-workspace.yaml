@@ -17,6 +17,8 @@ overrides:
   qs: '>=6.16.1 <7'
   proxy-addr: '>=2.0.8 <3'
   prosemirror-view: '>=1.42.3 <2'
+  # Official v2 backport; advisory metadata still omits this patched release.
+  '@tiptap/core': '2.27.3'
 
 allowBuilds:
   core-js: false

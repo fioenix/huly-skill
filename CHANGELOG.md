@@ -15,11 +15,14 @@ which are released together under the same number.
 ### Security — shipped dependency updates
 - Update the MCP SDK, undici and Zod and raise compatible transitive overrides
   for fast-uri, markdown-it, body-parser, qs, proxy-addr and prosemirror-view.
-  The aligned Huly 0.7.423 / Tiptap 2.x family is retained.
-- The shipped audit drops from 39 advisories to one known Tiptap advisory.
-  Its published fix is in v3 and crosses the current Huly text compatibility
-  contract; it remains visible and the audit gate remains failing. No advisory
-  is suppressed. See [the remediation note](reference/security-remediation-2026-10.md).
+  Huly remains aligned at 0.7.423; Tiptap core uses the official v2.27.3
+  security backport, with existing v2 pm/extension contracts retained.
+- The shipped audit drops from 39 advisories to one metadata finding for
+  Tiptap. The official core 2.27.3 backport fixes the affected attribute helper;
+  the advisory metadata still lists only 3.30.4. Keep the finding visible and
+  the audit gate unchanged. Regression tests cover the actual selected helper,
+  including own JSON `__proto__`, repeated merges and normal class/style/id
+  behavior. See [the remediation note](reference/security-remediation-2026-10.md).
 
 ## 1.10.4
 
