@@ -281,6 +281,11 @@ unchanged. Set `HULY_REQUIRE_CALLER_TOKEN=true` to reject requests that omit
 worth doing on any deployment where attribution matters. `huly_context` reports
 which source is in effect.
 
+MCP tool arguments are limited to 16 recursive object members/array entries before
+validation; current tools use at most 11 scalar fields. HTTP JSON bodies retain
+the existing 100kb limit, measured after decompression. Over-limit arguments
+return an SDK `isError` result and do not invoke a tool.
+
 Building from source instead of npm: `pnpm build` produces `bin/mcp.cjs` (run with `node bin/mcp.cjs`). See [`npm-package/`](./npm-package) for the published package, and [RELEASING.md](./RELEASING.md) for the release checklist.
 
 ## For AI Agents

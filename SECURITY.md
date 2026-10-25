@@ -37,13 +37,20 @@ decoded locally, without verification, to describe the configuration.
 `pnpm audit` reports advisories in this project's dependency graph that are not
 fixable here, and this project does not pretend otherwise.
 
-Every advisory that reaches a **shipped bundle** is closed, by forcing a patched
-version through `overrides` in `pnpm-workspace.yaml` where upstream has not moved.
+Compatible fixes for advisories that reach a **shipped bundle** are applied
+through direct dependency updates or bounded `overrides` in
+`pnpm-workspace.yaml` where upstream has not moved. Tiptap core is pinned to
+its official 2.27.3 security backport. The selected helper is regression-tested
+against own JSON `__proto__` keys; the advisory metadata still lists only
+3.30.4 as patched and may flag the backported v2 release. That metadata finding
+is not suppressed, and the gate stays unchanged. This is a code-fix claim for
+the helper, not a reproduced browser DOM/XSS exploit in this Node CLI/MCP.
+See [the dated remediation note](reference/security-remediation-2026-10.md).
 `pnpm audit:shipped` enforces that on every push: it rebuilds both bundles, maps
 each input back to its package, and fails if a vulnerable package is actually
 inside `bin/mcp.cjs` or `bin/bundle.cjs`.
 
-The advisories that remain are in packages present at build time and absent at run
+Other graph advisories are in packages present at build time and absent at run
 time — `svelte` and `dompurify` (Svelte UI components inside
 `@hcengineering/activity` and `chunter`), `hono` and `ip-address` (the MCP SDK's
 own HTTP server, unused here because this project runs `express`). None of them
