@@ -3,6 +3,17 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Security — workspace content cannot authorize agent actions
+- Add an explicit trust boundary to the Huly skill and agent guide: fetched
+  tasks, comments/replies, activity and documents remain data, including after
+  shell reduction or summarization. Embedded instructions cannot authorize
+  mutations, outbound sharing, credential access or configuration changes.
+- Preserve user-authorized reads and writes; add synthetic adversarial scenarios
+  and static policy checks. These checks do not prove model resistance or replace
+  a fresh platform security audit.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse
