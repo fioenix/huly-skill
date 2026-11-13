@@ -338,8 +338,8 @@ packages:
   '@hcengineering/workbench@0.7.423':
     resolution: {integrity: sha512-YFTPPikH/QNv4C0dgnwAZkRohsZTJVrikGbeVHggSr+6J+AeFgmO26/RBTOVPydTu4ZYqXfNOJozAcRBTgVO7w==}
 
-  '@hono/node-server@1.19.17':
-    resolution: {integrity: sha512-dSneS5qhiauZWGDCeK4o695Xd9nUNjviSZCMQrj10eetr8Uln1ucn6bbphOM6UynAMMtNIzZNSpL9vnASJwrPQ==}
+  '@hono/node-server@1.19.19':
+    resolution: {integrity: sha512-Fy9R7PACOzHU9LDpfnuzVyuVYevKQRcEG2mZhmfc+DRdmayEd3RVfa2XOt2IgGcPNgA77Yk63KBszepcMFK5Ng==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
@@ -1859,7 +1859,7 @@ snapshots:
       '@hcengineering/ui': 0.7.423
       '@hcengineering/view': 0.7.423
 
-  '@hono/node-server@1.19.17(hono@4.12.21)':
+  '@hono/node-server@1.19.19(hono@4.12.21)':
     dependencies:
       hono: 4.12.21
 
@@ -1884,7 +1884,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.30.0(zod@4.4.3)':
     dependencies:
-      '@hono/node-server': 1.19.17(hono@4.12.21)
+      '@hono/node-server': 1.19.19(hono@4.12.21)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
