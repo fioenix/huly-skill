@@ -3,6 +3,28 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Fixed — label pills showed the label id instead of its name
+- `labels assign` (MCP `huly_assign_label`) wrote the label's `_id` as the
+  `title` of the `TagReference` whenever no title was passed. The Huly UI draws
+  the pill from the reference's own `title` and `color`, not from the label it
+  points at, so every label assigned that way showed up as a 24-character hex id
+  in the default color. The title and color now default to the label's own.
+- Assigning a label the task already has no longer adds a second reference. The
+  result reports `alreadyAssigned` instead. Assigning a label id that does not
+  exist now fails with `not_found` rather than writing a dangling reference.
+  **This can reject a call that previously "succeeded".**
+
+### Added — `labels unassign` and `labels repair`
+- `huly labels unassign <taskId> <labelId>` / `huly_unassign_label` removes a
+  label from a task.
+- `huly labels repair <taskId...>` / `huly_repair_labels` rewrites references
+  whose title or color does not match their label and drops duplicate
+  references to the same label. References to labels that no longer exist are
+  left alone. The planning step is a pure function covered by
+  `tests/labels.test.ts`.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse

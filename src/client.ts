@@ -75,6 +75,8 @@ import {
     IssuePriority, MilestoneStatus, AvatarType,
     makeRank,
 } from './huly-types.js';
+import { hulyError } from './utils/errors.js';
+import { labelDisplay, planLabelRepair } from './utils/labels.js';
 
 export interface TaskQueryOptions {
     assignee?: string;
@@ -572,15 +574,63 @@ export class HulyClient {
         return await this.client!.findOne(tags.class.TagElement as any, { _id: labelId });
     }
 
-    async assignLabel(issueId: string, spaceId: string, labelId: string, title: string, color: number = 11): Promise<void> {
+    async getLabel(labelId: string): Promise<any> {
+        return await this.client!.findOne(tags.class.TagElement as any, { _id: labelId } as any);
+    }
+
+    async assignLabel(
+        issueId: string, spaceId: string, labelId: string, title?: string, color?: number,
+    ): Promise<{ title: string; color: number; alreadyAssigned: boolean }> {
+        const element = await this.getLabel(labelId);
+        if (!element) throw hulyError('not_found', `Label not found: ${labelId}`);
+        const display = labelDisplay(element, title, color);
+
+        const existing = await this.getLabels(issueId);
+        if (existing.some((ref: any) => ref.tag === labelId)) {
+            return { ...display, alreadyAssigned: true };
+        }
+
         await this.client!.addCollection(
             tags.class.TagReference as any,
             spaceId as any,
             issueId as any,
             tracker.class.Issue as any,
             'labels',
-            { title, color, tag: labelId } as any
+            { title: display.title, color: display.color, tag: labelId } as any
         );
+        return { ...display, alreadyAssigned: false };
+    }
+
+    async unassignLabel(issueId: string, labelId: string): Promise<number> {
+        const refs = (await this.getLabels(issueId)).filter((ref: any) => ref.tag === labelId);
+        for (const ref of refs) {
+            await this.client!.removeCollection(
+                ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection
+            );
+        }
+        return refs.length;
+    }
+
+    async repairLabels(issueId: string): Promise<{ updated: number; removed: number }> {
+        const refs = await this.getLabels(issueId);
+        const elements = await this.getAllLabels();
+        const plan = planLabelRepair(refs, elements);
+        const byId = new Map(refs.map((ref: any) => [ref._id, ref]));
+
+        for (const update of plan.updates) {
+            const ref: any = byId.get(update.refId);
+            await this.client!.updateCollection(
+                ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection,
+                { title: update.title, color: update.color } as any
+            );
+        }
+        for (const refId of plan.removals) {
+            const ref: any = byId.get(refId);
+            await this.client!.removeCollection(
+                ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection
+            );
+        }
+        return { updated: plan.updates.length, removed: plan.removals.length };
     }
 
     async getLabels(issueId: string): Promise<any[]> {

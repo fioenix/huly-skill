@@ -173,6 +173,8 @@ huly report weekly                    # Week summary
 huly labels list                      # All labels
 huly labels create "bug" --color 3    # Create label
 huly labels assign DELTA-123 <id>     # Assign to task
+huly labels unassign DELTA-123 <id>   # Remove from task
+huly labels repair DELTA-123          # Fix references titled with the label id
 huly labels show DELTA-123            # Show task labels
 ```
 
