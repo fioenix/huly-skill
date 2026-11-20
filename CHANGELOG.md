@@ -3,6 +3,26 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Added — `huly move task` re-parents an existing task
+- `huly move task <id> --parent <id>` moves a task under another task in the
+  same project; `--no-parent` makes it top-level. MCP: `huly_move_task`, with
+  `parentId: null` to detach. Until now nothing could re-parent a task after
+  creation, and the docs said so.
+- It writes what Huly's own "Set parent" action writes: `attachedTo`
+  (`tracker:ids:NoParent` to detach) and a rank after the new parent's last
+  child. The server trigger then rewrites `parents` on the task and every
+  descendant and moves the task between the old and new ancestors' `childInfo`.
+- The trigger does not touch the `subIssues` counter, so the old parent kept
+  counting a child it no longer had and the new one missed it. The command
+  recounts both parents from their actual children. A move that turns out to be
+  a no-op still recounts the current parent, which repairs counters left stale
+  by an earlier move.
+- Moving a task under itself, under one of its own descendants, or into another
+  project is rejected with `invalid_input`. These checks are a pure function
+  covered by `tests/move.test.ts`.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse

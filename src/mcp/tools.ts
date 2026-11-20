@@ -268,6 +268,28 @@ export function registerHulyTools(server: McpServer): void {
     );
 
     server.registerTool(
+        'huly_move_task',
+        {
+            title: 'Move task to another parent',
+            description: 'Re-parent an existing task, like Huly\'s "Set parent" action: put it under another task in the same project, or detach it (parentId null). Huly updates the ancestor chain of the task and its sub-issues. Refuses moves into the task itself or one of its descendants.',
+            inputSchema: z.object({
+                taskId: z.string().describe('Task to move, e.g. DELTA-123'),
+                parentId: z.string().nullable().describe('New parent identifier or internal _id; null to make the task top-level'),
+            }).strict(),
+        },
+        async ({ taskId, parentId }) => withHuly(async (client) => {
+            const r = await client.moveTask(taskId, parentId);
+            return {
+                moved: r.moved,
+                ...(r.reason ? { reason: r.reason } : {}),
+                task: { identifier: r.task.identifier, title: r.task.title },
+                from: r.from ? { identifier: r.from.identifier, title: r.from.parentTitle } : null,
+                to: r.to ? { identifier: r.to.identifier, title: r.to.parentTitle } : null,
+            };
+        }),
+    );
+
+    server.registerTool(
         'huly_report',
         {
             title: 'Daily/weekly report',

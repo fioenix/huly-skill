@@ -118,6 +118,7 @@ huly task-by-id <internalId>          # Lookup by internal _id (e.g. from childI
 huly create task "Title" --project DELTA --priority HIGH --due tomorrow
 huly create task "Sub-task" --project DELTA --parent DELTA-16   # as a sub-issue
 huly update task DELTA-123 --status "Done" --add-comment "Completed"
+huly move task DELTA-20 --parent DELTA-16   # Re-parent (same project); --no-parent detaches
 huly delete task DELTA-123 --yes      # Requires confirmation
 ```
 
