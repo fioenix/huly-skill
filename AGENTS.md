@@ -85,6 +85,7 @@ exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, an
 | `huly create task <title> --project <id> [options]` | Create a new task |
 | `huly create task <title> --project <id> --parent <id>` | Create it as a sub-issue of an existing task |
 | `huly update task <id> [options]` | Update task fields |
+| `huly move task <id> --parent <id>` | Re-parent a task in the same project; `--no-parent` detaches it (MCP: `huly_move_task`) |
 | `huly delete task <id> --yes` | Permanently delete a task |
 
 #### Task Query Filters
@@ -118,8 +119,8 @@ rows of a projected field set. Pass `limit: 0` to remove the cap and
 
 #### Creating sub-issues
 There is no separate "create subtask" command — a sub-issue is a task created
-with `--parent`. Do not try to create the task first and re-parent it
-afterwards; nothing re-parents an existing task.
+with `--parent`. To move an existing task under another parent, use
+`huly move task <id> --parent <id>` (or `--no-parent` to detach).
 
 ```bash
 huly create task "Wire up the aggregation job" --project OMEGA --parent OMEGA-588

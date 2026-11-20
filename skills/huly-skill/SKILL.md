@@ -61,7 +61,7 @@ teamspaces, milestones, labels, priorities, dates, pasted-link resolution:
 
 - Task kinds are scoped by project **type**: take the id from
   `huly kinds --project <KEY>` for the project you are writing to.
-- A subtask is a task created with `--parent`; nothing re-parents it afterwards.
+- A subtask is a task created with `--parent`; `huly move task <id> --parent <id>` re-parents it later.
 - `me` is `HULY_ACTOR` when set, else the owner of `HULY_API_KEY` — and Huly always
   records that token owner as the author, whatever `HULY_ACTOR` says.
 - Deletes need `--yes`. Errors print with an `Error:` prefix; in JSON, `code` and

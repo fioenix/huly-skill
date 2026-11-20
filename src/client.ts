@@ -75,6 +75,8 @@ import {
     IssuePriority, MilestoneStatus, AvatarType,
     makeRank,
 } from './huly-types.js';
+import { hulyError } from './utils/errors.js';
+import { planMove } from './utils/move.js';
 
 export interface TaskQueryOptions {
     assignee?: string;
@@ -536,6 +538,64 @@ export class HulyClient {
             comment.attachedToClass,
             comment.collection
         );
+    }
+
+    /**
+     * Re-parent an issue the way Huly's "Set parent" action does: update
+     * `attachedTo` (NoParent to detach) and put it last among the new
+     * parent's children. The server trigger rewrites `parents` on the issue
+     * and its descendants and moves it between ancestors' `childInfo`.
+     */
+    async moveTask(taskId: string, newParentId: string | null): Promise<{ task: any; from: any; to: any; moved: boolean; reason?: string }> {
+        const task = await this.getTask(taskId);
+        if (!task) throw hulyError('not_found', `Task not found: ${taskId}`);
+
+        let newParent: any = null;
+        if (newParentId) {
+            newParent = (await this.getTask(newParentId)) ?? (await this.getTaskByInternalId(newParentId));
+            if (!newParent) throw hulyError('not_found', `Parent task not found: ${newParentId}`);
+        }
+        const from = task.parents?.[0] ?? null;
+        const to = newParent ? { parentId: newParent._id, identifier: newParent.identifier, parentTitle: newParent.title } : null;
+
+        let plan;
+        try {
+            plan = planMove(task, newParent, tracker.ids.NoParent);
+        } catch (e: any) {
+            throw hulyError('invalid_input', e.message);
+        }
+        // The server trigger fixes `parents` and `childInfo` but leaves the
+        // `subIssues` counters alone, so recount both parents from the real
+        // children. Runs on a no-op too, which repairs counters left stale by
+        // an earlier move.
+        const recount = async (parentId: string | undefined) => {
+            if (!parentId) return;
+            const parentDoc: any = await this.getTaskByInternalId(parentId);
+            if (!parentDoc) return;
+            const children = await this.findSubIssues(parentId);
+            if (parentDoc.subIssues !== children.length) {
+                await this.client!.updateDoc(tracker.class.Issue as any, parentDoc.space, parentDoc._id, { subIssues: children.length } as any);
+            }
+        };
+
+        if (plan.action === 'noop') {
+            await recount(from?.parentId);
+            return { task, from, to, moved: false, reason: plan.reason };
+        }
+
+        const updates: any = { attachedTo: plan.attachedTo };
+        if (newParent) {
+            const last: any = await this.client!.findOne(
+                tracker.class.Issue as any,
+                { attachedTo: newParent._id } as any,
+                { sort: { rank: SortingOrder.Descending } }
+            );
+            updates.rank = makeRank(last?.rank, undefined);
+        }
+        await this.client!.updateDoc(tracker.class.Issue as any, task.space, task._id, updates);
+        await recount(from?.parentId);
+        await recount(newParent?._id);
+        return { task, from, to, moved: true };
     }
 
     async deleteTask(taskId: string): Promise<void> {
