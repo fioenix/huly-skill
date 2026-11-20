@@ -162,9 +162,13 @@ Prefer these over listing rows whenever the question is "how are we doing".
 ```bash
 huly labels list                          # all workspace labels
 huly labels create "bug" --color 3
-huly labels assign DELTA-123 <labelId>
+huly labels assign DELTA-123 <labelId>    # title and color come from the label
+huly labels unassign DELTA-123 <labelId>
+huly labels repair DELTA-123 DELTA-124    # fix references titled with the label id, drop duplicates
 huly labels show DELTA-123
 ```
+
+MCP: `huly_assign_label`, `huly_unassign_label`, `huly_repair_labels`, `huly_show_labels`.
 
 ## Documents
 
