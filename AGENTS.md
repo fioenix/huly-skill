@@ -73,6 +73,7 @@ exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, an
 | `huly projects` | List all workspace projects |
 | `huly kinds --project <id>` | List task types (kinds) in a project — source of `--kind-id` |
 | `huly users [--active-only]` | List workspace people — source of `--assignee` ids |
+| `huly teams [name] [--projects]` | HR departments (teams) with lead, managers and members; with a name, also that project's members (MCP: `huly_list_teams`) |
 
 ### Task Management
 | Command | Purpose |

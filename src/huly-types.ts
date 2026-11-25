@@ -96,6 +96,17 @@ export const document = {
 // ---------------------------------------------------------------------------
 // Tags module class references
 // ---------------------------------------------------------------------------
+// HR module: departments (teams in the Huly UI) and the Staff mixin on Person
+// that records which department a person belongs to.
+export const hr = {
+  class: {
+    Department: 'hr:class:Department' as Ref<Class<Doc>>,
+  },
+  mixin: {
+    Staff: 'hr:mixin:Staff' as string,
+  },
+};
+
 export const tags = {
   class: {
     TagElement: 'tags:class:TagElement' as Ref<Class<Doc>>,

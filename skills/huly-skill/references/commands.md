@@ -27,7 +27,14 @@ in the `Requested by` line.
 huly projects                  # all projects in the workspace
 huly kinds --project OMEGA     # task types (kinds) in a project → ids for --kind-id
 huly users [--active-only]     # workspace people → ids for --assignee
+huly teams                     # HR departments (teams) and their members
+huly teams BETA                # one team: the department and the project with that name
 ```
+
+A team in the Huly UI is an HR **department**; its members are people whose
+Staff record points at it. Project membership is separate and usually larger
+(everyone who can see the project), so `huly teams <name>` prints both and the
+two lists can disagree. MCP: `huly_list_teams` (`name`, `includeProjects`).
 
 Task types are scoped by project **type**, not by project: the same name (e.g.
 `KPI`) can exist under several project types with different ids. Always read the id

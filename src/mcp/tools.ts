@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { filterTeams } from '../utils/teams.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { withClient, HulyClient } from '../client.js';
 import {
@@ -130,6 +131,26 @@ export function registerHulyTools(server: McpServer): void {
             if (activeOnly) users = users.filter((u) => u.active === true);
             const { rows, total, truncated } = shapeList(users, 'user', args);
             return { count: rows.length, total, truncated, users: rows };
+        }),
+    );
+
+    server.registerTool(
+        'huly_list_teams',
+        {
+            title: 'List teams',
+            description: 'List teams: HR departments (teams in the Huly UI) with lead, managers and members, and optionally the members and owners of each tracker project. Department and project membership are separate in Huly and can disagree. Pass `name` to match one department, project name or project identifier.',
+            inputSchema: z.object({
+                name: z.string().optional().describe('Department name, project name or project identifier, case-insensitive'),
+                includeProjects: z.boolean().optional().describe('Also return project membership (default: true when `name` is given, otherwise false)'),
+            }).strict(),
+        },
+        async ({ name, includeProjects }) => withHuly(async (client) => {
+            const teams = filterTeams(await client.getTeams(), name);
+            if (name && teams.departments.length === 0 && teams.projects.length === 0) {
+                throw hulyError('not_found', `No department or project named "${name}"`);
+            }
+            const withProjects = includeProjects ?? Boolean(name);
+            return { departments: teams.departments, ...(withProjects ? { projects: teams.projects } : {}) };
         }),
     );
 

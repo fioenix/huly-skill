@@ -3,6 +3,26 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Added — `huly teams` lists departments and their members
+- `huly teams` / MCP `huly_list_teams` lists the HR departments that the Huly UI
+  shows as teams, with lead, managers and members. Until now no command could
+  answer "who is in team X"; `huly users` lists the whole workspace and project
+  members were not exposed at all.
+- `huly teams <name>` matches a department name, a project name or a project
+  identifier (case-insensitive) and prints both that department and that
+  project's members and owners. They are separate lists in Huly and routinely
+  disagree: a project's members are everyone who can see it. Showing both makes
+  the gap visible instead of silently picking one.
+- Project `members`/`owners` hold account UUIDs, not Person ids; they are
+  resolved through `Person.personUuid`. A reference that matches no person is
+  kept with an empty name rather than dropped, so the count stays honest.
+- A name that matches nothing fails with `not_found`. A workspace without the HR
+  module returns no departments instead of failing.
+- The assembly is a pure function in `src/utils/teams.ts`, covered by
+  `tests/teams.test.ts`.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse
