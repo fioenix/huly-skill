@@ -255,6 +255,18 @@ export class HulyClient {
      * Mirrors how Huly's tracker stores nested issues (`attachedTo` points
      * at the parent issue, `collection` is the `subIssues` collection).
      */
+    /**
+     * Exact number of direct sub-issues. `findSubIssues` is capped at 500 rows,
+     * which is fine for listing but would write a wrong counter, so ask the
+     * server for the total and fall back to an uncapped query if it has none.
+     */
+    async countSubIssues(parentInternalId: string): Promise<number> {
+        const query = { attachedTo: parentInternalId, collection: 'subIssues' } as any;
+        const page: any = await this.client!.findAll(tracker.class.Issue as any, query, { limit: 1, total: true } as any);
+        if (typeof page?.total === 'number' && page.total >= 0) return page.total;
+        return (await this.client!.findAll(tracker.class.Issue as any, query)).length;
+    }
+
     async findSubIssues(parentInternalId: string): Promise<any[]> {
         return await this.client!.findAll(
             tracker.class.Issue as any,
@@ -551,7 +563,12 @@ export class HulyClient {
         if (!task) throw hulyError('not_found', `Task not found: ${taskId}`);
 
         let newParent: any = null;
-        if (newParentId) {
+        if (newParentId !== null) {
+            // Only an explicit null detaches. An empty id is a mistake, not a request
+            // to detach, so it must not silently fall through to the NoParent path.
+            if (!newParentId.trim()) {
+                throw hulyError('invalid_input', 'Parent id is empty; pass --no-parent (CLI) or parentId: null (MCP) to detach');
+            }
             newParent = (await this.getTask(newParentId)) ?? (await this.getTaskByInternalId(newParentId));
             if (!newParent) throw hulyError('not_found', `Parent task not found: ${newParentId}`);
         }
@@ -572,9 +589,9 @@ export class HulyClient {
             if (!parentId) return;
             const parentDoc: any = await this.getTaskByInternalId(parentId);
             if (!parentDoc) return;
-            const children = await this.findSubIssues(parentId);
-            if (parentDoc.subIssues !== children.length) {
-                await this.client!.updateDoc(tracker.class.Issue as any, parentDoc.space, parentDoc._id, { subIssues: children.length } as any);
+            const count = await this.countSubIssues(parentId);
+            if (parentDoc.subIssues !== count) {
+                await this.client!.updateDoc(tracker.class.Issue as any, parentDoc.space, parentDoc._id, { subIssues: count } as any);
             }
         };
 

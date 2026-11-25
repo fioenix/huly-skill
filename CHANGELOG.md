@@ -20,8 +20,13 @@ which are released together under the same number.
   a no-op still recounts the current parent, which repairs counters left stale
   by an earlier move.
 - Moving a task under itself, under one of its own descendants, or into another
-  project is rejected with `invalid_input`. These checks are a pure function
+  project is rejected with `invalid_input`. So is an empty parent id: only
+  `--no-parent` or `parentId: null` detaches, so a blank value from a script
+  cannot silently make a task top-level. The move checks are a pure function
   covered by `tests/move.test.ts`.
+- The recount asks the server for the exact total instead of counting the
+  sub-issue listing, which is capped at 500 rows and would otherwise write 500
+  for a larger parent.
 
 ## 1.10.4
 

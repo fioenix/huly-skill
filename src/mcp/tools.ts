@@ -274,7 +274,7 @@ export function registerHulyTools(server: McpServer): void {
             description: 'Re-parent an existing task, like Huly\'s "Set parent" action: put it under another task in the same project, or detach it (parentId null). Huly updates the ancestor chain of the task and its sub-issues. Refuses moves into the task itself or one of its descendants.',
             inputSchema: z.object({
                 taskId: z.string().describe('Task to move, e.g. DELTA-123'),
-                parentId: z.string().nullable().describe('New parent identifier or internal _id; null to make the task top-level'),
+                parentId: z.string().nullable().describe('New parent identifier or internal _id; null to make the task top-level. An empty string is rejected, not treated as null.'),
             }).strict(),
         },
         async ({ taskId, parentId }) => withHuly(async (client) => {
