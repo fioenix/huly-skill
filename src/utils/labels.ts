@@ -9,6 +9,7 @@ export interface LabelReference {
     tag: string;
     title?: string;
     color?: number;
+    createdOn?: number;
 }
 
 export interface LabelRepairPlan {
@@ -30,7 +31,7 @@ export function planLabelRepair(refs: LabelReference[], elements: LabelElement[]
     const seen = new Set<string>();
     const plan: LabelRepairPlan = { updates: [], removals: [] };
 
-    for (const ref of refs) {
+    for (const ref of [...refs].sort(byAge)) {
         if (seen.has(ref.tag)) {
             plan.removals.push(ref._id);
             continue;
@@ -45,4 +46,17 @@ export function planLabelRepair(refs: LabelReference[], elements: LabelElement[]
         }
     }
     return plan;
+}
+
+/** Oldest first; `_id` breaks ties so every caller picks the same survivor. */
+function byAge(a: LabelReference, b: LabelReference): number {
+    return (a.createdOn ?? 0) - (b.createdOn ?? 0) || (a._id < b._id ? -1 : a._id > b._id ? 1 : 0);
+}
+
+/**
+ * References to `tag` that must go so exactly one remains. The survivor is the
+ * oldest, so two writers racing on the same task converge on the same one.
+ */
+export function duplicateRefs(refs: LabelReference[], tag: string): string[] {
+    return refs.filter((r) => r.tag === tag).sort(byAge).slice(1).map((r) => r._id);
 }

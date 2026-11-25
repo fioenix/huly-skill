@@ -76,7 +76,7 @@ import {
     makeRank,
 } from './huly-types.js';
 import { hulyError } from './utils/errors.js';
-import { labelDisplay, planLabelRepair } from './utils/labels.js';
+import { duplicateRefs, labelDisplay, planLabelRepair } from './utils/labels.js';
 
 export interface TaskQueryOptions {
     assignee?: string;
@@ -590,15 +590,29 @@ export class HulyClient {
             return { ...display, alreadyAssigned: true };
         }
 
+        const refId = generateId();
         await this.client!.addCollection(
             tags.class.TagReference as any,
             spaceId as any,
             issueId as any,
             tracker.class.Issue as any,
             'labels',
-            { title: display.title, color: display.color, tag: labelId } as any
+            { title: display.title, color: display.color, tag: labelId } as any,
+            refId
         );
-        return { ...display, alreadyAssigned: false };
+
+        // The check above and the insert are not atomic: two calls racing on the
+        // same task can both insert. Re-read and drop every reference but the
+        // oldest; a racing caller makes the same choice, so both converge.
+        const after = await this.getLabels(issueId);
+        const extra = new Set(duplicateRefs(after, labelId));
+        for (const ref of after) {
+            if (!extra.has(ref._id)) continue;
+            await this.client!.removeCollection(
+                ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection
+            );
+        }
+        return { ...display, alreadyAssigned: extra.has(refId) };
     }
 
     async unassignLabel(issueId: string, labelId: string): Promise<number> {

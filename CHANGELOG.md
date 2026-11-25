@@ -15,6 +15,11 @@ which are released together under the same number.
   result reports `alreadyAssigned` instead. Assigning a label id that does not
   exist now fails with `not_found` rather than writing a dangling reference.
   **This can reject a call that previously "succeeded".**
+- The duplicate check and the insert are not atomic, so two calls racing on the
+  same task could both insert. After inserting, `assign` re-reads the task's
+  references and removes all but the oldest for that label; a racing caller
+  picks the same survivor, so both converge on one reference. `labels repair`
+  keeps the oldest too, so the two paths agree.
 
 ### Added — `labels unassign` and `labels repair`
 - `huly labels unassign <taskId> <labelId>` / `huly_unassign_label` removes a
