@@ -18,8 +18,17 @@ which are released together under the same number.
 - Project `members`/`owners` hold account UUIDs, not Person ids; they are
   resolved through `Person.personUuid`. A reference that matches no person is
   kept with an empty name rather than dropped, so the count stays honest.
-- A name that matches nothing fails with `not_found`. A workspace without the HR
-  module returns no departments instead of failing.
+- A name that matches nothing fails with `not_found`. A workspace whose model has
+  no HR classes returns no departments; any other failure while reading HR data
+  (connection, permission) propagates with its usual error code rather than
+  turning into an empty list.
+- Departments and staff are read without a row cap, so no team or member is
+  silently left out.
+- `huly teams --json` follows the list envelope: departments under `data` with
+  `count`; projects, when shown, under `projects.data`.
+- `huly_list_teams` takes the usual `limit` (default 50, `0` for no cap) and
+  `fields` arguments and returns `count`, `total` and `truncated`. Every row
+  carries `memberCount`, so `fields` without `members` returns sizes only.
 - The assembly is a pure function in `src/utils/teams.ts`, covered by
   `tests/teams.test.ts`.
 

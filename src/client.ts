@@ -193,13 +193,16 @@ export class HulyClient {
         const [persons, projects] = await Promise.all([this.getPersons(), this.getProjects()]);
         let departments: any[] = [];
         let staff: any[] = [];
-        try {
+        // Only a workspace whose model has no HR classes is allowed to answer with
+        // no departments. Any other failure (connection, permission) propagates, so
+        // callers get the usual error code instead of an empty, "successful" list.
+        // No row limits: departments and staff are small, and a cap here would
+        // silently drop teams or members.
+        if ((this.client as any).getHierarchy().hasClass(hr.class.Department)) {
             [departments, staff] = await Promise.all([
-                this.client!.findAll(hr.class.Department as any, {}, { limit: 1000 }),
-                this.client!.findAll(hr.mixin.Staff as any, {}, { limit: 10000 }),
+                this.client!.findAll(hr.class.Department as any, {}),
+                this.client!.findAll(hr.mixin.Staff as any, {}),
             ]);
-        } catch {
-            // A workspace without the HR module has no departments; projects still answer.
         }
         return buildTeams({ departments, staff, persons, projects, staffMixin: hr.mixin.Staff, employeeMixin: contact.mixin.Employee });
     }

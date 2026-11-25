@@ -142,15 +142,21 @@ export function registerHulyTools(server: McpServer): void {
             inputSchema: z.object({
                 name: z.string().optional().describe('Department name, project name or project identifier, case-insensitive'),
                 includeProjects: z.boolean().optional().describe('Also return project membership (default: true when `name` is given, otherwise false)'),
+                ...listArgs('departments (and projects, separately)', 'team'),
             }).strict(),
         },
-        async ({ name, includeProjects }) => withHuly(async (client) => {
+        async ({ name, includeProjects, limit, fields }) => withHuly(async (client) => {
             const teams = filterTeams(await client.getTeams(), name);
             if (name && teams.departments.length === 0 && teams.projects.length === 0) {
                 throw hulyError('not_found', `No department or project named "${name}"`);
             }
-            const withProjects = includeProjects ?? Boolean(name);
-            return { departments: teams.departments, ...(withProjects ? { projects: teams.projects } : {}) };
+            const deps = shapeList(teams.departments, 'team', { limit, fields });
+            const out: Record<string, unknown> = { count: deps.rows.length, total: deps.total, truncated: deps.truncated, departments: deps.rows };
+            if (includeProjects ?? Boolean(name)) {
+                const projs = shapeList(teams.projects, 'projectTeam', { limit, fields });
+                out.projects = { count: projs.rows.length, total: projs.total, truncated: projs.truncated, data: projs.rows };
+            }
+            return out;
         }),
     );
 

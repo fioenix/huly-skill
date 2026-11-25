@@ -21,7 +21,13 @@ export function teamsCommand() {
                     }
                     const showProjects = Boolean(name) || Boolean(options.projects);
                     if (isJsonMode()) {
-                        outputJson({ status: 'ok', departments: teams.departments, ...(showProjects ? { projects: teams.projects } : {}) });
+                        // Departments are the listing (`data`, `count`); projects are an extension.
+                        outputJson({
+                            status: 'ok',
+                            count: teams.departments.length,
+                            data: teams.departments,
+                            ...(showProjects ? { projects: { count: teams.projects.length, data: teams.projects } } : {}),
+                        });
                         return;
                     }
                     let out = '';

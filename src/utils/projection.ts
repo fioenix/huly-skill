@@ -22,6 +22,9 @@ export const LIST_FIELDS = {
     // Milestone `description` holds raw ProseMirror JSON, not prose — verbose and
     // unreadable in a listing. Ask for it explicitly via `fields` if needed.
     milestone: ['_id', 'label', 'status', 'targetDate'],
+    // Drop `members` (and `managers`/`owners`) to get counts only.
+    team: ['_id', 'name', 'teamLead', 'managers', 'memberCount', 'members'],
+    projectTeam: ['_id', 'identifier', 'name', 'owners', 'memberCount', 'members'],
 } as const;
 
 export type ListEntity = keyof typeof LIST_FIELDS;

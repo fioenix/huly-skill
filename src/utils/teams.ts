@@ -14,9 +14,10 @@ export interface Department {
     parent: string | null;
     teamLead: TeamPerson | null;
     managers: TeamPerson[];
+    memberCount: number;
     members: TeamPerson[];
 }
-export interface ProjectTeam { _id: string; identifier: string; name: string; owners: TeamPerson[]; members: TeamPerson[]; }
+export interface ProjectTeam { _id: string; identifier: string; name: string; owners: TeamPerson[]; memberCount: number; members: TeamPerson[]; }
 export interface Teams { departments: Department[]; projects: ProjectTeam[]; }
 
 export function buildTeams(input: {
@@ -46,17 +47,24 @@ export function buildTeams(input: {
 
     return {
         departments: input.departments
-            .map((d) => ({
-                _id: d._id,
-                name: d.name || '',
-                parent: d.parent ?? null,
-                teamLead: d.teamLead ? resolve(d.teamLead) : null,
-                managers: unique(d.managers),
-                members: unique(membersOf.get(d._id)),
-            }))
+            .map((d) => {
+                const members = unique(membersOf.get(d._id));
+                return {
+                    _id: d._id,
+                    name: d.name || '',
+                    parent: d.parent ?? null,
+                    teamLead: d.teamLead ? resolve(d.teamLead) : null,
+                    managers: unique(d.managers),
+                    memberCount: members.length,
+                    members,
+                };
+            })
             .sort((a, b) => a.name.localeCompare(b.name)),
         projects: input.projects
-            .map((p) => ({ _id: p._id, identifier: p.identifier, name: p.name || '', owners: unique(p.owners), members: unique(p.members) }))
+            .map((p) => {
+                const members = unique(p.members);
+                return { _id: p._id, identifier: p.identifier, name: p.name || '', owners: unique(p.owners), memberCount: members.length, members };
+            })
             .sort((a, b) => a.identifier.localeCompare(b.identifier)),
     };
 }

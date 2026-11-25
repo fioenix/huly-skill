@@ -42,3 +42,10 @@ test('filter matches department name and project name or identifier, case-insens
     assert.equal(filterTeams(t, 'nope').departments.length, 0);
     assert.equal(filterTeams(t).departments.length, 2);
 });
+
+test('every team row carries memberCount, so dropping members keeps the size', () => {
+    const t = buildTeams(input);
+    assert.equal(t.departments.find((d) => d.name === 'Beta')!.memberCount, 2);
+    assert.equal(t.departments.find((d) => d.name === 'Delta')!.memberCount, 0);
+    assert.equal(t.projects[0].memberCount, 3);
+});
