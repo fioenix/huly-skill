@@ -16,10 +16,29 @@ export interface HulyCredentials {
 const credentialStore = new AsyncLocalStorage<HulyCredentials>();
 
 /**
+ * Why these caller credentials must be refused, or null when they are usable.
+ * A caller that chooses the host or workspace must bring its own token too:
+ * otherwise the server's own token would be sent to a host the caller picked,
+ * or used on a workspace the deployment never configured.
+ */
+export function credentialsError(credentials: HulyCredentials): string | null {
+    if (credentials.token !== undefined) return null;
+    const targets = [
+        credentials.host !== undefined ? 'x-huly-url' : null,
+        credentials.workspace !== undefined ? 'x-huly-workspace' : null,
+    ].filter(Boolean);
+    if (targets.length === 0) return null;
+    const verb = targets.length === 1 ? 'requires' : 'require';
+    return `${targets.join(' and ')} ${verb} x-huly-token: the server's own token is never sent to a caller-chosen host or workspace`;
+}
+
+/**
  * Run `fn` with these credentials in scope. Fields left undefined fall back to
  * the environment, so a caller can override just the token.
  */
 export function runWithCredentials<T>(credentials: HulyCredentials, fn: () => T): T {
+    const refused = credentialsError(credentials);
+    if (refused) throw new Error(refused);
     return credentialStore.run(credentials, fn);
 }
 

@@ -2,58 +2,16 @@ import apiClient from '@hcengineering/api-client';
 import coreModule from '@hcengineering/core';
 import textModule from '@hcengineering/text';
 import textMarkdownModule from '@hcengineering/text-markdown';
+import { createProxySocketFactory } from './utils/proxy.js';
 /* eslint-disable @typescript-eslint/no-var-requires */
 const WS = require('ws');
-const { HttpsProxyAgent } = require('https-proxy-agent');
 
 // CJS interop: these packages use module.exports, named ESM imports don't work
 const { connect, connectStorage, getWorkspaceToken, NodeWebSocketFactory } = apiClient as any;
 
-/**
- * Proxy-aware WebSocket factory. Replaces NodeWebSocketFactory when
- * HTTPS_PROXY is set (e.g. Claude Cowork sandbox at 127.0.0.1:3128).
- * When no proxy, falls back to default NodeWebSocketFactory.
- */
+/** The proxy-aware factory when HTTPS_PROXY is set, else the default one. */
 function createSocketFactory() {
-    const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
-    if (!proxyUrl) return NodeWebSocketFactory;
-
-    const agent = new HttpsProxyAgent(proxyUrl, { rejectUnauthorized: false });
-
-    return (url: string) => {
-        process.stderr.write(`[huly-ws] connecting: ${url} via proxy ${proxyUrl}\n`);
-        const ws = new WS(url, { agent, rejectUnauthorized: false });
-        const client: any = {
-            get readyState() { return ws.readyState; },
-            send(data: any) {
-                if (data instanceof Blob) {
-                    void data.arrayBuffer().then((buffer: ArrayBuffer) => ws.send(buffer));
-                } else {
-                    ws.send(data);
-                }
-            },
-            close(code?: number) { ws.close(code); },
-        };
-        ws.on('message', (data: any) => {
-            client.onmessage?.({ data, type: 'message', target: undefined });
-        });
-        ws.on('close', (code: number, reason: string) => {
-            process.stderr.write(`[huly-ws] closed: code=${code} reason=${reason}\n`);
-            client.onclose?.({ code, reason, wasClean: code === 1000, type: 'close', target: undefined });
-        });
-        ws.on('open', () => {
-            process.stderr.write(`[huly-ws] connected!\n`);
-            client.onopen?.({ type: 'open', target: undefined });
-        });
-        ws.on('error', (error: any) => {
-            process.stderr.write(`[huly-ws] error: ${error.message || error}\n`);
-            client.onerror?.({ type: 'error', target: undefined, error });
-        });
-        ws.on('unexpected-response', (_req: any, res: any) => {
-            process.stderr.write(`[huly-ws] unexpected-response: status=${res.statusCode}\n`);
-        });
-        return client;
-    };
+    return createProxySocketFactory(process.env.HTTPS_PROXY || process.env.https_proxy, WS) ?? NodeWebSocketFactory;
 }
 const { SortingOrder, generateId, makeCollabId } = coreModule as any;
 // CJS interop: the `core` plugin object (with .space, .class) lives on the

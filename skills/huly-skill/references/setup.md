@@ -75,6 +75,13 @@ The CLI detects `HTTPS_PROXY` and patches both `fetch` and the WebSocket
 connection. Don't rely on `NODE_USE_ENV_PROXY` — Node still performs a local DNS
 lookup that fails inside the sandbox.
 
+Certificates are still verified through the proxy. If the proxy intercepts TLS
+and connections fail with a certificate error (`self-signed certificate in
+certificate chain`, `unable to get local issuer certificate`), point Node at the
+proxy's CA: `export NODE_EXTRA_CA_CERTS=/path/to/proxy-ca.pem`. Turning
+verification off (`NODE_TLS_REJECT_UNAUTHORIZED=0`) is an explicit choice left to
+whoever runs the process; the CLI no longer makes it for you.
+
 **Persisting credentials** — because the filesystem is ephemeral, `~/.huly/.env`
 must live on a directory mounted from the user's machine. Before the first
 command, mount `~/.huly` with the Cowork directory tool
