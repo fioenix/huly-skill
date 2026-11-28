@@ -16,7 +16,7 @@ import { listComments, getCommentById, updateComment, deleteComment } from '../s
 import { DEFAULT_LIST_LIMIT, LIST_FIELDS, shapeList, type ListEntity } from '../utils/projection.js';
 import { describeContext, sanitizeHost } from '../utils/context.js';
 import { peekCredentials } from '../utils/auth.js';
-import { buildTaskDetail } from '../utils/task-detail.js';
+import { buildTaskDetail, DEFAULT_LINK_TIMEOUT_MS, issueUrlWithin } from '../utils/task-detail.js';
 import { getTaskInputSchema } from './get-task-schema.js';
 import { errorPayload, hulyError } from '../utils/errors.js';
 
@@ -77,11 +77,11 @@ async function resolveTeamspace(client: HulyClient, input: string): Promise<any>
  * consistent across the CLI and MCP adapters.
  */
 export interface HulyToolOptions {
-    /** Whether tools may write to the server's disk; false for the HTTP transport. */
+    /** Whether tools may write to the server's disk; off unless the transport opts in (stdio). */
     allowDownloads?: boolean;
 }
 
-export function registerHulyTools(server: McpServer, { allowDownloads = true }: HulyToolOptions = {}): void {
+export function registerHulyTools(server: McpServer, { allowDownloads = false }: HulyToolOptions = {}): void {
     server.registerTool(
         'huly_context',
         {
@@ -181,8 +181,8 @@ export function registerHulyTools(server: McpServer, { allowDownloads = true }: 
         {
             title: 'Get task detail',
             description: allowDownloads
-                ? 'Get full details for a single task by its identifier (e.g. DELTA-123): the description as markdown (`descriptionMarkdown`) and its attached files (`attachmentFiles`). Pass `downloadDir` to also save those files locally and get each `localPath`.'
-                : 'Get full details for a single task by its identifier (e.g. DELTA-123): the description as markdown (`descriptionMarkdown`) and its attached files (`attachmentFiles`, metadata only on this server).',
+                ? 'Get full details for a single task by its identifier (e.g. DELTA-123): the description as markdown (`descriptionMarkdown`, null with a `descriptionError` when it could not be read), its attached files (`attachmentFiles`) and its web link (`url`). Pass `downloadDir` to also save those files locally and get each `localPath`.'
+                : 'Get full details for a single task by its identifier (e.g. DELTA-123): the description as markdown (`descriptionMarkdown`, null with a `descriptionError` when it could not be read), its attached files (`attachmentFiles`, metadata only on this server) and its web link (`url`).',
             inputSchema: getTaskInputSchema(allowDownloads),
         },
         async (args: { taskId: string; downloadDir?: string }) => withHuly(async (client) => {
@@ -216,7 +216,7 @@ export function registerHulyTools(server: McpServer, { allowDownloads = true }: 
         },
         async ({ parentId, parent, ...rest }) => withHuly(async (client) => {
             const result = await createIssue(client, { ...rest, parent: parentId ?? parent });
-            const url = await client.getIssueUrl(result.task.identifier).catch(() => null);
+            const url = await issueUrlWithin(client, result.task.identifier, DEFAULT_LINK_TIMEOUT_MS);
             return { task: { ...result.task, url }, projectIdentifier: result.projectIdentifier, assigneeName: result.assigneeName };
         }),
     );

@@ -14,3 +14,26 @@ export function issueUrl(
     if (!base || !workspaceSlug || !identifier) return null;
     return `${base}/workbench/${encodeURIComponent(workspaceSlug)}/tracker/${encodeURIComponent(identifier)}`;
 }
+
+/** The text-view line for a task link, or nothing when there is no link. */
+export function linkLine(url: string | null | undefined): string {
+    return url ? `🔗 Link: ${url}\n` : '';
+}
+
+/**
+ * Files and upload endpoints for a workspace, from the server config the
+ * client already fetched — what api-client's connectStorage computes, without
+ * fetching that config and selecting the workspace a second time.
+ */
+export function storageUrls(
+    host: string,
+    config: { FILES_URL: string; UPLOAD_URL?: string },
+    workspaceId: string,
+): { filesUrl: string; uploadUrl: string | null } {
+    const base = host.replace(/\/+$/, '');
+    const absolute = (url: string) => (url.startsWith('/') ? `${base}${url}` : url).replace(':workspace', workspaceId);
+    return {
+        filesUrl: absolute(config.FILES_URL),
+        uploadUrl: config.UPLOAD_URL ? absolute(config.UPLOAD_URL) : null,
+    };
+}

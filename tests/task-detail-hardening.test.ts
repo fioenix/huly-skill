@@ -1,4 +1,4 @@
-import { test, after } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, readdirSync, existsSync, symlinkSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,7 +13,12 @@ import { getTaskInputSchema } from '../src/mcp/get-task-schema.js';
 const TASK = { _id: 'issue-1', identifier: 'DELTA-42', title: 'T', description: null };
 
 const created: string[] = [];
+// The default download roots are under test here, so a HULY_DOWNLOAD_ROOT set
+// on the machine running the suite must not apply.
+const savedRoot = process.env.HULY_DOWNLOAD_ROOT;
+before(() => { delete process.env.HULY_DOWNLOAD_ROOT; });
 after(() => {
+    if (savedRoot !== undefined) process.env.HULY_DOWNLOAD_ROOT = savedRoot;
     for (const dir of created) rmSync(dir, { recursive: true, force: true });
 });
 

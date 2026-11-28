@@ -56,13 +56,13 @@ huly task-by-id <internalId>                      # look up by internal _id
 ```
 
 `huly task --json` returns the description as markdown in `data.descriptionMarkdown`
-(`null` when empty or unreadable) and the issue's files in `data.attachmentFiles`
+(`null` when empty; `null` plus a one-line `descriptionError` when unreadable) and the issue's files in `data.attachmentFiles`
 (`_id`, `name`, `type`, `size`, `blobId`, `lastModified`). Files are listed, not
 fetched, unless `--download <dir>` is passed (MCP: `downloadDir`); then each entry
 carries an absolute `localPath`, or `downloadError` when that one file failed.
 Unsafe names are flattened into `<dir>` and an existing file is never overwritten.
-`<dir>` must be inside `HULY_DOWNLOAD_ROOT` (default: the working or temp
-directory) and not in a hidden directory; otherwise the call fails with
+`<dir>` (`~` is home) must be inside `HULY_DOWNLOAD_ROOT` (default: the working
+directory unless it is `/` or home or contains home, or the temp directory) and not in a hidden directory; otherwise the call fails with
 `invalid_input`. Over the HTTP MCP transport `downloadDir` does not exist.
 Each file is capped at 100 MB and 120 s, 500 MB per call.
 Files attached to comments are not included.

@@ -7,7 +7,7 @@ import { createProxySocketFactory } from './utils/proxy.js';
 const WS = require('ws');
 
 // CJS interop: these packages use module.exports, named ESM imports don't work
-const { connect, connectStorage, getWorkspaceToken, NodeWebSocketFactory } = apiClient as any;
+const { connect, createStorageClient, getWorkspaceToken, loadServerConfig, NodeWebSocketFactory } = apiClient as any;
 
 /** The proxy-aware factory when HTTPS_PROXY is set, else the default one. */
 function createSocketFactory() {
@@ -27,9 +27,9 @@ type PlatformClient = any;
 type Ref<T> = string & { __ref: T };
 type Doc = any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
-import { issueUrl } from './utils/links.js';
+import { issueUrl, storageUrls } from './utils/links.js';
 import { hulyError } from './utils/errors.js';
-import { ATTACHMENT_QUERY, isSafeBlobId, memoizeSuccess } from './utils/task-detail.js';
+import { ATTACHMENT_QUERY, isSafeBlobId, memoizeSuccess, withTimeout } from './utils/task-detail.js';
 import {
     tracker, contact, document as hulyDocument, tags,
     activity, chunter, task, attachment,
@@ -83,7 +83,6 @@ export class HulyClient {
     private _projects: any[] | null = null;
     private _statuses: any[] | null = null;
     private _account: any | null = null;
-    private _workspaceSlug: Promise<string | null> | null = null;
 
     async connect() {
         const options: ConnectOptions = {
@@ -101,7 +100,8 @@ export class HulyClient {
             await this.client.close();
             this.client = null;
         }
-        // Never carry one connection's storage token into the next.
+        // Never carry one connection's workspace token into the next.
+        this.workspace.reset();
         this.storage.reset();
     }
 
@@ -826,10 +826,26 @@ export class HulyClient {
      * usually the UUID. Looked up once per command.
      */
     async getIssueUrl(identifier: string): Promise<string | null> {
-        this._workspaceSlug ??= getWorkspaceToken(getHost(), { token: getApiKey(), workspace: getWorkspaceId() })
-            .then((ws: any) => (typeof ws?.info?.workspaceUrl === 'string' ? ws.info.workspaceUrl : null));
-        return issueUrl(getHost(), await this._workspaceSlug, identifier);
+        const { ws } = await this.workspace();
+        const slug = typeof ws?.info?.workspaceUrl === 'string' ? ws.info.workspaceUrl : null;
+        return issueUrl(getHost(), slug, identifier);
     }
+
+    /**
+     * Server config and workspace token, fetched once per command and shared by
+     * the link lookup and the files client (connectStorage would fetch both
+     * again). Retried after a failure rather than cached as one.
+     */
+    /** How long loading the server config and workspace token may take. */
+    workspaceTimeoutMs = 30_000;
+
+    private readonly workspace = memoizeSuccess<{ config: any; ws: any }>(() => withTimeout((async () => {
+        const config = await loadServerConfig(getHost());
+        const ws = await getWorkspaceToken(getHost(), { token: getApiKey(), workspace: getWorkspaceId() }, config);
+        return { config, ws };
+    })(), this.workspaceTimeoutMs, 'Timed out loading the server config and workspace token'));
+    // A hang becomes a rejection here, which memoizeSuccess does not keep, so
+    // the next file or link lookup tries again instead of waiting on it.
 
     /**
      * Stream one stored file. Blobs live behind the HTTP files endpoint, not
@@ -844,9 +860,11 @@ export class HulyClient {
         return await storage.get(encodeURIComponent(blobId));
     }
 
-    private readonly storage = memoizeSuccess<any>(() =>
-        connectStorage(getHost(), { token: getApiKey(), workspace: getWorkspaceId() }),
-    );
+    private readonly storage = memoizeSuccess<any>(async () => {
+        const { config, ws } = await this.workspace();
+        const { filesUrl, uploadUrl } = storageUrls(getHost(), config, ws.workspaceId);
+        return createStorageClient(filesUrl, uploadUrl, ws.token, ws.workspaceId);
+    });
 
     // -----------------------------------------------------------------------
     // Markup helpers

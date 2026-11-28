@@ -4,6 +4,7 @@ import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } f
 import { EXIT_STATUS, errorPayload, exitStatusFor, hulyError } from '../utils/errors.js';
 import { getProjectMap, getStatusMap } from '../resolvers.js';
 import { buildTaskDetail, formatAttachmentLines } from '../utils/task-detail.js';
+import { linkLine } from '../utils/links.js';
 
 export function getTaskCommand() {
     return new Command('task')
@@ -43,7 +44,7 @@ export function getTaskCommand() {
 
                     let output = `📋 TASK: ${task.identifier}\n\n`;
                     output += `📌 Title: ${task.title || 'N/A'}\n`;
-                    if (task.url) output += `🔗 Link: ${task.url}\n`;
+                    output += linkLine(task.url);
                     output += `📁 Project: ${project?.identifier || 'Unknown'} - ${project?.name || 'Unknown'}\n`;
                     output += `📊 Status: ${status?.name || 'Unknown'}\n`;
                     output += `🎯 Priority: ${PRIORITY_LABELS[task.priority] || 'NONE'}\n`;
@@ -55,7 +56,7 @@ export function getTaskCommand() {
 
                     if (task.description) {
                         if (task.descriptionMarkdown) output += `📝 Description:\n${task.descriptionMarkdown}\n`;
-                        else output += `📝 Description: (could not be read)\n`;
+                        else output += `📝 Description: (could not be read${task.descriptionError ? `: ${task.descriptionError}` : ''})\n`;
                     }
 
                     if (task.labels && task.labels.length > 0) {

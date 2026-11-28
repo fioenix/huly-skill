@@ -1,6 +1,6 @@
 import { lstat, mkdir, open, realpath, unlink } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { hulyError } from './errors.js';
 
@@ -46,7 +46,15 @@ export interface TaskDetailOptions {
      */
     downloadDir?: string;
     limits?: DownloadLimits;
+    /** How long the web-link lookup may take before `url` is left null. */
+    linkTimeoutMs?: number;
 }
+
+/**
+ * The link lookup goes to the account service after everything else is done;
+ * a hang there must not hold back a detail, or a task already created.
+ */
+export const DEFAULT_LINK_TIMEOUT_MS = 5_000;
 
 const MiB = 1024 * 1024;
 export const DEFAULT_LIMITS: Required<DownloadLimits> = {
@@ -86,6 +94,18 @@ export function memoizeSuccess<T>(factory: () => Promise<T>): (() => Promise<T>)
     return Object.assign(get, { reset: () => { pending = null; } });
 }
 
+/** Reject with `message` when `promise` has not settled within `ms`. */
+export async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+    let timer: NodeJS.Timeout | undefined;
+    // unref: a bounded wait must not itself keep a finished CLI process alive.
+    const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms).unref(); });
+    try {
+        return await Promise.race([promise, timeout]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 export function isSafeBlobId(blobId: string): boolean {
     return SAFE_BLOB_ID.test(blobId) && blobId !== '.' && blobId !== '..';
 }
@@ -94,20 +114,27 @@ export async function buildTaskDetail<T extends Record<string, any>>(
     source: TaskDetailSource,
     task: T,
     options: TaskDetailOptions = {},
-): Promise<T & { descriptionMarkdown: string | null; attachmentFiles: AttachmentInfo[]; url: string | null }> {
+): Promise<T & {
+    descriptionMarkdown: string | null;
+    descriptionError?: string;
+    attachmentFiles: AttachmentInfo[];
+    url: string | null;
+}> {
     // Refuse a bad directory before any network work, so the caller learns
     // about it without anything having been created.
     const downloadDir = options.downloadDir === undefined ? null : await resolveDownloadDir(options.downloadDir);
 
     // A missing or unreadable description must not cost the caller the rest of
     // the detail; an unreadable attachment list must, since an empty list would
-    // claim there are no files.
+    // claim there are no files. An unreadable description is still reported,
+    // so an agent does not mistake it for a task without one.
     let descriptionMarkdown: string | null = null;
+    let descriptionError: string | undefined;
     if (task.description) {
         try {
             descriptionMarkdown = (await source.fetchMarkup(task, 'description')) || null;
-        } catch {
-            descriptionMarkdown = null;
+        } catch (e) {
+            descriptionError = describeError(e);
         }
     }
 
@@ -118,17 +145,27 @@ export async function buildTaskDetail<T extends Record<string, any>>(
         await saveAttachments(source, attachmentFiles, downloadDir, { ...DEFAULT_LIMITS, ...options.limits });
     }
 
-    // Like the description, a failed link lookup must not cost the rest of the detail.
-    let url: string | null = null;
-    if (source.getIssueUrl && task.identifier) {
-        try {
-            url = await source.getIssueUrl(task.identifier);
-        } catch {
-            url = null;
-        }
-    }
+    // Like the description, a failed or slow link lookup must not cost the rest of the detail.
+    const url = task.identifier
+        ? await issueUrlWithin(source, task.identifier, options.linkTimeoutMs ?? DEFAULT_LINK_TIMEOUT_MS)
+        : null;
 
-    return { ...task, descriptionMarkdown, attachmentFiles, url };
+    return { ...task, descriptionMarkdown, ...(descriptionError ? { descriptionError } : {}), attachmentFiles, url };
+}
+
+/** The issue's web link, or null when the source has none, the lookup fails, or it outlasts `ms`. */
+export async function issueUrlWithin(source: Pick<TaskDetailSource, 'getIssueUrl'>, identifier: string, ms: number): Promise<string | null> {
+    if (!source.getIssueUrl) return null;
+    let timer: NodeJS.Timeout | undefined;
+    // Kept referenced: this timer is what produces the null the caller is waiting for.
+    const timeout = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), ms); });
+    try {
+        // Through then(), so a lookup that throws synchronously still yields null.
+        const lookup = Promise.resolve().then(() => source.getIssueUrl!(identifier)).catch(() => null);
+        return await Promise.race([lookup, timeout]);
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 function toAttachmentInfo(doc: any): AttachmentInfo {
@@ -158,13 +195,13 @@ async function resolveDownloadDir(input: string): Promise<{ path: string; real: 
     if (!trimmed) throw hulyError('invalid_input', 'downloadDir is empty');
 
     // Report paths the way the caller wrote them (macOS /var is /private/var),
-    // but decide on the real one.
-    const path = resolve(trimmed);
+    // but decide on the real one. No shell expands `~` for an MCP caller.
+    const path = resolve(expandHome(trimmed));
     const target = await realpathOfNearest(path);
-    const roots = await allowedRoots();
+    const { roots, skippedCwd } = await allowedRoots();
     for (const root of roots) {
         const rel = relative(root, target);
-        if (rel.startsWith('..') || isAbsolute(rel)) continue;
+        if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) continue;
         if (rel.split(sep).some((segment) => segment.startsWith('.'))) {
             throw hulyError('invalid_input', `downloadDir must not be inside a hidden directory: ${target}`);
         }
@@ -172,17 +209,35 @@ async function resolveDownloadDir(input: string): Promise<{ path: string; real: 
     }
     throw hulyError(
         'invalid_input',
-        `downloadDir must be inside ${roots.join(' or ')}; set HULY_DOWNLOAD_ROOT to allow another directory`,
+        `downloadDir must be inside ${roots.join(' or ')}` +
+            (skippedCwd ? ` (the working directory ${skippedCwd} is not a download root because it is / or contains the home directory)` : '') +
+            '; set HULY_DOWNLOAD_ROOT to allow another directory',
     );
 }
 
-async function allowedRoots(): Promise<string[]> {
+function expandHome(path: string): string {
+    if (path === '~') return homedir();
+    if (path.startsWith('~/') || path.startsWith(`~${sep}`)) return join(homedir(), path.slice(2));
+    return path;
+}
+
+async function allowedRoots(): Promise<{ roots: string[]; skippedCwd?: string }> {
     const configured = process.env.HULY_DOWNLOAD_ROOT?.trim();
-    const candidates = configured ? [resolve(configured)] : [process.cwd(), tmpdir()];
+    const candidates = configured ? [resolve(expandHome(configured))] : [process.cwd(), tmpdir()];
+    const home = await realpath(homedir()).catch(() => resolve(homedir()));
     const roots: string[] = [];
+    let skippedCwd: string | undefined;
     for (const candidate of candidates) {
         try {
-            roots.push(await realpath(candidate));
+            const root = await realpath(candidate);
+            // An MCP client often starts the server in / or the home directory.
+            // As a default root that would admit ~/Library/LaunchAgents or
+            // ~/bin, so a working directory that broad does not count.
+            if (!configured && candidate === process.cwd() && isAncestorOrSelf(root, home)) {
+                skippedCwd = root;
+                continue;
+            }
+            roots.push(root);
         } catch {
             // A root that does not exist cannot contain anything.
         }
@@ -190,7 +245,12 @@ async function allowedRoots(): Promise<string[]> {
     if (configured && roots.length === 0) {
         throw hulyError('invalid_input', `HULY_DOWNLOAD_ROOT does not exist: ${configured}`);
     }
-    return roots;
+    return { roots, skippedCwd };
+}
+
+function isAncestorOrSelf(dir: string, of: string): boolean {
+    const rel = relative(dir, of);
+    return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
 }
 
 /** realpath of the deepest existing ancestor, with the not-yet-created tail appended. */
@@ -222,12 +282,19 @@ async function saveAttachments(
     target: { path: string; real: string },
     limits: Required<DownloadLimits>,
 ): Promise<void> {
-    const dir = target.path;
-    await mkdir(dir, { recursive: true });
-    // The directory may have been swapped for a symlink since it was checked.
-    if ((await realpath(dir)) !== target.real) {
-        throw hulyError('invalid_input', `downloadDir changed while saving: ${dir}`);
+    try {
+        await mkdir(target.path, { recursive: true });
+    } catch (e: any) {
+        throw hulyError('invalid_input', `downloadDir cannot be created: ${target.path} (${e?.code ?? 'unknown'})`);
     }
+    // The directory may have been swapped for a symlink since it was checked.
+    const real = await realpath(target.path).catch(() => null);
+    if (real !== target.real) {
+        throw hulyError('invalid_input', `downloadDir changed while saving: ${target.path}`);
+    }
+    // Write through the checked real path, so a parent swapped for a symlink
+    // after this point cannot redirect the files; report the caller's form.
+    const dir = target.real;
 
     let remaining = limits.maxTotalBytes;
     // Sequential on purpose: name collisions are resolved against what is
@@ -242,7 +309,7 @@ async function saveAttachments(
                 throw new Error(`File is ${formatSize(file.size)}, over the ${formatSize(cap)} download limit`);
             }
             const saved = await downloadTo(source, file.blobId, dir, safeFileName(file.name, file._id), cap, limits.timeoutMs);
-            file.localPath = saved.path;
+            file.localPath = join(target.path, basename(saved.path));
             remaining -= saved.bytes;
         } catch (e) {
             file.downloadError = describeError(e);
@@ -265,9 +332,17 @@ async function downloadTo(
 
     const work = (async () => {
         data = await source.downloadBlob(blobId);
+        if (cancelled) {
+            // The timeout fired while waiting for the response: drop the body
+            // so its socket is released, and never create the file, which
+            // could otherwise take the name of the next one.
+            (data as any)?.destroy?.();
+            throw new Error('Download cancelled');
+        }
         const opened = await openUnique(dir, name);
         if (cancelled) {
             // The timeout won the race while the file was being created.
+            (data as any)?.destroy?.();
             await opened.handle.close().catch(() => {});
             await unlink(opened.path).catch(() => {});
             throw new Error('Download cancelled');

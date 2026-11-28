@@ -9,6 +9,7 @@ loadEnvFile();
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createHulyMcpServer } from './server.js';
+import { serverOptionsFor } from './get-task-schema.js';
 import { createHttpApp } from './http.js';
 
 // Transport is chosen by env so a single bin works for every client:
@@ -17,7 +18,7 @@ import { createHttpApp } from './http.js';
 const TRANSPORT = (process.env.HULY_MCP_TRANSPORT || 'stdio').toLowerCase();
 
 async function startStdio(): Promise<void> {
-    const server = createHulyMcpServer();
+    const server = createHulyMcpServer(serverOptionsFor('stdio'));
     const transport = new StdioServerTransport();
     await server.connect(transport);
     // stderr only — stdout is the MCP protocol channel.
@@ -34,7 +35,7 @@ function startHttp(): void {
     // Stateless Streamable HTTP: a fresh server + transport per request.
     const app = createHttpApp(async (req, res) => {
         // A remote caller must not be able to write to this host's disk.
-        const server = createHulyMcpServer({ allowDownloads: false });
+        const server = createHulyMcpServer(serverOptionsFor('http'));
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
         res.on('close', () => { void transport.close(); void server.close(); });
         await server.connect(transport);

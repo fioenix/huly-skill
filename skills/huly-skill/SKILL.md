@@ -84,8 +84,8 @@ retry only when `retryable` is true.
 
 ```bash
 huly tasks --assignee me --json                  # my active tasks
-huly task DELTA-123 --json                       # one task: descriptionMarkdown + attachmentFiles + url
-huly task DELTA-123 --json --download ./DELTA-123  # …and save the attachments (localPath per file)
+huly task DELTA-123 --json                       # one task: descriptionMarkdown (descriptionError if unreadable) + attachmentFiles + url
+huly task DELTA-123 --json --download ./DELTA-123  # …and save the attachments (localPath per file); run from a project dir, not ~ or /
 huly activity LAMBD-568 --comments-only --json   # comments + changes on an issue
 huly create task "Title" --project DELTA --parent DELTA-16 --assignee me
 huly update task DELTA-123 --status "Done" --add-comment "shipped"

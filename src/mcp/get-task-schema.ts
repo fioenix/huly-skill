@@ -6,7 +6,7 @@ import { z } from 'zod';
  * remote caller could not read the files anyway, and the strict schema then
  * rejects the argument instead of writing anywhere.
  */
-export function getTaskInputSchema(allowDownloads: boolean) {
+export function getTaskInputSchema(allowDownloads = false) {
     const base = {
         taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
     };
@@ -17,4 +17,12 @@ export function getTaskInputSchema(allowDownloads: boolean) {
             'Directory to save every attachment into, inside HULY_DOWNLOAD_ROOT (default: the working or temp directory); each entry then carries `localPath` (or `downloadError`). Omit for metadata only.',
         ),
     }).strict();
+}
+
+/**
+ * Tool options per transport. Only stdio, where server and caller share a
+ * disk, may write downloads; anything else gets metadata only.
+ */
+export function serverOptionsFor(transport: 'stdio' | 'http'): { allowDownloads: boolean } {
+    return { allowDownloads: transport === 'stdio' };
 }

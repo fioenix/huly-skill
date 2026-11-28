@@ -1,6 +1,6 @@
-import { test } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, readdirSync, existsSync, realpathSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, existsSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, isAbsolute, resolve, sep } from 'node:path';
 
@@ -65,8 +65,20 @@ function fakeSource(opts: {
     return { source, calls };
 }
 
+// The default download roots are under test here, so a HULY_DOWNLOAD_ROOT set
+// on the machine running the suite must not apply.
+const savedRoot = process.env.HULY_DOWNLOAD_ROOT;
+const created: string[] = [];
+before(() => { delete process.env.HULY_DOWNLOAD_ROOT; });
+after(() => {
+    if (savedRoot !== undefined) process.env.HULY_DOWNLOAD_ROOT = savedRoot;
+    for (const dir of created) rmSync(dir, { recursive: true, force: true });
+});
+
 function tempDir(): string {
-    return mkdtempSync(join(tmpdir(), 'huly-task-detail-'));
+    const dir = mkdtempSync(join(tmpdir(), 'huly-task-detail-'));
+    created.push(dir);
+    return dir;
 }
 
 function inside(dir: string, path: string): boolean {
@@ -320,15 +332,15 @@ test('TC-4.3 unknown size or type is omitted, large sizes use MB', () => {
     assert.match(big, /5(\.0)? MB/);
 });
 
-// --- AC-3: the web link of the task ----------------------------------------
+// --- AC-9: the web link of the task ----------------------------------------
 
-test('TC-3.5 task detail carries the web link of the issue', async () => {
+test('TC-9.1 task detail carries the web link of the issue', async () => {
     const { source } = fakeSource();
     const detail = await buildTaskDetail(source, TASK);
     assert.equal(detail.url, 'https://huly.example.com/workbench/demo/tracker/DELTA-42');
 });
 
-test('TC-3.6 a failing link lookup yields url null and keeps the rest of the detail', async () => {
+test('TC-9.2 a failing link lookup yields url null and keeps the rest of the detail', async () => {
     const { source } = fakeSource({ markdown: 'body', urlError: new Error('account service down') });
     const detail = await buildTaskDetail(source, TASK);
     assert.equal(detail.url, null);

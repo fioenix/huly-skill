@@ -57,4 +57,9 @@ program.addCommand(commentsCommand());
 program.addCommand(kindsCommand());
 program.addCommand(usersCommand());
 
-program.parse(process.argv);
+// Exit once the command has finished and its output is flushed: a lookup left
+// waiting on an unresponsive server (the task link after a create) must not
+// keep the process, and whoever waits for it, hanging.
+program.parseAsync(process.argv).then(() => {
+    process.stdout.write('', () => process.exit(process.exitCode ?? 0));
+});
