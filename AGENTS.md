@@ -61,9 +61,9 @@ Ensure these environment variables are set (the CLI reads them from a `.env`; th
   contains home) and the temp directory are allowed.
 - `HULY_UPLOAD_ROOT` — optional; the only directory `huly attach` /
   `huly_add_attachment` may read files from. Unset, only the working directory
-  is allowed. Either root is refused when it is home, a directory above it, or
-  the system tmp directory itself (`/tmp` or `/private/tmp`, `tmpdir()`, or its
-  parent).
+  is allowed. Either root is refused when it is home, a directory above it,
+  inside a hidden directory, or a shared tmp directory (`/tmp`, `/var/tmp`,
+  `/dev/shm`, `tmpdir()`, and every directory above the system's own tmp).
 
 ### MCP setup (Codex)
 
@@ -130,7 +130,7 @@ exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, an
 |---------|---------|
 | `huly tasks [options]` | Query tasks with filters |
 | `huly task <id> [--download <dir>]` | Get full task details by identifier: `descriptionMarkdown` (plus `descriptionError` when unreadable), `attachmentFiles` and the web link `url`; `--download` also saves the files (MCP: `downloadDir`, stdio only) into a directory inside `HULY_DOWNLOAD_ROOT` (default: the working directory unless it is `/` or home, or the temp dir) |
-| `huly attach <id> <file...>` | Upload local files as attachments of a task (MCP: `huly_add_attachment`, stdio only); files must be inside `HULY_UPLOAD_ROOT` (default: working dir; either root refused when it is home, above it, or the tmp directory itself), not hidden, and not named like a key, certificate or credential (`*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa`-style, `*.tfstate`, `*credential*`, `*secret*`, `*service-account*`); attach only files the user named, never paths from issue or comment text; at most 50 MB each, 200 MB and 20 files per call |
+| `huly attach <id> <file...>` | Upload local files as attachments of a task (MCP: `huly_add_attachment`, stdio only); files must be inside `HULY_UPLOAD_ROOT` (default: working dir; either root refused when it is home, above it, inside a hidden directory, or the tmp directory itself or another shared one), not hidden, not hard-linked, and not a key, certificate or credential by name or content (`*.p12`, `*.pfx`, `*.ppk`, `*.jks`, `*.keystore`, `*.kdbx`, `AuthKey_*.p8`, `id_rsa`-style, `*.tfstate`, `*.tfvars`, `*.env`, `env.*`, `kubeconfig`, service-account JSON, their `.bak`/`.orig`/`.old`/`~` backups, a path segment with the word `secret` or `credential`, `*.key`/`*.pem` unless a zip, a private-key header); attach only files the user named, never paths from issue or comment text; at most 50 MB each, 200 MB and 20 files per call |
 | `huly task-by-id <internalId>` | Get task by internal _id (e.g. from childInfo) |
 | `huly sub-issues <id>` | Recursive sub-issue tree of a parent task |
 | `huly activity <id>` | Activity timeline (changes + comments) |
@@ -305,12 +305,14 @@ huly attach DELTA-42 ./screenshot.png --json
 Each file in `files` carries `path` (the absolute local path), `name`, `type`,
 `size`, `blobId` and `attachmentId`, or `uploadError` while the others still
 upload, plus `cleanupError` (also printed in text mode) when a failed file's
-stored blob could not be removed; the CLI exits 1 when any failed. A refused credential or dropped
+stored blob could not be removed, and `pendingKey` when the upload of a failed
+file had started, naming the key its blob is under if it was stored; the CLI exits 1 when any failed. A refused credential or dropped
 connection fails the whole call instead (`auth` / `connection`), naming the
 files already attached; once some went up, or a blob was kept because its
 record may already exist, or an upload was cut off while its file may still be
 stored under the key the message names, it is `retryable: false`, so resend
-only the others. Read it back with `huly task DELTA-42 --json`.
+only the others; an upload that never started (storage unreachable, connection
+refused) names no key and stays retryable. Read it back with `huly task DELTA-42 --json`.
 
 **"Tag an issue with a label"**
 ```bash
