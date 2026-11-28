@@ -70,3 +70,16 @@ test('empty or whitespace fields falls back to the default set', () => {
 test('milestone listings leave out the ProseMirror description blob', () => {
     assert.equal(LIST_FIELDS.milestone.includes('description'), false);
 });
+
+test('team listings return counts by default, so one large department cannot flood the result', () => {
+    const people = Array.from({ length: 5000 }, (_, i) => ({ _id: `p${i}`, name: `Person ${i}`, active: true }));
+    const department = { _id: 'd1', name: 'Everyone', teamLead: null, managers: [people[0]], memberCount: people.length, members: people };
+    const project = { _id: 'pr1', identifier: 'ALL', name: 'All', owners: [people[0]], memberCount: people.length, members: people };
+    for (const [entity, row] of [['team', department], ['projectTeam', project]] as const) {
+        const shaped = shapeList([row], entity, { limit: 1 });
+        assert.equal((shaped.rows[0] as any).memberCount, 5000);
+        assert.equal('members' in (shaped.rows[0] as any), false, `${entity}: members only on request`);
+        const expanded = shapeList([row], entity, { limit: 1, fields: 'all' });
+        assert.equal((expanded.rows[0] as any).members.length, 5000);
+    }
+});

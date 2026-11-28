@@ -26,6 +26,7 @@ import { activityCommand } from './commands/activity.js';
 import { commentsCommand } from './commands/comments.js';
 import { kindsCommand } from './commands/kinds.js';
 import { usersCommand } from './commands/users.js';
+import { teamsCommand } from './commands/teams.js';
 
 const program = new Command();
 
@@ -58,5 +59,6 @@ program.addCommand(activityCommand());
 program.addCommand(commentsCommand());
 program.addCommand(kindsCommand());
 program.addCommand(usersCommand());
+program.addCommand(teamsCommand());
 
 program.parse(process.argv);

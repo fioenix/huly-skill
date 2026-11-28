@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { filterTeams } from '../utils/teams.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { withClient, HulyClient } from '../client.js';
 import {
@@ -129,6 +130,32 @@ export function registerHulyTools(server: McpServer): void {
             if (activeOnly) users = users.filter((u) => u.active === true);
             const { rows, total, truncated } = shapeList(users, 'user', args);
             return { count: rows.length, total, truncated, users: rows };
+        }),
+    );
+
+    server.registerTool(
+        'huly_list_teams',
+        {
+            title: 'List teams',
+            description: 'List teams: HR departments (teams in the Huly UI) with lead, managers and members, and optionally the members and owners of each tracker project. Department and project membership are separate in Huly and can disagree. Pass `name` to match one department, project name or project identifier. Returns `memberCount` by default; add `members` to `fields` (or pass `fields: "all"`) for the member list.',
+            inputSchema: z.object({
+                name: z.string().optional().describe('Department name, project name or project identifier, case-insensitive'),
+                includeProjects: z.boolean().optional().describe('Also return project membership (default: true when `name` is given, otherwise false)'),
+                ...listArgs('departments (and projects, separately)', 'team'),
+            }).strict(),
+        },
+        async ({ name, includeProjects, limit, fields }) => withHuly(async (client) => {
+            const teams = filterTeams(await client.getTeams(), name);
+            if (name && teams.departments.length === 0 && teams.projects.length === 0) {
+                throw hulyError('not_found', `No department or project named "${name}"`);
+            }
+            const deps = shapeList(teams.departments, 'team', { limit, fields });
+            const out: Record<string, unknown> = { count: deps.rows.length, total: deps.total, truncated: deps.truncated, departments: deps.rows };
+            if (includeProjects ?? Boolean(name)) {
+                const projs = shapeList(teams.projects, 'projectTeam', { limit, fields });
+                out.projects = { count: projs.rows.length, total: projs.total, truncated: projs.truncated, data: projs.rows };
+            }
+            return out;
         }),
     );
 

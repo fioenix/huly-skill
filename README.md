@@ -220,6 +220,7 @@ different ID in another project. Read the ID from the project you write to.
 ```bash
 huly users                            # Everyone in the workspace → IDs for --assignee
 huly users --active-only              # Active members only
+huly teams [name]                     # HR departments (teams) and members; a name adds that project's members
 ```
 
 ### Sub-issue tree
