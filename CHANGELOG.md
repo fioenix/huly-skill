@@ -5,6 +5,11 @@ which are released together under the same number.
 
 ## Unreleased
 
+### Fixed — heartbeats through `HTTPS_PROXY`
+- The proxy WebSocket passed `ws`'s `Buffer` messages straight to the Huly client,
+  which recognises its `ping`/`pong!` heartbeats only as strings or ArrayBuffers;
+  it now converts them as the upstream `NodeWebSocketFactory` does.
+
 ### Security — diagnostics show only the host's origin
 - `huly whoami` and `huly_whoami` printed `HULY_HOST` as configured, and
   `huly whoami --offline` echoed an invalid one in its warning; a host pasted with

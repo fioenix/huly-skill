@@ -108,3 +108,22 @@ test('the proxy socket keeps the WebSocket contract the Huly client relies on', 
         (process.stderr as any).write = original;
     }
 });
+
+test('a Buffer message reaches the Huly client as an ArrayBuffer, as the upstream factory delivers it', () => {
+    let handler: ((data: any) => void) | undefined;
+    class BufferWebSocket { readyState = 1; on(e: string, h: any) { if (e === 'message') handler = h; return this; } send() {} close() {} }
+    const original = process.stderr.write.bind(process.stderr);
+    (process.stderr as any).write = () => true;
+    try {
+        const client = createProxySocketFactory('http://127.0.0.1:3128', BufferWebSocket)!('wss://huly.example/t');
+        const received: any[] = [];
+        client.onmessage = (e: any) => received.push(e.data);
+        handler!(Buffer.from('pong!'));
+        handler!('ping');
+        assert.ok(received[0] instanceof ArrayBuffer, 'Huly matches heartbeats only on strings and ArrayBuffers');
+        assert.equal(new TextDecoder().decode(received[0]), 'pong!');
+        assert.equal(received[1], 'ping');
+    } finally {
+        (process.stderr as any).write = original;
+    }
+});
