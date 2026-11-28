@@ -5,6 +5,13 @@ which are released together under the same number.
 
 ## Unreleased
 
+### Security — diagnostics show only the host's origin
+- `huly whoami` and `huly_whoami` printed `HULY_HOST` as configured, and
+  `huly whoami --offline` echoed an invalid one in its warning; a host pasted with
+  a token or `user:pass@` in it reached the output. All three now show the origin
+  only, and `huly_whoami` reports the credentials actually in scope (a caller's,
+  over HTTP) rather than the process environment.
+
 ### Changed — certificates are verified behind `HTTPS_PROXY`, which can reject a previously working proxy setup
 - With `HTTPS_PROXY` set, the CLI and MCP server used to set
   `NODE_TLS_REJECT_UNAUTHORIZED=0` and open the Huly WebSocket with
