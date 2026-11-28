@@ -429,7 +429,8 @@ ${n().trim()}
 `}z(c)})}catch(e){q()?j(ne(e)):console.error(`\u274C Error: ${e.message}`),process.exitCode=ae(e)}})}Ns();function Zpe(){return new Re("task").description("Get task details by ID").argument("<taskId>","Task identifier (e.g., DELTA-123)").option("--download <dir>","Also save every attachment into this directory and report each localPath").action(async(t,e)=>{try{await ge(async r=>{let n=await r.getTask(t);if(!n){q()?j(ne(At("not_found",`Task not found: ${t}`))):console.error(`\u274C Task not found: ${t}`),process.exitCode=xs.not_found;return}let i=await H0e(r,n,{downloadDir:e.download});if(q()){j({status:"ok",data:i});return}let s=await Sc(r),o=await Ts(r),a=s.get(i.space),u=o.get(i.status),c="Unassigned";if(i.assignee){let f=(await r.getPersons()).find(d=>d._id===i.assignee);f&&(c=f.name||f.displayName||i.assignee)}let l=`\u{1F4CB} TASK: ${i.identifier}
 
 `;l+=`\u{1F4CC} Title: ${i.title||"N/A"}
-`,l+=`\u{1F4C1} Project: ${a?.identifier||"Unknown"} - ${a?.name||"Unknown"}
+`,i.url&&(l+=`\u{1F517} Link: ${i.url}
+`),l+=`\u{1F4C1} Project: ${a?.identifier||"Unknown"} - ${a?.name||"Unknown"}
 `,l+=`\u{1F4CA} Status: ${u?.name||"Unknown"}
 `,l+=`\u{1F3AF} Priority: ${ss[i.priority]||"NONE"}
 `,l+=`\u{1F464} Assignee: ${c}

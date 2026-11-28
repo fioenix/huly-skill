@@ -43,6 +43,7 @@ export function getTaskCommand() {
 
                     let output = `📋 TASK: ${task.identifier}\n\n`;
                     output += `📌 Title: ${task.title || 'N/A'}\n`;
+                    if (task.url) output += `🔗 Link: ${task.url}\n`;
                     output += `📁 Project: ${project?.identifier || 'Unknown'} - ${project?.name || 'Unknown'}\n`;
                     output += `📊 Status: ${status?.name || 'Unknown'}\n`;
                     output += `🎯 Priority: ${PRIORITY_LABELS[task.priority] || 'NONE'}\n`;
