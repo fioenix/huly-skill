@@ -331,10 +331,10 @@ async function readAllowed(input: string, roots: string[], caps: UploadLimits, u
         throw hulyError('invalid_input', `${input} is a hidden file or inside a hidden directory`);
     }
     // The name as given and the name it resolves to, so a link cannot rename a key.
-    const secret = secretPattern(basename(path)) ?? secretPattern(basename(real));
-    if (secret) {
-        throw hulyError('invalid_input', `${input} looks like a key, certificate or credential file (${secret}) and is never uploaded`);
-    }
+    const givenRel = relativeToRoot(path, roots);
+    const segments = [...rel.split(sep), ...(givenRel ? givenRel.split(sep) : [basename(path)])];
+    const secret = secretName([basename(path), basename(real)], segments);
+    if (secret && !secret.byContent) throw secretFile(input, secret.label);
 
     // The real path is opened without following a final symlink, so swapping
     // the file for one after the check fails instead of reading elsewhere.
@@ -355,6 +355,10 @@ async function readAllowed(input: string, roots: string[], caps: UploadLimits, u
         // A file that grew after fstat is judged by what was actually read.
         if (data.byteLength > cap) throw overCap(input, data.byteLength, cap);
         if (data.byteLength > left) throw overTotal(caps.maxTotalBytes);
+        if (PRIVATE_KEY_HEADER.test(data.subarray(0, 4096).toString('latin1'))) {
+            throw hulyError('invalid_input', `${input} holds a private key and is never uploaded`);
+        }
+        if (secret && !data.subarray(0, 4).equals(ZIP_HEADER)) throw secretFile(input, secret.label);
         const name = basename(path);
         return { path, name, type: mimeTypeFor(name), size: data.byteLength, lastModified: Math.round(stat.mtimeMs), data };
     } finally {
@@ -365,17 +369,44 @@ async function readAllowed(input: string, roots: string[], caps: UploadLimits, u
 /**
  * Base names refused as likely secrets, case-insensitively, even when not
  * hidden: an agent's working directory is often a repository holding them.
- * Kept short and listed in the docs; a name can still hide a secret.
+ * A key file's backup (`.bak`, `.orig`, `.old`, `~`) counts as the key.
+ * `*.key` and `*.pem` are judged by content instead (`byContent`): an Apple
+ * Keynote file is a zip and passes. Kept short and listed in the docs; a name
+ * can still hide a secret, so a private-key header is refused whatever the name.
  */
-const SECRET_NAMES: { label: string; pattern: RegExp }[] = [
-    { label: '*.pem, *.key, *.p12, *.pfx', pattern: /\.(pem|key|p12|pfx)$/i },
+const BACKUP = String.raw`(\.bak|\.orig|\.old|~)?$`;
+const SECRET_NAMES: { label: string; pattern: RegExp; byContent?: boolean }[] = [
+    { label: '*.p12, *.pfx, *.ppk, *.jks, *.keystore, *.kdbx', pattern: new RegExp(String.raw`\.(p12|pfx|ppk|jks|keystore|kdbx)${BACKUP}`, 'i') },
+    { label: 'AuthKey_*.p8', pattern: new RegExp(String.raw`^authkey_.*\.p8${BACKUP}`, 'i') },
     { label: 'id_rsa, id_dsa, id_ecdsa, id_ed25519', pattern: /^id_(rsa|dsa|ecdsa|ed25519)(?!.*\.pub$)/i },
-    { label: '*.tfstate', pattern: /\.tfstate(\.|$)/i },
-    { label: 'credential, secret, service-account', pattern: /credential|secret|service[-_]?account/i },
+    { label: '*.tfstate, *.tfvars', pattern: new RegExp(String.raw`\.tfstate(\.|$)|\.tfvars(\.json)?${BACKUP}`, 'i') },
+    // `env.d.ts`, `env.example` and the like are code or templates, not secrets.
+    { label: '*.env, env.*', pattern: new RegExp(String.raw`\.env${BACKUP}|^env\.(?!(example|sample|template|dist|md|txt|ts|js|mjs|cjs|py|rb|go|rs)$)[a-z0-9_-]+${BACKUP}`, 'i') },
+    { label: 'kubeconfig', pattern: new RegExp(String.raw`^kubeconfig(\.ya?ml)?${BACKUP}`, 'i') },
+    { label: 'service-account *.json', pattern: /service[-_]?account.*\.json$/i },
+    { label: '*.key, *.pem', pattern: new RegExp(String.raw`\.(key|pem)${BACKUP}`, 'i'), byContent: true },
 ];
 
-function secretPattern(name: string): string | null {
-    return SECRET_NAMES.find((s) => s.pattern.test(name))?.label ?? null;
+/** Whole words only, on every segment below the root: `secrets/db.yaml`, `client_secret.json`, not `secretary-notes.md`. */
+const SECRET_WORDS = { label: 'secret, credential', pattern: /secrets?(?![a-z])|credentials?(?![a-z])/i };
+
+const PRIVATE_KEY_HEADER = /^\s*-----BEGIN [A-Z0-9 ]*PRIVATE KEY( BLOCK)?-----/;
+const ZIP_HEADER = Buffer.from('PK\x03\x04', 'latin1');
+
+/** The first rule a name or segment breaks; a rule judged by content only when no other one applies. */
+function secretName(names: string[], segments: string[]): { label: string; byContent: boolean } | null {
+    if (segments.some((segment) => SECRET_WORDS.pattern.test(segment))) return { label: SECRET_WORDS.label, byContent: false };
+    const hits = SECRET_NAMES.filter((s) => names.some((name) => s.pattern.test(name)));
+    const strict = hits.find((s) => !s.byContent);
+    if (strict) return { label: strict.label, byContent: false };
+    return hits.length > 0 ? { label: hits[0].label, byContent: true } : null;
+}
+
+function secretFile(input: string, label: string) {
+    return hulyError(
+        'invalid_input',
+        `${input} looks like a key, certificate or credential file (${label}) and is never uploaded; if it is not a secret, rename it or zip it`,
+    );
 }
 
 function relativeToRoot(real: string, roots: string[]): string | null {

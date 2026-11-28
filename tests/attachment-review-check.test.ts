@@ -263,6 +263,73 @@ for (const name of ['credentials.json', 'AWS_Credential.txt', 'secrets.yaml', 'c
     test(`a name containing credential, secret or service-account (${name}) is refused`, () => refusedAsSecret(name));
 }
 
+// --- Review round 2, N5 and N6: more secrets refused, fewer ordinary files ---
+
+function fileIn(rel: string, content: string | Buffer): string {
+    const [seed] = filesIn(['seed.txt']);
+    const path = join(dirname(seed), rel);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, content);
+    return path;
+}
+
+const ZIP = Buffer.concat([Buffer.from('PK\x03\x04', 'latin1'), Buffer.alloc(32)]);
+const PRIVATE_KEY = '-----BEGIN OPENSSH PRIVATE KEY-----\nAAAAsynthetic\n-----END OPENSSH PRIVATE KEY-----\n';
+
+for (const name of [
+    'key.pem.bak', 'server.key.orig', 'cert.p12.old', 'deploy.pem~',
+    'terraform.tfvars', 'prod.tfvars.json', 'prod.env', 'env.production',
+    'AuthKey_ABC123.p8', 'putty.ppk', 'release.jks', 'app.keystore', 'vault.kdbx', 'kubeconfig',
+    'my_secret_key.txt', 'Secret.txt', 'credential.txt',
+]) {
+    test(`a likely secret (${name}) is refused`, () => refusedAsSecret(name));
+}
+
+test('a file inside a secrets or credentials directory is refused', async () => {
+    for (const rel of [join('secrets', 'db.yaml'), join('config', 'credentials', 'prod.yaml')]) {
+        const path = fileIn(rel, 'x');
+        await assert.rejects(prepareUploads([path]), (e: any) => /looks like a key, certificate or credential/.test(e.message));
+    }
+});
+
+test('a file whose content is a private key is refused whatever its name', async () => {
+    for (const content of [PRIVATE_KEY, `\n  ${PRIVATE_KEY}`, '-----BEGIN RSA PRIVATE KEY-----\nx\n', '-----BEGIN PGP PRIVATE KEY BLOCK-----\nx\n']) {
+        const path = fileIn('notes.txt', content);
+        await assert.rejects(prepareUploads([path]), (e: any) => {
+            assert.equal(e.code, 'invalid_input');
+            assert.match(e.message, /holds a private key/);
+            assert.ok(!e.message.includes('synthetic'));
+            return true;
+        });
+    }
+});
+
+test('a .key file with a zip header (Apple Keynote) passes; one without it is refused', async () => {
+    const deck = fileIn('deck.key', ZIP);
+    assert.deepEqual((await prepareUploads([deck])).map((f) => f.name), ['deck.key']);
+    const server = fileIn('server.key', 'not a zip');
+    await assert.rejects(prepareUploads([server]), (e: any) => /looks like a key, certificate or credential/.test(e.message));
+});
+
+test('a .pem file is refused even with a zip header when it is a backup of another rule', async () => {
+    // A zip header lets only *.key and *.pem (and their backups) through.
+    const pem = fileIn('bundle.pem.bak', ZIP);
+    assert.deepEqual((await prepareUploads([pem])).map((f) => f.name), ['bundle.pem.bak']);
+    const p12 = fileIn('cert.p12', ZIP);
+    await assert.rejects(prepareUploads([p12]), (e: any) => /looks like a key/.test(e.message));
+});
+
+test('the refusal says how to send a file that is not a secret', async () => {
+    const path = fileIn('server.key', 'x');
+    await assert.rejects(prepareUploads([path]), (e: any) => /rename it or zip it/.test(e.message));
+});
+
+test('ordinary names that merely contain secret, credential or service-account pass', async () => {
+    const names = ['secretary-notes.md', 'credentialing-process.docx', 'service-account-setup-guide.md', 'env.d.ts', 'environment.md'];
+    const files = await prepareUploads(filesIn(names));
+    assert.deepEqual(files.map((f) => f.name), names);
+});
+
 test('a symlink with an ordinary name pointing at a key file is refused', async () => {
     const [key] = filesIn(['deploy.pem']);
     const link = join(dirname(key), 'notes.txt');
