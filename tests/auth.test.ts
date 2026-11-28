@@ -126,6 +126,23 @@ test('a host with a path, query, fragment or userinfo is refused', () => {
     }
 });
 
+// The allowlist compares origins: another scheme or port is another host, while
+// IPv6 and IDN spellings of one origin are the same host.
+test('host matching compares normalized origins and fails closed', () => {
+    const error = (host: string) => credentialsError({ token: 'caller-token', host, workspace: 'ws' });
+    assert.match(error('http://env.example.com') ?? '', /not an allowed host/);
+    assert.match(error('https://env.example.com:8443') ?? '', /not an allowed host/);
+
+    process.env.HULY_MCP_ALLOWED_HOSTS = 'http://[::1]:8080, https://bücher.example';
+    assert.equal(runWithCredentials({ token: 'caller-token', host: 'http://[0:0:0:0:0:0:0:1]:8080', workspace: 'ws' }, getHost), 'http://[::1]:8080');
+    assert.equal(runWithCredentials({ token: 'caller-token', host: 'https://BÜCHER.example', workspace: 'ws' }, getHost), 'https://xn--bcher-kva.example');
+
+    delete process.env.HULY_MCP_ALLOWED_HOSTS;
+    assert.match(error('https://caller.example.com') ?? '', /not an allowed host/);
+    delete process.env.HULY_HOST;
+    assert.match(error('https://env.example.com') ?? '', /not an allowed host/);
+});
+
 // The HTTP transport turns an empty header into "absent"; a direct caller of
 // runWithCredentials gets the same reading rather than a looser one.
 test('an empty or blank token or workspace counts as absent', () => {
