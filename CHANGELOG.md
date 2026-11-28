@@ -62,6 +62,13 @@ which are released together under the same number.
   and static policy checks. These checks do not prove model resistance or replace
   a fresh platform security audit.
 
+### Docs — the eval suite covers every content source, and README names both token routes
+- `evals/security/workspace-content.json` adds synthetic cases for an attachment
+  name, a label title and a milestone description; `tests/skill-boundary.test.ts`
+  requires those sources too.
+- README no longer says a token can only come from an admin: a member's own
+  session token works, as `references/setup.md` already documented.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse

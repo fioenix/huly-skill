@@ -32,7 +32,7 @@ test('synthetic evaluation suite covers each source and bounded legitimate actio
     const suite = JSON.parse(read('evals/security/workspace-content.json'));
     const ids = suite.cases.map((c: { id: string }) => c.id);
     assert.equal(new Set(ids).size, ids.length, 'scenario ids must be unique');
-    for (const source of ['task', 'comment', 'activity', 'document', 'staged', 'write-result']) {
+    for (const source of ['task', 'comment', 'activity', 'document', 'attachment', 'label', 'milestone', 'staged', 'write-result']) {
         assert.ok(suite.cases.some((c: { source: string }) => c.source === source), `missing ${source}`);
     }
     for (const category of ['mutation', 'sharing', 'credentials', 'shell', 'role-spoofing', 'encoded', 'authorized-write', 'summary']) {

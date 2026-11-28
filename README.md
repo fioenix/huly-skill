@@ -115,7 +115,7 @@ export HULY_API_KEY="your-api-token"
 
 - **HULY_HOST**: Your Huly instance URL
 - **HULY_WORKSPACE_ID**: Found in Huly Settings > Workspace
-- **HULY_API_KEY**: issued from the workbench's workspace settings, admin-only — see below
+- **HULY_API_KEY**: your own session token, or one an admin issues from workspace settings — see below
 
 ### About the token
 
@@ -136,17 +136,21 @@ Consequences worth knowing before you share one:
 - **It carries no `exp` claim**, so it stays valid until the server's signing
   secret changes. Treat it like a password.
 
-**Where a token comes from.** In the Huly workbench, API access tokens are
-issued from the workspace settings area (Settings → General). That area is
-restricted to workspace admins, so an ordinary member cannot mint one — on a
-team, expect to ask an admin.
+**Where a token comes from.** Two routes
+([details](./skills/huly-skill/references/setup.md#where-the-token-comes-from)):
+
+- **Your own session token** — every member already has one after logging in,
+  including through SSO and 2FA; it can be read from the browser. No admin is
+  needed, and attribution is correct because the token is yours.
+- **An issued token** — workspace settings (Settings → General → Generate API
+  token). That screen is restricted to workspace admins.
 
 Two things follow, and they pull against each other:
 
 - A token identifies **one account**, so correct attribution wants one token per
   person.
-- Issuing tokens is **admin-only**, so getting one per person needs an admin to
-  issue each of them.
+- Issuing tokens is **admin-only**, so one issued token per person needs an
+  admin for each of them — or each person uses their own session token.
 
 If your admin issues a single token for everyone to share, every task will carry
 that admin's name and that admin's role — usually `OWNER`. That is a workable
