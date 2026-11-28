@@ -86,6 +86,41 @@ which are released together under the same number.
 - README no longer says a token can only come from an admin: a member's own
   session token works, as `references/setup.md` already documented.
 
+### Fixed — label pills showed the label id instead of its name
+- `labels assign` (MCP `huly_assign_label`) wrote the label's `_id` as the
+  `title` of the `TagReference` whenever no title was passed. The Huly UI draws
+  the pill from the reference's own `title` and `color`, not from the label it
+  points at, so every label assigned that way showed up as a 24-character hex id
+  in the default color. The title and color now default to the label's own.
+- Assigning a label the task already has no longer adds a second reference. The
+  result reports `alreadyAssigned` instead.
+- The duplicate check and the insert are not atomic, so two calls racing on the
+  same task could both insert. After inserting, `assign` re-reads the task's
+  references and removes all but the oldest for that label; a racing caller
+  picks the same survivor, so both converge on one reference. The cleanup also
+  runs when the label was already assigned, so a retry after a cleanup that never
+  finished still removes the duplicate. When the label was already there, the
+  result reports the title and color of the reference that stays. `labels repair` keeps the oldest too, so
+  the two paths agree.
+
+### Changed — assigning a label id that does not exist is rejected
+- `labels assign` / `huly_assign_label` with an unknown label id now fails with
+  `not_found` instead of writing a reference to nothing. So does an id of a tag
+  that is not an issue label (a contact skill, say). **This rejects a call that
+  previously "succeeded".**
+- `labels create` and `labels assign` reject a `--color` that is not an integer
+  from 0 to 15 with `invalid_input`; before, `--color red` wrote `NaN`.
+
+### Added — `labels unassign` and `labels repair`
+- `huly labels unassign <taskId> <labelId>` / `huly_unassign_label` removes a
+  label from a task.
+- `huly labels repair <taskId...>` / `huly_repair_labels` rewrites references
+  whose title or color does not match their label and drops duplicate
+  references to the same label. References to labels that no longer exist are
+  left alone. It resolves every task id before writing anything, and fails with
+  `not_found` (and a non-zero exit) naming the ids that do not exist. The
+  planning steps are pure functions covered by `tests/labels.test.ts`.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse
