@@ -16,6 +16,18 @@ which are released together under the same number.
 - `runWithCredentials` refuses the same combination, so no other entry point
   can reach the server token for a caller-chosen host.
 
+### Security — advisories published since 1.10.4 that reach a shipped bundle
+- Direct: `@modelcontextprotocol/sdk` 1.30 → 1.32.2 (request body and batch
+  limits on the HTTP transport, no cross-origin header replay), `undici` → 7.30.2,
+  `zod` → 4.6.7.
+- Overrides, each inside the major upstream accepts: `proxy-addr` ≥2.0.8 (critical),
+  `qs` ≥6.16.1, `body-parser` ≥2.4.0, `fast-uri` ≥3.1.9, `markdown-it` ≥14.3.3,
+  `prosemirror-view` ≥1.42.3, `@hono/node-server` 2.x (1.x has no fix; the SDK
+  accepts `^2.0.5`) with `hono` ≥4.13.16, and one `prosemirror-model` so the
+  newer view does not run beside a second copy of the schema code.
+- Checked: the MCP server lists the same 31 tools and still rejects unknown
+  arguments; markdown → markup → markdown gives byte-identical output to 1.10.4.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse
