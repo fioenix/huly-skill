@@ -37,6 +37,13 @@ before(async () => {
         if (req.body?.failWithUnicodeBreaks) {
             throw new Error(['a', NEL, '[huly-mcp] forged NEL', LS, '[huly-mcp] forged LS', PS, 'b', CSI, '31m csi'].join(''));
         }
+        if (req.body?.failWithAggregate) {
+            // Node's fetch across ::1 and 127.0.0.1: the cause has no message of its own.
+            throw new Error('fetch failed', {
+                cause: new AggregateError([new Error('connect ECONNREFUSED ::1:3000'), new Error('connect ECONNREFUSED 127.0.0.1:3000')]),
+            });
+        }
+        if (req.body?.failWithEmptyCause) throw new Error('fetch failed', { cause: new Error('') });
         const delay = Number(req.body?.delay ?? 0);
         if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
         const scope = { token: getApiKey(), host: getHost(), workspace: getWorkspaceId() };
@@ -201,6 +208,30 @@ test('the logged error drops Unicode line breaks and C1 controls too', async () 
             assert.equal(line.includes(char), false, `U+${char.charCodeAt(0).toString(16).padStart(4, '0')} reached the log`);
         }
         assert.match(line, /a \[huly-mcp\] forged NEL \[huly-mcp\] forged LS b 31m csi\n$/);
+    } finally {
+        stderr.mock.restore();
+    }
+});
+
+// A dual-stack connect failure carries the real errors in AggregateError.errors.
+test('the logged error lists the errors of an AggregateError cause', async () => {
+    const stderr = mock.method(process.stderr, 'write', () => true);
+    try {
+        const res = await post({}, { failWithAggregate: true });
+        assert.equal(res.status, 500);
+        const line = String(stderr.mock.calls[0].arguments[0]);
+        assert.match(line, /fetch failed; cause: connect ECONNREFUSED ::1:3000, connect ECONNREFUSED 127\.0\.0\.1:3000\n$/);
+    } finally {
+        stderr.mock.restore();
+    }
+});
+
+test('a cause with no text leaves no empty cause: in the log', async () => {
+    const stderr = mock.method(process.stderr, 'write', () => true);
+    try {
+        const res = await post({}, { failWithEmptyCause: true });
+        assert.equal(res.status, 500);
+        assert.match(String(stderr.mock.calls[0].arguments[0]), /: fetch failed\n$/);
     } finally {
         stderr.mock.restore();
     }

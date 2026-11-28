@@ -137,9 +137,13 @@ function logFailure(e: unknown): void {
         return typeof message === 'string' ? message : String(value ?? '');
     };
     // Node's network errors put the useful part in `cause` (`fetch failed` alone
-    // says nothing).
+    // says nothing); a dual-stack connect failure makes it an AggregateError
+    // with no message of its own and the real errors in `errors`.
     const cause = (e as { cause?: unknown })?.cause;
-    const text = [messageOf(e), cause ? `cause: ${messageOf(cause)}` : ''].filter(Boolean).join('; ');
+    const errors = (cause as { errors?: unknown })?.errors;
+    const causeText = (cause ? messageOf(cause) : '')
+        || (Array.isArray(errors) ? errors.map(messageOf).filter(Boolean).join(', ') : '');
+    const text = [messageOf(e), causeText ? `cause: ${causeText}` : ''].filter(Boolean).join('; ');
     process.stderr.write(`[huly-mcp] request failed (${classifyError(e)}): ${logSafe(text)}\n`);
 }
 
