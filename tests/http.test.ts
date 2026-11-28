@@ -4,8 +4,8 @@ import crypto from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 
-import { createHttpApp, listenHost, type McpRequestHandler } from '../src/mcp/http.js';
-import { getApiKey, getHost, getWorkspaceId } from '../src/utils/auth.js';
+import { createHttpApp, listenAddress, listenHost, type McpRequestHandler } from '../src/mcp/http.js';
+import { allowedHostsWarning, getApiKey, getHost, getWorkspaceId } from '../src/utils/auth.js';
 
 // The credential boundary of the HTTP transport, tested through a real express
 // server. The MCP handler is a stub that reports the credentials in scope, so a
@@ -25,6 +25,12 @@ before(async () => {
 
     const app = createHttpApp(async (req, res) => {
         if (req.body?.fail) throw new Error('ECONNREFUSED 10.0.0.7:4000 at /srv/huly/secret-path');
+        if (req.body?.failWithSecrets) {
+            throw new Error(
+                'socket failed wss://transactor.example/eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.c2lnbmF0dXJlX3Rlc3Q at https://u:p@host.example/x?token=abc\n[huly-mcp] forged line',
+                { cause: new Error('ECONNRESET https://cause.example/path?token=zzz') },
+            );
+        }
         const delay = Number(req.body?.delay ?? 0);
         if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
         const scope = { token: getApiKey(), host: getHost(), workspace: getWorkspaceId() };
@@ -99,6 +105,13 @@ for (const [name, url] of [
     ['an allowed host as userinfo of another', 'https://caller.example@attacker.example'],
     ['a non-HTTP scheme', 'file:///etc/passwd'],
     ['a value that is not a URL', 'caller.example'],
+    // The origin matches, but whatever follows it would reach the connection:
+    // a path or query re-targets `<host>/config.json`, userinfo reaches fetch.
+    ['a path on the server host', 'https://env.example.com/evil'],
+    ['a query that swallows /config.json', 'https://env.example.com/?x='],
+    ['a fragment that swallows /config.json', 'https://env.example.com/#x'],
+    ['userinfo on an allowed host', 'https://user:secret@caller.example'],
+    ['a backslash path on the server host', 'https://env.example.com\\evil'],
 ] as const) {
     test(`${name} as x-huly-url is refused with 400 before the handler`, async () => {
         const res = await post({ 'x-huly-url': url, 'x-huly-token': 'caller-token', 'x-huly-workspace': 'caller-ws' });
@@ -108,6 +121,35 @@ for (const [name, url] of [
     });
 }
 
+// What reaches getHost() — and the connection — is the origin that was checked,
+// never the raw header.
+test('an accepted x-huly-url is reduced to its origin before it is used', async () => {
+    const res = await post({ 'x-huly-url': ' HTTPS://Caller.Example:443/ ', 'x-huly-token': 'caller-token', 'x-huly-workspace': 'caller-ws' });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).host, 'https://caller.example');
+});
+
+test('every origin in HULY_MCP_ALLOWED_HOSTS is accepted, trailing slash or not', async () => {
+    const res = await post({ 'x-huly-url': 'https://other.example', 'x-huly-token': 'caller-token', 'x-huly-workspace': 'caller-ws' });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).host, 'https://other.example');
+});
+
+function postRaw(url: string, body: string, headers: Record<string, string> = {}) {
+    return fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body });
+}
+
+// Express's default error page is HTML with a stack trace outside production.
+test('a malformed JSON body is answered with a JSON 400 and no stack trace', async () => {
+    const res = await postRaw(`${base}/mcp`, '{');
+    assert.equal(res.status, 400);
+    assert.match(res.headers.get('content-type') ?? '', /application\/json/);
+    const text = await res.text();
+    assert.deepEqual(JSON.parse(text), { error: 'Invalid JSON' });
+    assert.doesNotMatch(text, /node_modules|at .*\(/);
+    assert.equal(res.headers.get('x-powered-by'), null);
+});
+
 test('an error inside the handler is answered 500 without its message', async () => {
     const stderr = mock.method(process.stderr, 'write', () => true);
     try {
@@ -116,6 +158,26 @@ test('an error inside the handler is answered 500 without its message', async ()
         const text = await res.text();
         assert.doesNotMatch(text, /ECONNREFUSED|10\.0\.0\.7|secret-path/);
         assert.deepEqual(JSON.parse(text), { error: 'Internal error' });
+        assert.equal(stderr.mock.callCount(), 1, 'the detail goes to the operator log once');
+        assert.match(String(stderr.mock.calls[0].arguments[0]), /request failed .*ECONNREFUSED/);
+    } finally {
+        stderr.mock.restore();
+    }
+});
+
+// SECURITY.md puts a token reaching stderr in scope: a Huly WebSocket URL carries
+// the JWT in its path, and a host may carry user:pass@ or ?token=.
+test('the logged error keeps only URL origins, masks JWTs and stays on one line', async () => {
+    const stderr = mock.method(process.stderr, 'write', () => true);
+    try {
+        const res = await post({}, { failWithSecrets: true });
+        assert.equal(res.status, 500);
+        const line = String(stderr.mock.calls[0].arguments[0]);
+        assert.doesNotMatch(line, /eyJ|token=|u:p@|\/x\?|zzz|\/path/);
+        assert.match(line, /wss:\/\/transactor\.example/);
+        assert.match(line, /https:\/\/host\.example/);
+        assert.match(line, /ECONNRESET https:\/\/cause\.example/, 'the cause is logged too');
+        assert.equal(line.indexOf('\n'), line.length - 1, 'one line, ended by its own newline');
     } finally {
         stderr.mock.restore();
     }
@@ -195,4 +257,59 @@ test('with an auth token the server keeps listening on every interface', () => {
 test('HULY_MCP_HOST chooses the bind address explicitly either way', () => {
     assert.equal(listenHost({ HULY_MCP_HOST: '0.0.0.0' }), '0.0.0.0');
     assert.equal(listenHost({ HULY_MCP_HOST: '::1', HULY_MCP_AUTH_TOKEN: 'secret' }), '::1');
+});
+
+test('HULY_MCP_HOST is trimmed, and a blank one counts as unset', () => {
+    assert.equal(listenHost({ HULY_MCP_HOST: ' 0.0.0.0 ' }), '0.0.0.0');
+    assert.equal(listenHost({ HULY_MCP_HOST: '   ' }), '127.0.0.1');
+});
+
+test('a blank auth token does not open every interface', () => {
+    assert.equal(listenHost({ HULY_MCP_AUTH_TOKEN: '   ' }), '127.0.0.1');
+});
+
+test('the listening line brackets an IPv6 address', () => {
+    assert.equal(listenAddress('::1', 3000), '[::1]:3000');
+    assert.equal(listenAddress('127.0.0.1', 3000), '127.0.0.1:3000');
+    assert.equal(listenAddress(undefined, 3000), ':3000');
+});
+
+// A secret store or template that leaves only whitespace, or pads the secret,
+// would otherwise yield a guard nobody can pass (the HTTP parser trims the
+// header) or, trimmed silently, an open endpoint. Refusing to start says so.
+test('an auth token that is blank or padded with whitespace refuses to start', () => {
+    for (const value of ['   ', ' secret', 'secret\n']) {
+        process.env.HULY_MCP_AUTH_TOKEN = value;
+        try {
+            assert.throws(() => createHttpApp(async () => {}), /HULY_MCP_AUTH_TOKEN/);
+        } finally {
+            delete process.env.HULY_MCP_AUTH_TOKEN;
+        }
+    }
+});
+
+// The body is parsed only once the caller is through the Bearer guard.
+test('an unauthenticated malformed body is answered 401, not parsed', async () => {
+    await withGuardedApp(async (url) => {
+        const res = await postRaw(url, '{');
+        assert.equal(res.status, 401);
+        assert.deepEqual(await res.json(), { error: 'Unauthorized' });
+    });
+});
+
+test('an oversized body is answered with a JSON 413', async () => {
+    const res = await postRaw(`${base}/mcp`, JSON.stringify({ pad: 'x'.repeat(200 * 1024) }));
+    assert.equal(res.status, 413);
+    assert.deepEqual(await res.json(), { error: 'Request body too large' });
+});
+
+// --- HULY_MCP_ALLOWED_HOSTS ---------------------------------------------------
+
+test('entries of HULY_MCP_ALLOWED_HOSTS that are not origins are named at startup', () => {
+    const warning = allowedHostsWarning({ HULY_MCP_ALLOWED_HOSTS: 'huly.corp.example, https://ok.example,ftp://x.example, https://a:b@c.example' });
+    assert.match(warning ?? '', /entries 1, 3, 4/);
+    assert.match(warning ?? '', /http\(s\):\/\//);
+    assert.doesNotMatch(warning ?? '', /huly\.corp|a:b/, 'values are not echoed');
+    assert.equal(allowedHostsWarning({ HULY_MCP_ALLOWED_HOSTS: 'https://ok.example, ,https://two.example/' }), null);
+    assert.equal(allowedHostsWarning({}), null);
 });

@@ -386,7 +386,9 @@ sent to a host or used on a workspace the caller chose.
 `x-huly-url` must also be a host the deployment allows, because the server
 connects to it (its `/config.json`, then the endpoints listed there): the origin
 of `HULY_HOST`, or one listed in `HULY_MCP_ALLOWED_HOSTS` (comma-separated, e.g.
-`https://huly.app,https://huly.corp.example`). Any other value is refused with
+`https://huly.app,https://huly.corp.example` — full origins, not bare hostnames;
+an entry that is not one is named in a startup warning). Any other value, and
+any `x-huly-url` with a path, query, fragment or `user:pass@`, is refused with
 `400`. A host other than `HULY_HOST` also needs `x-huly-workspace`, so the
 server's own workspace id is never sent to it.
 

@@ -112,5 +112,30 @@ test('a caller host must be allowed and bring its own workspace', () => {
         /x-huly-url requires x-huly-workspace/,
     );
     assert.equal(credentialsError({ token: 'caller-token', host: 'https://env.example.com' }), null);
-    assert.match(credentialsError({ token: 'caller-token', host: 'javascript:alert(1)', workspace: 'ws' }) ?? '', /http\(s\) URL/);
+    assert.match(credentialsError({ token: 'caller-token', host: 'javascript:alert(1)', workspace: 'ws' }) ?? '', /http\(s\) origin/);
+});
+
+test('the host in scope is the checked origin, not the string passed in', () => {
+    const host = runWithCredentials({ token: 'caller-token', host: '  https://env.example.com  ' }, () => getHost());
+    assert.equal(host, 'https://env.example.com');
+});
+
+test('a host with a path, query, fragment or userinfo is refused', () => {
+    for (const host of ['https://env.example.com/sub', 'https://env.example.com?x=1', 'https://env.example.com/#f', 'https://a:b@caller.example.com']) {
+        assert.match(credentialsError({ token: 'caller-token', host, workspace: 'ws' }) ?? '', /x-huly-url/, host);
+    }
+});
+
+// The HTTP transport turns an empty header into "absent"; a direct caller of
+// runWithCredentials gets the same reading rather than a looser one.
+test('an empty or blank token or workspace counts as absent', () => {
+    assert.throws(
+        () => runWithCredentials({ token: '', host: 'https://caller.example.com', workspace: '' }, () => getApiKey()),
+        /requires x-huly-token/,
+    );
+    assert.throws(
+        () => runWithCredentials({ token: 'caller-token', host: 'https://caller.example.com', workspace: '  ' }, () => getWorkspaceId()),
+        /requires x-huly-workspace/,
+    );
+    assert.equal(runWithCredentials({ token: '  ' }, () => getApiKey()), 'env-token');
 });
