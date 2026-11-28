@@ -139,7 +139,8 @@ test('TC-5.3 over HTTP the server does not offer huly_add_attachment', async () 
 
 test('TC-5.5 over HTTP calling huly_add_attachment fails without reading any file', async () => {
     const dir = tempDir();
-    const path = join(dir, 'secret.txt');
+    // An ordinary name: one the name rule refuses would fail even if the tool were offered.
+    const path = join(dir, 'report.txt');
     writeFileSync(path, 'top secret');
     const server = await startHttp();
     const text = await server.post({

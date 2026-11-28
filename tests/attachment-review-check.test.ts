@@ -447,7 +447,7 @@ test('the text output names a stored file that could not be removed', async () =
     assert.doesNotMatch(text.split('\n').find((l) => l.includes('a.txt'))!, /could not be removed/);
 });
 
-test('ordinary files, including a public SSH key, still pass', async () => {
+test('report.pdf, keynote.txt, id_rsa.pub and minutes-notes.md pass the name rules', async () => {
     const files = await prepareUploads(filesIn(['report.pdf', 'keynote.txt', 'id_rsa.pub', 'minutes-notes.md']));
     assert.deepEqual(files.map((f) => f.name), ['report.pdf', 'keynote.txt', 'id_rsa.pub', 'minutes-notes.md']);
 });
