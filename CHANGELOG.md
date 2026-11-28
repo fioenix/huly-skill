@@ -95,9 +95,18 @@ which are released together under the same number.
   transaction (`TxApplyIf`), applied only while the task is still under the
   parent it was read from: a dropped connection leaves all of it or none of it,
   concurrent edits to the same parent cannot overwrite each other's count, and
-  a concurrent move of the same task fails with nothing written. A move that
-  turns out to be a no-op recounts the current parent from its children, which
-  repairs counters left stale by earlier versions.
+  a concurrent move of the same task, or of its new parent, fails with nothing
+  written. A move that turns out to be a no-op recounts the current parent from
+  its children, which repairs counters left stale by earlier versions.
+- A moved task is written as the Huly UI writes every issue: `attachedToClass`
+  Issue, `collection: 'subIssues'`. A task made top-level by `huly create task`
+  carries the project and `issues` instead, so without this it would vanish from
+  `sub-issues`, `tasks --parent` and the parent's count once moved.
+- The current parent comes from `parents`, falling back to `attachedTo`, so a
+  task whose `parents` drifted can still be detached or moved.
+- `milestones report` now counts issues attached to NoParent (made by the Huly
+  UI, or detached with `--no-parent`) as top-level epics, as it already did for
+  issues attached to the project.
 - Moving a task under itself, under one of its own descendants, or into another
   project is rejected with `invalid_input`. So is an empty parent id: only
   `--no-parent` or `parentId: null` detaches, so a blank value from a script

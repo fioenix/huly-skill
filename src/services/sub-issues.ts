@@ -1,6 +1,8 @@
 import { HulyClient } from '../client.js';
 import { getProjectMap, getStatusMap } from '../resolvers.js';
 import { isCompletedStatus } from './issues.js';
+import { isTopLevel } from '../utils/move.js';
+import { tracker } from '../huly-types.js';
 
 export interface SubIssueNode {
     identifier: string;
@@ -160,8 +162,8 @@ export interface MilestoneReportResult {
  * `milestoneId` is the internal milestone _id; resolving by name is left to
  * callers since milestone names are not unique across projects.
  *
- * "Epic" here means: any issue in the milestone whose `attachedTo === space`
- * (attached to the project, not to another issue). Everything else is a
+ * "Epic" here means: any top-level issue in the milestone, attached to the
+ * project (`huly create task`) or to NoParent (the Huly UI, `move --no-parent`). Everything else is a
  * sub-issue and is folded into its epic's tree if reachable, otherwise it's
  * surfaced as an orphan (parent outside this milestone).
  */
@@ -211,7 +213,7 @@ export async function getMilestoneReport(
         else if (statusName.toLowerCase().includes('progress')) inProgress++;
     }
 
-    const isEpic = (issue: any): boolean => issue.attachedTo === issue.space;
+    const isEpic = (issue: any): boolean => isTopLevel(issue, tracker.ids.NoParent);
 
     for (const issue of issues) {
         if (!isEpic(issue)) continue;

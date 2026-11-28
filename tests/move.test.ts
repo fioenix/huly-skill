@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyMove, planMove } from '../src/utils/move.ts';
+import { applyMove, currentParentId, isTopLevel, planMove } from '../src/utils/move.js';
 
 const NO_PARENT = 'tracker:ids:NoParent';
 const root = { _id: 'r', identifier: 'X-1', space: 'p', parents: [] };
@@ -45,7 +45,8 @@ test('a move is one transaction that adjusts both counters by $inc', async () =>
     });
     assert.deepEqual(calls, [
         ['match', { _id: 'a', attachedTo: 'r' }],
-        ['update', 'p', 'a', { attachedTo: 'o', rank: '0|i0000a:' }],
+        ['match', { _id: 'o', space: 'p', attachedTo: null }],
+        ['update', 'p', 'a', { attachedTo: 'o', attachedToClass: 'Issue', collection: 'subIssues', rank: '0|i0000a:' }],
         ['update', 'p', 'r', { $inc: { subIssues: -1 } }],
         ['update', 'p', 'o', { $inc: { subIssues: 1 } }],
         ['commit'],
@@ -55,10 +56,10 @@ test('a move is one transaction that adjusts both counters by $inc', async () =>
 test('detaching only decrements the old parent; attaching a root only increments the new one', async () => {
     const detach = recordingOps();
     await applyMove(detach.ops, { issueClass: 'Issue', task: { _id: 'a', identifier: 'X-2', space: 'p', attachedTo: 'r' }, attachedTo: NO_PARENT, oldParentId: 'r', newParent: null });
-    assert.deepEqual(detach.calls.filter((c) => c[0] === 'update').map((c) => c[3]), [{ attachedTo: NO_PARENT }, { $inc: { subIssues: -1 } }]);
+    assert.deepEqual(detach.calls.filter((c) => c[0] === 'update').map((c) => c[3]), [{ attachedTo: NO_PARENT, attachedToClass: 'Issue', collection: 'subIssues' }, { $inc: { subIssues: -1 } }]);
     const attach = recordingOps();
     await applyMove(attach.ops, { issueClass: 'Issue', task: { _id: 'o', identifier: 'X-4', space: 'p', attachedTo: NO_PARENT }, attachedTo: 'r', rank: 'x', oldParentId: null, newParent: { _id: 'r', space: 'p' } });
-    assert.deepEqual(attach.calls.filter((c) => c[0] === 'update').map((c) => c[3]), [{ attachedTo: 'r', rank: 'x' }, { $inc: { subIssues: 1 } }]);
+    assert.deepEqual(attach.calls.filter((c) => c[0] === 'update').map((c) => c[3]), [{ attachedTo: 'r', attachedToClass: 'Issue', collection: 'subIssues', rank: 'x' }, { $inc: { subIssues: 1 } }]);
 });
 
 test('a refused commit (the task moved meanwhile) is an error, not a silent success', async () => {
@@ -67,4 +68,43 @@ test('a refused commit (the task moved meanwhile) is an error, not a silent succ
         applyMove(ops, { issueClass: 'Issue', task: { _id: 'a', identifier: 'X-2', space: 'p', attachedTo: 'r' }, attachedTo: 'o', oldParentId: 'r', newParent: { _id: 'o', space: 'p' } }),
         /changed while it was being moved, so nothing was written/,
     );
+});
+
+test('a task created top-level by the CLI becomes a real sub-issue when moved', async () => {
+    // `huly create task` without --parent writes attachedTo=<project>, collection 'issues'.
+    const { ops, calls } = recordingOps();
+    await applyMove(ops, {
+        issueClass: 'Issue', task: { _id: 't', identifier: 'X-9', space: 'p', attachedTo: 'p' },
+        attachedTo: 'r', rank: 'x', oldParentId: null, newParent: { _id: 'r', space: 'p' },
+    });
+    const update = calls.find((c) => c[0] === 'update' && c[2] === 't')[3];
+    assert.equal(update.collection, 'subIssues', 'sub-issue queries filter on collection');
+    assert.equal(update.attachedToClass, 'Issue');
+});
+
+test('the commit is conditional on the new parent staying where it was read, and on a missing attachedTo too', async () => {
+    const { ops, calls } = recordingOps();
+    await applyMove(ops, {
+        issueClass: 'Issue', task: { _id: 'a', identifier: 'X-2', space: 'p' },
+        attachedTo: 'o', oldParentId: null, newParent: { _id: 'o', space: 'p', attachedTo: 'q' },
+    });
+    assert.deepEqual(calls.filter((c) => c[0] === 'match').map((c) => c[1]), [
+        { _id: 'a', attachedTo: null },
+        { _id: 'o', space: 'p', attachedTo: 'q' },
+    ]);
+});
+
+test('the current parent falls back to attachedTo when parents is empty, but not to the project or NoParent', () => {
+    assert.equal(currentParentId({ _id: 'a', identifier: 'X-2', space: 'p', attachedTo: 'r', parents: [] }, NO_PARENT), 'r');
+    assert.equal(currentParentId({ _id: 'a', identifier: 'X-2', space: 'p', attachedTo: 'p', parents: [] }, NO_PARENT), null);
+    assert.equal(currentParentId({ _id: 'a', identifier: 'X-2', space: 'p', attachedTo: NO_PARENT }, NO_PARENT), null);
+    assert.equal(currentParentId(b, NO_PARENT), 'a');
+    // A drifted doc (attachedTo set, parents empty) can still be detached.
+    assert.equal(planMove({ _id: 'a', identifier: 'X-2', space: 'p', attachedTo: 'r', parents: [] }, null, NO_PARENT).action, 'move');
+});
+
+test('top-level means attached to the project (huly create task) or to NoParent (the Huly UI, or a detached task)', () => {
+    assert.equal(isTopLevel({ space: 'p', attachedTo: 'p' }, NO_PARENT), true);
+    assert.equal(isTopLevel({ space: 'p', attachedTo: NO_PARENT }, NO_PARENT), true);
+    assert.equal(isTopLevel({ space: 'p', attachedTo: 'r' }, NO_PARENT), false);
 });

@@ -16,9 +16,28 @@ export type MovePlan =
     | { action: 'move'; attachedTo: string }
     | { action: 'noop'; reason: string };
 
+/**
+ * The issue's parent: `parents[0]`, else `attachedTo` unless that is the
+ * NoParent sentinel or the project itself (how `huly create task` attaches a
+ * top-level task). A doc whose `parents` drifted from `attachedTo` still
+ * resolves to its real parent.
+ */
+export function currentParentId(issue: MovableIssue, noParentId: string): string | null {
+    const fromParents = issue.parents?.[0]?.parentId;
+    if (fromParents) return fromParents;
+    const attached = issue.attachedTo;
+    if (!attached || attached === noParentId || attached === issue.space) return null;
+    return attached;
+}
+
+/** A top-level issue: attached to its project (`huly create task`) or to NoParent (the Huly UI, `move --no-parent`). */
+export function isTopLevel(issue: { space: string; attachedTo?: string }, noParentId: string): boolean {
+    return issue.attachedTo === issue.space || issue.attachedTo === noParentId;
+}
+
 export function planMove(issue: MovableIssue, newParent: MovableIssue | null, noParentId: string): MovePlan {
     if (newParent === null) {
-        const current = issue.parents?.[0]?.parentId;
+        const current = currentParentId(issue, noParentId);
         if (!current) return { action: 'noop', reason: `${issue.identifier} already has no parent` };
         return { action: 'move', attachedTo: noParentId };
     }
@@ -31,7 +50,7 @@ export function planMove(issue: MovableIssue, newParent: MovableIssue | null, no
     if ((newParent.parents || []).some((p) => p.parentId === issue._id)) {
         throw new Error(`${newParent.identifier} is a descendant of ${issue.identifier}; moving would create a cycle`);
     }
-    if (issue.attachedTo === newParent._id || issue.parents?.[0]?.parentId === newParent._id) {
+    if (currentParentId(issue, noParentId) === newParent._id) {
         return { action: 'noop', reason: `${issue.identifier} is already under ${newParent.identifier}` };
     }
     return { action: 'move', attachedTo: newParent._id };
@@ -51,8 +70,8 @@ export interface MoveWrite {
     rank?: string;
     /** Parent the task leaves, if any; sub-issues share their parent's space. */
     oldParentId?: string | null;
-    /** Parent the task joins, if any. */
-    newParent?: { _id: string; space: string } | null;
+    /** Parent the task joins, if any, with the `attachedTo` it was read with. */
+    newParent?: { _id: string; space: string; attachedTo?: string } | null;
 }
 
 /**
@@ -64,9 +83,21 @@ export interface MoveWrite {
  */
 export async function applyMove(ops: MoveOps, write: MoveWrite): Promise<void> {
     const { issueClass, task } = write;
-    ops.match(issueClass, { _id: task._id, attachedTo: task.attachedTo });
-    await ops.updateDoc(issueClass, task.space, task._id,
-        write.rank === undefined ? { attachedTo: write.attachedTo } : { attachedTo: write.attachedTo, rank: write.rank });
+    // `?? null`: an undefined field would vanish from the serialized condition
+    // and leave a match on `_id` alone, which always passes.
+    ops.match(issueClass, { _id: task._id, attachedTo: task.attachedTo ?? null });
+    if (write.newParent) {
+        // The new parent must still be in this project and where it was read: a
+        // concurrent move of the parent could otherwise create a cycle.
+        ops.match(issueClass, { _id: write.newParent._id, space: task.space, attachedTo: write.newParent.attachedTo ?? null });
+    }
+    // Every issue the Huly UI creates, top-level (NoParent) or not, is attached
+    // as an Issue in the `subIssues` collection; `huly create task` without a
+    // parent writes the project and `issues` instead, which sub-issue queries
+    // would never find once the task has a parent.
+    const update: Record<string, unknown> = { attachedTo: write.attachedTo, attachedToClass: issueClass, collection: 'subIssues' };
+    if (write.rank !== undefined) update.rank = write.rank;
+    await ops.updateDoc(issueClass, task.space, task._id, update);
     if (write.oldParentId) {
         await ops.updateDoc(issueClass, task.space, write.oldParentId, { $inc: { subIssues: -1 } });
     }

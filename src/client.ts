@@ -34,7 +34,7 @@ import {
     makeRank,
 } from './huly-types.js';
 import { hulyError } from './utils/errors.js';
-import { applyMove, planMove } from './utils/move.js';
+import { applyMove, currentParentId, planMove } from './utils/move.js';
 
 export interface TaskQueryOptions {
     assignee?: string;
@@ -530,7 +530,8 @@ export class HulyClient {
             newParent = (await this.getTask(newParentId)) ?? (await this.getTaskByInternalId(newParentId));
             if (!newParent) throw hulyError('not_found', `Parent task not found: ${newParentId}`);
         }
-        const from = task.parents?.[0] ?? null;
+        const fromId = currentParentId(task, tracker.ids.NoParent);
+        const from = task.parents?.[0] ?? (fromId ? { parentId: fromId } : null);
         const to = newParent ? { parentId: newParent._id, identifier: newParent.identifier, parentTitle: newParent.title } : null;
 
         let plan;
@@ -570,13 +571,16 @@ export class HulyClient {
         // PlatformClient wraps a TxOperations; its apply() batches the writes
         // into one TxApplyIf, so they land together or not at all.
         const txOps: any = (this.client as any).client;
+        if (typeof txOps?.apply !== 'function') {
+            throw new Error('This Huly client cannot batch writes (no TxOperations.apply); nothing was moved');
+        }
         await applyMove(txOps.apply(`move-${task._id}`), {
             issueClass: tracker.class.Issue,
             task,
             attachedTo: updates.attachedTo,
             rank: updates.rank,
             oldParentId: from?.parentId ?? null,
-            newParent: newParent ? { _id: newParent._id, space: newParent.space } : null,
+            newParent: newParent ? { _id: newParent._id, space: newParent.space, attachedTo: newParent.attachedTo } : null,
         });
         return { task, from, to, moved: true };
     }
