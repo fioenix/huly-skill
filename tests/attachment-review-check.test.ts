@@ -1,6 +1,6 @@
 import { test, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -147,4 +147,23 @@ test('HULY_UPLOAD_ROOT set to the parent of home is refused as too broad', async
 
 test('HULY_UPLOAD_ROOT set to the temp directory is refused as too broad', async () => {
     await refusedAsRoot(tmpdir());
+});
+
+// --- Security review 4: /tmp, /private/tmp and the parent of tmpdir() --------
+
+test('without HULY_UPLOAD_ROOT a working directory of /tmp is refused', { skip: !existsSync('/tmp') }, async () => {
+    process.chdir('/tmp');
+    await assert.rejects(prepareUploads(['x.txt']), (e: any) => /is too broad/.test(e.message));
+});
+
+test('HULY_UPLOAD_ROOT=/tmp is refused as too broad', { skip: !existsSync('/tmp') }, async () => {
+    await refusedAsRoot('/tmp');
+});
+
+test('HULY_UPLOAD_ROOT=/private/tmp is refused as too broad', { skip: !existsSync('/private/tmp') }, async () => {
+    await refusedAsRoot('/private/tmp');
+});
+
+test('HULY_UPLOAD_ROOT set to the parent of the temp directory is refused as too broad', async () => {
+    await refusedAsRoot(dirname(realpathSync(tmpdir())));
 });

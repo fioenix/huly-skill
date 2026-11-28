@@ -3,7 +3,7 @@ import { constants } from 'node:fs';
 import { open, realpath } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
-import { basename, extname, isAbsolute, parse, relative, resolve, sep } from 'node:path';
+import { basename, dirname, extname, isAbsolute, parse, relative, resolve, sep } from 'node:path';
 import { classifyError, hulyError } from './errors.js';
 import { attachment, tracker } from '../huly-types.js';
 import { allowedRoots, describeError, formatSize, isSafeBlobId } from './task-detail.js';
@@ -262,14 +262,20 @@ async function uploadRoots(): Promise<string[]> {
 
 /**
  * Home itself or any directory above it (`/Users`, `/`), and the shared temp
- * directory itself; a project or scratch directory below them is fine.
+ * directory itself; a project or scratch directory below them is fine. Temp
+ * means `tmpdir()` and its parent (on macOS the per-user folder that also holds
+ * the cache directory) and the shared `/tmp` (`/private/tmp` on macOS).
  */
 async function tooBroad(dir: string): Promise<boolean> {
     const home = await realpath(homedir()).catch(() => homedir());
     const temp = await realpath(tmpdir()).catch(() => tmpdir());
+    const temps = [temp, dirname(temp)];
+    for (const shared of ['/tmp', '/private/tmp']) {
+        temps.push(await realpath(shared).catch(() => shared));
+    }
     const homeRel = relative(dir, home);
     const holdsHome = homeRel === '' || (!homeRel.startsWith('..') && !isAbsolute(homeRel));
-    return holdsHome || dir === temp || dir === parse(dir).root;
+    return holdsHome || temps.includes(dir) || dir === parse(dir).root;
 }
 
 /**

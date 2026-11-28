@@ -85,7 +85,8 @@ Files attached to comments are not included.
 stdio only) uploads files to the issue itself. Every path is checked and read
 before anything is sent: each must resolve, symlinks included, inside
 `HULY_UPLOAD_ROOT` (default: the working directory only; either root is refused
-when it is home, a directory above it, or the system tmp directory itself), be a regular file,
+when it is home, a directory above it, or the system tmp directory itself:
+`/tmp` or `/private/tmp`, `tmpdir()`, or its parent), be a regular file,
 and not be hidden or inside a hidden directory (`.env`, `.ssh/…`); at most 50 MB
 each, 200 MB and 20 files per call. Any refusal fails the whole call with
 `invalid_input` and nothing is uploaded. The result is

@@ -62,7 +62,8 @@ Ensure these environment variables are set (the CLI reads them from a `.env`; th
 - `HULY_UPLOAD_ROOT` — optional; the only directory `huly attach` /
   `huly_add_attachment` may read files from. Unset, only the working directory
   is allowed. Either root is refused when it is home, a directory above it, or
-  the system tmp directory itself.
+  the system tmp directory itself (`/tmp` or `/private/tmp`, `tmpdir()`, or its
+  parent).
 
 ### MCP setup (Codex)
 

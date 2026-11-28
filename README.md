@@ -201,7 +201,8 @@ export HULY_DOWNLOAD_ROOT="$HOME/huly-files"   # optional; a leading ~ also mean
 `huly attach <id> <file...>` reads files to upload only from inside
 `HULY_UPLOAD_ROOT` (MCP over stdio: `huly_add_attachment`, same rule). Unset,
 only the working directory is allowed. Either way the root is refused when it
-is home, a directory above it, or the temp directory itself; hidden files and
+is home, a directory above it, or the temp directory itself (`/tmp` or
+`/private/tmp`, `tmpdir()`, or its parent); hidden files and
 directories never are.
 
 ```bash
