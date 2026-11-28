@@ -4,27 +4,104 @@
 [![npm](https://img.shields.io/npm/v/%40fioenix%2Fhuly-mcp)](https://www.npmjs.com/package/@fioenix/huly-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-A CLI + MCP server for managing tasks, projects, labels, documents, milestones, and comments in [Huly](https://huly.io) — built on the official [`@hcengineering/api-client`](https://github.com/hcengineering/huly-examples).
+A **CLI, MCP server, and agent skill for [Huly](https://huly.io) project management**.
+Manage tasks, projects, labels, documents, milestones, and comments from Claude
+Code, Codex, and other AI agents, using the official
+[`@hcengineering/api-client`](https://github.com/hcengineering/huly-examples).
 
-A portable integration for **Claude** (Code / Desktop), **Google Antigravity**, and **OpenAI Codex**. The same capabilities ship two ways:
+- **CLI** — a committed Node.js bundle; run from a clone without `npm install`.
+- **Agent skill** — `SKILL.md` and reference guides for skill-capable agents,
+  including Claude Code, Codex, Cursor, and Google Antigravity.
+- **MCP server** — [`@fioenix/huly-mcp`](https://www.npmjs.com/package/@fioenix/huly-mcp),
+  with local stdio and Streamable HTTP transports for MCP-capable clients.
 
-- **Skill** — a file-based `SKILL.md` + zero-install bundled CLI. Loaded directly by Claude and Antigravity.
-- **MCP server** — [`@fioenix/huly-mcp`](https://www.npmjs.com/package/@fioenix/huly-mcp), the universal interface. Works for all three (Codex has no skill system, so it uses MCP + `AGENTS.md`).
+[Quickstart](#quickstart-read-only) · [Synthetic demo](./examples/demo/README.md) ·
+[Agent setup](#install-per-agent) · [MCP configuration](#mcp-server)
+
+## Quickstart (read-only)
+
+Requires **Node.js 20.18.1+**, access to a Huly workspace, and a valid Huly token:
+your own session token, or one an admin issues
+([where tokens come from](./skills/huly-skill/references/setup.md#where-the-token-comes-from)). For an offline preview with no credentials, run the
+[synthetic demo](./examples/demo/README.md).
+
+```bash
+git clone https://github.com/fioenix/huly-skill.git
+cd huly-skill
+node bin/huly.cjs --help
+```
+
+Keep credentials outside the repository in `~/.huly/.env` (see [Setup](#setup)
+for token issuance and attribution):
+
+```dotenv
+HULY_HOST=https://huly.app
+HULY_WORKSPACE_ID=your-workspace-uuid
+HULY_API_KEY=your-api-token
+```
+
+Replace the placeholders in that file with your own values. The CLI loads it
+automatically; existing environment variables take precedence.
+
+```bash
+node bin/huly.cjs whoami --offline   # local config check; no Huly connection
+node bin/huly.cjs whoami             # confirm the connected identity
+node bin/huly.cjs tasks --assignee me --limit 5 --fields identifier,title --json
+```
+
+These commands read configuration and workspace data without creating or updating
+anything. They do **not** restrict the token to read-only permissions. `me` is the
+token owner unless `HULY_ACTOR` is set. Keep real outputs private; the examples
+below use invented data.
+
+```json
+{
+  "status": "ok",
+  "count": 2,
+  "total": 2,
+  "truncated": false,
+  "data": [
+    { "identifier": "DEMO-1", "title": "Draft the sample onboarding guide" },
+    { "identifier": "DEMO-2", "title": "Review the sample release checklist" }
+  ]
+}
+```
+
+The CLI returns uncapped results unless you pass `--limit`; `--fields` keeps JSON
+output small. When `truncated` is true, narrow the filters or deliberately raise
+the limit before treating the result as complete.
 
 ## Install per agent
 
-| Agent | Recommended | How |
-|-------|-------------|-----|
-| **Claude Code / Desktop** | Skill | `npx skills add fioenix/huly-skill` (drops `SKILL.md` + `references/` into `.claude/skills/`). MCP also works — see below. |
-| **Google Antigravity** | Skill | Copy `skills/huly-skill/` → `<project>/.agents/skills/huly-skill/` (or the global skills dir). MCP also works. |
-| **OpenAI Codex** | MCP + `AGENTS.md` | Add the server to `~/.codex/config.toml` (snippet below); Codex reads [`AGENTS.md`](./AGENTS.md) for usage. |
+| Agent | Skill instructions | MCP alternative |
+|-------|--------------------|-----------------|
+| **Claude Code** | `npx skills add fioenix/huly-skill --skill huly-skill --agent claude-code` | [Claude config](./examples/agents/claude.mcp.json) |
+| **OpenAI Codex** | `npx skills add fioenix/huly-skill --skill huly-skill --agent codex` | [Codex config](./examples/agents/codex.config.toml) |
+| **Cursor** | `npx skills add fioenix/huly-skill --skill huly-skill --agent cursor` | Use your client's `mcpServers` configuration |
+| **Google Antigravity** | `npx skills add fioenix/huly-skill --skill huly-skill --agent antigravity` | [Antigravity config](./examples/agents/antigravity.mcp_config.json) |
+| **Claude Desktop / Cowork** | Use the packaged skill ZIP where the client supports skill uploads | [MCP server](#mcp-server); HTTP for remote clients |
 
-Zero-install clone (any agent, no `npm install` needed):
+Run the installer from the project where you want the skill available. It installs
+**instructions and references** from `skills/huly-skill/`; the executable bundle
+lives at the repository root. Use the cloned CLI from the quickstart, or install
+the complete packaged skill instead:
+
 ```bash
-git clone https://github.com/fioenix/huly-skill.git && cd huly-skill
+# From the clone, for a Codex project (replace the destination path):
+mkdir -p /path/to/your-project/.agents/skills
+unzip huly-skill.zip -d /path/to/your-project/.agents/skills
 ```
 
-All three use the same credentials (see [Setup](#setup)). Ready-to-paste MCP config templates per agent live in [`examples/agents/`](./examples/agents).
+The ZIP includes `huly-skill/bin/huly.cjs` and its dependency bundle. Choose one
+installation method for a given destination; do not overwrite an existing skill
+installation. Codex supports both [agent skills](https://developers.openai.com/codex/skills/)
+and MCP, and reads this repo's [AGENTS.md](./AGENTS.md) as repository guidance.
+
+The [skills installer](https://github.com/vercel-labs/skills#supported-agents)
+supports many agents. That is installer compatibility, not a claim that this
+Huly integration has been tested in every client. All routes use the same Huly
+credentials. Ready-to-paste MCP templates live in
+[`examples/agents/`](./examples/agents).
 
 ## Setup
 
@@ -212,7 +289,7 @@ way. `auth` errors carry a `hint`. The MCP tools return the identical envelope.
 
 Besides the CLI skill, the same Huly operations are exposed as an **MCP server** — a better fit for Claude Cowork and any MCP-capable client. It is published to npm as [`@fioenix/huly-mcp`](https://www.npmjs.com/package/@fioenix/huly-mcp) and runs via `npx` with no install step.
 
-A single entry point picks its transport from `HULY_MCP_TRANSPORT` (`stdio` default, or `http`). The server is **single-workspace**: one set of Huly credentials, shared by all callers. Full templates: [`examples/agents/`](./examples/agents).
+A single entry point picks its transport from `HULY_MCP_TRANSPORT` (`stdio` default, or `http`). By default every caller shares the server's one set of Huly credentials; over HTTP a caller can bring its own (see *Per-caller Huly credentials* below). Full templates: [`examples/agents/`](./examples/agents).
 
 ### stdio — Claude (`.mcp.json`) and Antigravity (`~/.gemini/config/mcp_config.json`)
 
