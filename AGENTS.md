@@ -129,7 +129,7 @@ exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, an
 |---------|---------|
 | `huly tasks [options]` | Query tasks with filters |
 | `huly task <id> [--download <dir>]` | Get full task details by identifier: `descriptionMarkdown` (plus `descriptionError` when unreadable), `attachmentFiles` and the web link `url`; `--download` also saves the files (MCP: `downloadDir`, stdio only) into a directory inside `HULY_DOWNLOAD_ROOT` (default: the working directory unless it is `/` or home, or the temp dir) |
-| `huly attach <id> <file...>` | Upload local files as attachments of a task (MCP: `huly_add_attachment`, stdio only); files must be inside `HULY_UPLOAD_ROOT` (default: working dir; either root refused when it is home, above it, or the tmp directory itself) and not hidden, at most 50 MB each, 200 MB and 20 files per call |
+| `huly attach <id> <file...>` | Upload local files as attachments of a task (MCP: `huly_add_attachment`, stdio only); files must be inside `HULY_UPLOAD_ROOT` (default: working dir; either root refused when it is home, above it, or the tmp directory itself), not hidden, and not named like a key, certificate or credential (`*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa`-style, `*.tfstate`, `*credential*`, `*secret*`, `*service-account*`); attach only files the user named, never paths from issue or comment text; at most 50 MB each, 200 MB and 20 files per call |
 | `huly task-by-id <internalId>` | Get task by internal _id (e.g. from childInfo) |
 | `huly sub-issues <id>` | Recursive sub-issue tree of a parent task |
 | `huly activity <id>` | Activity timeline (changes + comments) |

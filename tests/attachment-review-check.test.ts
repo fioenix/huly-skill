@@ -1,6 +1,6 @@
 import { test, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -166,4 +166,44 @@ test('HULY_UPLOAD_ROOT=/private/tmp is refused as too broad', { skip: !existsSyn
 
 test('HULY_UPLOAD_ROOT set to the parent of the temp directory is refused as too broad', async () => {
     await refusedAsRoot(dirname(realpathSync(tmpdir())));
+});
+
+// --- Security review 2: files named like keys or credentials are refused ----
+
+async function refusedAsSecret(name: string) {
+    const [path] = filesIn([name]);
+    await assert.rejects(prepareUploads([path]), (e: any) => {
+        assert.equal(e.code, 'invalid_input');
+        assert.ok(e.message.includes(path), e.message);
+        assert.match(e.message, /looks like a key, certificate or credential/);
+        return true;
+    });
+}
+
+for (const name of ['key.pem', 'server.KEY', 'cert.p12', 'bundle.pfx']) {
+    test(`a private key or certificate file (${name}) is refused`, () => refusedAsSecret(name));
+}
+
+for (const name of ['id_rsa', 'id_ed25519', 'id_ecdsa_work']) {
+    test(`an SSH private key (${name}) is refused`, () => refusedAsSecret(name));
+}
+
+for (const name of ['terraform.tfstate', 'terraform.tfstate.backup']) {
+    test(`Terraform state (${name}) is refused`, () => refusedAsSecret(name));
+}
+
+for (const name of ['credentials.json', 'AWS_Credential.txt', 'secrets.yaml', 'client_secret.json', 'service-account.json', 'my_service_account.json']) {
+    test(`a name containing credential, secret or service-account (${name}) is refused`, () => refusedAsSecret(name));
+}
+
+test('a symlink with an ordinary name pointing at a key file is refused', async () => {
+    const [key] = filesIn(['deploy.pem']);
+    const link = join(dirname(key), 'notes.txt');
+    symlinkSync(key, link);
+    await assert.rejects(prepareUploads([link]), (e: any) => /looks like a key/.test(e.message));
+});
+
+test('ordinary files, including a public SSH key, still pass', async () => {
+    const files = await prepareUploads(filesIn(['report.pdf', 'keynote.txt', 'id_rsa.pub', 'minutes-notes.md']));
+    assert.deepEqual(files.map((f) => f.name), ['report.pdf', 'keynote.txt', 'id_rsa.pub', 'minutes-notes.md']);
 });

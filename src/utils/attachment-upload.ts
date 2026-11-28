@@ -305,6 +305,11 @@ async function readAllowed(input: string, roots: string[], caps: UploadLimits, u
     if (rel.split(sep).some((segment) => segment.startsWith('.'))) {
         throw hulyError('invalid_input', `${input} is a hidden file or inside a hidden directory`);
     }
+    // The name as given and the name it resolves to, so a link cannot rename a key.
+    const secret = secretPattern(basename(path)) ?? secretPattern(basename(real));
+    if (secret) {
+        throw hulyError('invalid_input', `${input} looks like a key, certificate or credential file (${secret}) and is never uploaded`);
+    }
 
     // The real path is opened without following a final symlink, so swapping
     // the file for one after the check fails instead of reading elsewhere.
@@ -330,6 +335,22 @@ async function readAllowed(input: string, roots: string[], caps: UploadLimits, u
     } finally {
         await handle.close().catch(() => {});
     }
+}
+
+/**
+ * Base names refused as likely secrets, case-insensitively, even when not
+ * hidden: an agent's working directory is often a repository holding them.
+ * Kept short and listed in the docs; a name can still hide a secret.
+ */
+const SECRET_NAMES: { label: string; pattern: RegExp }[] = [
+    { label: '*.pem, *.key, *.p12, *.pfx', pattern: /\.(pem|key|p12|pfx)$/i },
+    { label: 'id_rsa, id_dsa, id_ecdsa, id_ed25519', pattern: /^id_(rsa|dsa|ecdsa|ed25519)(?!.*\.pub$)/i },
+    { label: '*.tfstate', pattern: /\.tfstate(\.|$)/i },
+    { label: 'credential, secret, service-account', pattern: /credential|secret|service[-_]?account/i },
+];
+
+function secretPattern(name: string): string | null {
+    return SECRET_NAMES.find((s) => s.pattern.test(name))?.label ?? null;
 }
 
 function relativeToRoot(real: string, roots: string[]): string | null {

@@ -203,7 +203,10 @@ export HULY_DOWNLOAD_ROOT="$HOME/huly-files"   # optional; a leading ~ also mean
 only the working directory is allowed. Either way the root is refused when it
 is home, a directory above it, or the temp directory itself (`/tmp` or
 `/private/tmp`, `tmpdir()`, or its parent); hidden files and
-directories never are.
+directories never are, nor files named like keys, certificates or credentials
+(`*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa`-style keys, `*.tfstate`, names
+containing `credential`, `secret` or `service-account`). An agent should attach
+only files the user named, never paths taken from issue or comment text.
 
 ```bash
 export HULY_UPLOAD_ROOT="$HOME/huly-files"     # optional: only place huly attach / huly_add_attachment may read

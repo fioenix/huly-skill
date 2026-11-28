@@ -31,10 +31,18 @@ which are released together under the same number.
   above it, or the tmp directory itself (`/tmp` or `/private/tmp`, `tmpdir()`,
   or its parent) is refused, since everything under it
   would be readable: a working directory that broad, and a `HULY_UPLOAD_ROOT`
-  set that broad, whose message names the variable); be a regular file (not a directory or FIFO); and not be hidden or
-  inside a hidden directory. Caps: 50 MB a file, 200 MB and 20 files a call.
+  set that broad, whose message names the variable); be a regular file (not a directory or FIFO); not be hidden or
+  inside a hidden directory; and not have a base name that looks like a key,
+  certificate or credential, case-insensitively, on the given name or a
+  symlink's target (`*.pem`, `*.key`, `*.p12`, `*.pfx`; `id_rsa`, `id_dsa`,
+  `id_ecdsa`, `id_ed25519` and names starting with them, except `*.pub`;
+  `*.tfstate` and `*.tfstate.*`; names containing `credential`, `secret` or
+  `service-account` / `service_account`), since the default root is often a
+  repository holding such files. Caps: 50 MB a file, 200 MB and 20 files a call.
   Text in an issue can steer an agent's arguments, so paths are checked rather
-  than trusted.
+  than trusted, and the tool description and the skill tell an agent to attach
+  only files the user named in the conversation, never paths taken from issue
+  or comment text.
 - `huly_add_attachment` exists only over stdio. Under `HULY_MCP_TRANSPORT=http`
   a remote caller must not be able to read the server's disk.
 
