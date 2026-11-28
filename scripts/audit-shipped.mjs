@@ -118,7 +118,9 @@ try {
         console.log('overrides in pnpm-workspace.yaml, capped inside the current major.');
         process.exit(1);
     }
-    console.log('\nNo advisory reaches a shipped bundle. The rest stay in the graph — build-time only.');
+    console.log(excepted.length
+        ? `\nNo unexcepted advisory reaches a shipped bundle (${excepted.length} excepted above). The rest stay in the graph — build-time only.`
+        : '\nNo advisory reaches a shipped bundle. The rest stay in the graph — build-time only.');
 } finally {
     rmSync(staging, { recursive: true, force: true });
 }
