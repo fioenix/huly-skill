@@ -123,6 +123,12 @@ export const chunter = {
   },
 } as const;
 
+export const attachment = {
+  class: {
+    Attachment: 'attachment:class:Attachment' as Ref<Class<Doc>>,
+  },
+} as const;
+
 // ---------------------------------------------------------------------------
 // Issue priority enum (matches @hcengineering/tracker IssuePriority)
 // ---------------------------------------------------------------------------

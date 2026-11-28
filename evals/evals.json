@@ -154,6 +154,13 @@
       "prompt": "Show me all in-progress tasks in the DELTA project",
       "expected_output": "Runs `huly tasks --project DELTA --status \"In Progress\"` and returns filtered task list",
       "files": []
+    },
+    {
+      "id": 23,
+      "name": "task-detail-with-attachments",
+      "prompt": "Read DELTA-42 with its description and attached files so you can work on it",
+      "expected_output": "Runs `huly task DELTA-42 --json --download <dir>`, reads `descriptionMarkdown`, and opens each `attachmentFiles[].localPath`",
+      "files": []
     }
   ]
 }

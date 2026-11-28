@@ -113,7 +113,8 @@ huly tasks --assignee me              # My tasks
 huly tasks --project DELTA --overdue  # Overdue in project
 huly tasks --parent LAMBD-568         # Direct children of a parent (Epic / sub-issue group)
 huly tasks --milestone-id <id>        # All tasks attached to a milestone
-huly task DELTA-123                   # Task details by identifier
+huly task DELTA-123                   # Task details by identifier (description + attachments)
+huly task DELTA-123 --download ./out  # ...and save the attachments locally
 huly task-by-id <internalId>          # Lookup by internal _id (e.g. from childInfo)
 huly create task "Title" --project DELTA --priority HIGH --due tomorrow
 huly create task "Sub-task" --project DELTA --parent DELTA-16   # as a sub-issue

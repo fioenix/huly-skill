@@ -3,21 +3,24 @@ import { withClient } from '../client.js';
 import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } from '../utils/logger.js';
 import { EXIT_STATUS, errorPayload, exitStatusFor, hulyError } from '../utils/errors.js';
 import { getProjectMap, getStatusMap } from '../resolvers.js';
+import { buildTaskDetail, formatAttachmentLines } from '../utils/task-detail.js';
 
 export function getTaskCommand() {
     return new Command('task')
         .description('Get task details by ID')
         .argument('<taskId>', 'Task identifier (e.g., DELTA-123)')
-        .action(async (taskId) => {
+        .option('--download <dir>', 'Also save every attachment into this directory and report each localPath')
+        .action(async (taskId, opts) => {
             try {
                 await withClient(async (client) => {
-                    const task = await client.getTask(taskId);
-                    if (!task) {
+                    const found = await client.getTask(taskId);
+                    if (!found) {
                         if (isJsonMode()) outputJson(errorPayload(hulyError('not_found', `Task not found: ${taskId}`)));
                         else console.error(`❌ Task not found: ${taskId}`);
                         process.exitCode = EXIT_STATUS.not_found;
                         return;
                     }
+                    const task = await buildTaskDetail(client, found, { downloadDir: opts.download });
 
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', data: task });
@@ -50,22 +53,15 @@ export function getTaskCommand() {
                     output += `⏰ Due: ${task.dueDate ? formatDate(task.dueDate) : 'N/A'}\n\n`;
 
                     if (task.description) {
-                        try {
-                            const descContent = await client.fetchMarkup(task, 'description');
-                            if (descContent) output += `📝 Description:\n${descContent}\n`;
-                            else output += `📝 Description: (could not be read)\n`;
-                        } catch {
-                            output += `📝 Description: (could not be read)\n`;
-                        }
+                        if (task.descriptionMarkdown) output += `📝 Description:\n${task.descriptionMarkdown}\n`;
+                        else output += `📝 Description: (could not be read)\n`;
                     }
 
                     if (task.labels && task.labels.length > 0) {
                         output += `🏷️ Nhan: ${task.labels.join(', ')}\n`;
                     }
 
-                    if (task.attachments && task.attachments > 0) {
-                        output += `📎 Attachments: ${task.attachments}\n`;
-                    }
+                    output += formatAttachmentLines(task.attachmentFiles);
 
                     if (task.comments && task.comments > 0) {
                         output += `💬 Comments: ${task.comments}\n`;

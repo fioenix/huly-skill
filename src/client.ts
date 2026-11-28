@@ -7,7 +7,7 @@ const WS = require('ws');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
 // CJS interop: these packages use module.exports, named ESM imports don't work
-const { connect, NodeWebSocketFactory } = apiClient as any;
+const { connect, connectStorage, NodeWebSocketFactory } = apiClient as any;
 
 /**
  * Proxy-aware WebSocket factory. Replaces NodeWebSocketFactory when
@@ -71,7 +71,7 @@ type Doc = any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 import {
     tracker, contact, document as hulyDocument, tags,
-    activity, chunter, task,
+    activity, chunter, task, attachment,
     IssuePriority, MilestoneStatus, AvatarType,
     makeRank,
 } from './huly-types.js';
@@ -122,6 +122,7 @@ export class HulyClient {
     private _projects: any[] | null = null;
     private _statuses: any[] | null = null;
     private _account: any | null = null;
+    private _storage: Promise<any> | null = null;
 
     async connect() {
         const options: ConnectOptions = {
@@ -841,6 +842,31 @@ export class HulyClient {
             filter as any,
             { sort: { modifiedOn: SortingOrder.Ascending }, limit }
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Attachments
+    // -----------------------------------------------------------------------
+
+    /** Files attached to the issue itself; files on its comments attach to the message instead. */
+    async getAttachments(issueInternalId: string): Promise<any[]> {
+        return await this.client!.findAll(
+            attachment.class.Attachment as any,
+            { attachedTo: issueInternalId } as any,
+        );
+    }
+
+    /**
+     * Download one stored file. Blobs live behind the HTTP files endpoint, not
+     * the WebSocket, so this opens a storage client on first use with the same
+     * token and keeps it for the rest of the command.
+     */
+    async downloadBlob(blobId: string): Promise<Buffer> {
+        this._storage ??= connectStorage(getHost(), { token: getApiKey(), workspace: getWorkspaceId() });
+        const storage = await this._storage;
+        const chunks: Buffer[] = [];
+        for await (const chunk of await storage.get(blobId)) chunks.push(Buffer.from(chunk));
+        return Buffer.concat(chunks);
     }
 
     // -----------------------------------------------------------------------

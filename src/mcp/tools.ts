@@ -15,6 +15,7 @@ import { getIssueActivity } from '../services/activity.js';
 import { listComments, getCommentById, updateComment, deleteComment } from '../services/comments.js';
 import { DEFAULT_LIST_LIMIT, LIST_FIELDS, shapeList, type ListEntity } from '../utils/projection.js';
 import { describeContext } from '../utils/context.js';
+import { buildTaskDetail } from '../utils/task-detail.js';
 import { errorPayload, hulyError } from '../utils/errors.js';
 
 // --- result helpers --------------------------------------------------------
@@ -174,19 +175,16 @@ export function registerHulyTools(server: McpServer): void {
         'huly_get_task',
         {
             title: 'Get task detail',
-            description: 'Get full details for a single task by its identifier (e.g. DELTA-123), including the description as markdown.',
+            description: 'Get full details for a single task by its identifier (e.g. DELTA-123): the description as markdown (`descriptionMarkdown`) and its attached files (`attachmentFiles`). Pass `downloadDir` to also save those files locally and get each `localPath`.',
             inputSchema: z.object({
                 taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
+                downloadDir: z.string().optional().describe('Directory to save every attachment into; each entry then carries `localPath` (or `downloadError`). Omit for metadata only.'),
             }).strict(),
         },
-        async ({ taskId }) => withHuly(async (client) => {
+        async ({ taskId, downloadDir }) => withHuly(async (client) => {
             const task = await client.getTask(taskId);
             if (!task) throw new Error(`Task not found: ${taskId}`);
-            let description: string | null = null;
-            if (task.description) {
-                try { description = await client.fetchMarkup(task, 'description'); } catch { /* ignore */ }
-            }
-            return { task: { ...task, descriptionMarkdown: description } };
+            return { task: await buildTaskDetail(client, task, { downloadDir }) };
         }),
     );
 

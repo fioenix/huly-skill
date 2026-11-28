@@ -51,7 +51,19 @@ huly tasks --parent LAMBD-568                     # direct children of a parent
 huly tasks --milestone-id <id>                    # all tasks in a milestone
 
 huly task DELTA-123                               # full details for one task
+huly task DELTA-123 --json --download ./DELTA-123 # also save its attachments, each gets localPath
 huly task-by-id <internalId>                      # look up by internal _id
+```
+
+`huly task --json` returns the description as markdown in `data.descriptionMarkdown`
+(`null` when empty or unreadable) and the issue's files in `data.attachmentFiles`
+(`_id`, `name`, `type`, `size`, `blobId`, `lastModified`). Files are listed, not
+fetched, unless `--download <dir>` is passed (MCP: `downloadDir`); then each entry
+carries an absolute `localPath`, or `downloadError` when that one file failed.
+Unsafe names are flattened into `<dir>` and an existing file is never overwritten.
+Files attached to comments are not included.
+
+```bash
 
 huly sub-issues LAMBD-568                         # sub-issue tree (recursive by default)
 huly sub-issues LAMBD-568 --no-recursive          # direct children only

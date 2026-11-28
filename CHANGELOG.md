@@ -3,6 +3,22 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Added — task detail carries the description and the attached files
+- `huly task <id> --json` now returns `data.descriptionMarkdown` (the description
+  rendered to markdown; before, JSON mode only had the collaborative-doc ref) and
+  `data.attachmentFiles` (`_id`, `name`, `type`, `size`, `blobId`,
+  `lastModified` for every file on the issue; before, only a count). Existing
+  fields are unchanged.
+- `--download <dir>` (MCP `huly_get_task`: `downloadDir`) saves those files and
+  adds an absolute `localPath` per entry, or `downloadError` for a file that
+  failed while the rest still save. Names are reduced to one safe path segment
+  inside `<dir>` and an existing file is never overwritten (`spec-1.pdf`, …).
+- The text view lists each attachment with type and size instead of a count.
+- `huly_get_task` and `huly task` now share one implementation
+  (`src/utils/task-detail.ts`), covered by `tests/task-detail.test.ts`.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse
