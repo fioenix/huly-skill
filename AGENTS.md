@@ -78,7 +78,7 @@ exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, an
 | Command | Purpose |
 |---------|---------|
 | `huly tasks [options]` | Query tasks with filters |
-| `huly task <id> [--download <dir>]` | Get full task details by identifier: `descriptionMarkdown` and `attachmentFiles`; `--download` also saves the files (MCP: `downloadDir`) |
+| `huly task <id> [--download <dir>]` | Get full task details by identifier: `descriptionMarkdown`, `attachmentFiles` and the web link `url`; `--download` also saves the files (MCP: `downloadDir`) |
 | `huly task-by-id <internalId>` | Get task by internal _id (e.g. from childInfo) |
 | `huly sub-issues <id>` | Recursive sub-issue tree of a parent task |
 | `huly activity <id>` | Activity timeline (changes + comments) |

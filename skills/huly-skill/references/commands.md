@@ -62,6 +62,9 @@ fetched, unless `--download <dir>` is passed (MCP: `downloadDir`); then each ent
 carries an absolute `localPath`, or `downloadError` when that one file failed.
 Unsafe names are flattened into `<dir>` and an existing file is never overwritten.
 Files attached to comments are not included.
+`data.url` is the issue's web link, `<HULY_HOST>/workbench/<workspace slug>/tracker/<id>`
+(also on `huly create task --json`); the slug comes from the account service, so
+`url` is `null` when that lookup fails while the rest of the detail is kept.
 
 ```bash
 

@@ -46,7 +46,7 @@ retry only when `retryable` is true.
 
 ```bash
 huly tasks --assignee me --json                  # my active tasks
-huly task DELTA-123 --json                       # one task: descriptionMarkdown + attachmentFiles
+huly task DELTA-123 --json                       # one task: descriptionMarkdown + attachmentFiles + url
 huly task DELTA-123 --json --download ./DELTA-123  # …and save the attachments (localPath per file)
 huly activity LAMBD-568 --comments-only --json   # comments + changes on an issue
 huly create task "Title" --project DELTA --parent DELTA-16 --assignee me

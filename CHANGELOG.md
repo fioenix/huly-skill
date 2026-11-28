@@ -4,6 +4,14 @@ Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
 ## Unreleased
+### Added — tasks carry their web link
+- `huly task --json`, `huly create task --json`, `huly_get_task` and
+  `huly_create_task` return `url`: `<HULY_HOST>/workbench/<workspace slug>/tracker/<id>`.
+  `HULY_WORKSPACE_ID` is usually the UUID, so the slug (`workspaceUrl`) is looked
+  up once per command from the account service; a failed lookup leaves `url`
+  `null` without failing the command. Built by `src/utils/links.ts`, covered by
+  `tests/links.test.ts` and `tests/task-detail.test.ts`.
+
 
 ### Added — task detail carries the description and the attached files
 - `huly task <id> --json` now returns `data.descriptionMarkdown` (the description

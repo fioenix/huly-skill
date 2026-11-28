@@ -7,7 +7,7 @@ const WS = require('ws');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
 // CJS interop: these packages use module.exports, named ESM imports don't work
-const { connect, connectStorage, NodeWebSocketFactory } = apiClient as any;
+const { connect, connectStorage, getWorkspaceToken, NodeWebSocketFactory } = apiClient as any;
 
 /**
  * Proxy-aware WebSocket factory. Replaces NodeWebSocketFactory when
@@ -69,6 +69,7 @@ type PlatformClient = any;
 type Ref<T> = string & { __ref: T };
 type Doc = any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
+import { issueUrl } from './utils/links.js';
 import {
     tracker, contact, document as hulyDocument, tags,
     activity, chunter, task, attachment,
@@ -123,6 +124,7 @@ export class HulyClient {
     private _statuses: any[] | null = null;
     private _account: any | null = null;
     private _storage: Promise<any> | null = null;
+    private _workspaceSlug: Promise<string | null> | null = null;
 
     async connect() {
         const options: ConnectOptions = {
@@ -854,6 +856,17 @@ export class HulyClient {
             attachment.class.Attachment as any,
             { attachedTo: issueInternalId } as any,
         );
+    }
+
+    /**
+     * Web link of an issue. The link needs the workspace URL slug, which the
+     * account service returns from selectWorkspace; HULY_WORKSPACE_ID is
+     * usually the UUID. Looked up once per command.
+     */
+    async getIssueUrl(identifier: string): Promise<string | null> {
+        this._workspaceSlug ??= getWorkspaceToken(getHost(), { token: getApiKey(), workspace: getWorkspaceId() })
+            .then((ws: any) => (typeof ws?.info?.workspaceUrl === 'string' ? ws.info.workspaceUrl : null));
+        return issueUrl(getHost(), await this._workspaceSlug, identifier);
     }
 
     /**

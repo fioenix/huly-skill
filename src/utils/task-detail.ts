@@ -23,6 +23,8 @@ export interface TaskDetailSource {
     fetchMarkup(doc: any, field: string): Promise<string | null>;
     getAttachments(issueId: string): Promise<any[]>;
     downloadBlob(blobId: string): Promise<Buffer>;
+    /** Web link of the issue; optional so a source without it still works. */
+    getIssueUrl?(identifier: string): Promise<string | null>;
 }
 
 export interface TaskDetailOptions {
@@ -37,7 +39,7 @@ export async function buildTaskDetail<T extends Record<string, any>>(
     source: TaskDetailSource,
     task: T,
     options: TaskDetailOptions = {},
-): Promise<T & { descriptionMarkdown: string | null; attachmentFiles: AttachmentInfo[] }> {
+): Promise<T & { descriptionMarkdown: string | null; attachmentFiles: AttachmentInfo[]; url: string | null }> {
     // A missing or unreadable description must not cost the caller the rest of
     // the detail; an unreadable attachment list must, since an empty list would
     // claim there are no files.
@@ -57,7 +59,17 @@ export async function buildTaskDetail<T extends Record<string, any>>(
         await saveAttachments(source, attachmentFiles, resolve(options.downloadDir));
     }
 
-    return { ...task, descriptionMarkdown, attachmentFiles };
+    // Like the description, a failed link lookup must not cost the rest of the detail.
+    let url: string | null = null;
+    if (source.getIssueUrl && task.identifier) {
+        try {
+            url = await source.getIssueUrl(task.identifier);
+        } catch {
+            url = null;
+        }
+    }
+
+    return { ...task, descriptionMarkdown, attachmentFiles, url };
 }
 
 function toAttachmentInfo(doc: any): AttachmentInfo {

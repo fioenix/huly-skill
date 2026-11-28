@@ -37,6 +37,8 @@ function fakeSource(opts: {
     attachmentsError?: Error;
     blobs?: Record<string, string>;
     failBlobs?: string[];
+    url?: string | null;
+    urlError?: Error;
 } = {}) {
     const calls = { fetchMarkup: 0, getAttachments: [] as string[], downloadBlob: [] as string[] };
     const source = {
@@ -49,6 +51,10 @@ function fakeSource(opts: {
             calls.getAttachments.push(issueId);
             if (opts.attachmentsError) throw opts.attachmentsError;
             return opts.attachments ?? [];
+        },
+        async getIssueUrl(identifier: string) {
+            if (opts.urlError) throw opts.urlError;
+            return opts.url === undefined ? `https://huly.example.com/workbench/demo/tracker/${identifier}` : opts.url;
         },
         async downloadBlob(blobId: string) {
             calls.downloadBlob.push(blobId);
@@ -312,4 +318,19 @@ test('TC-4.3 unknown size or type is omitted, large sizes use MB', () => {
         { _id: 'a2', name: 'video.mp4', type: 'video/mp4', size: 5 * 1024 * 1024, blobId: 'b2', lastModified: null },
     ]);
     assert.match(big, /5(\.0)? MB/);
+});
+
+// --- AC-3: the web link of the task ----------------------------------------
+
+test('TC-3.5 task detail carries the web link of the issue', async () => {
+    const { source } = fakeSource();
+    const detail = await buildTaskDetail(source, TASK);
+    assert.equal(detail.url, 'https://huly.example.com/workbench/demo/tracker/DELTA-42');
+});
+
+test('TC-3.6 a failing link lookup yields url null and keeps the rest of the detail', async () => {
+    const { source } = fakeSource({ markdown: 'body', urlError: new Error('account service down') });
+    const detail = await buildTaskDetail(source, TASK);
+    assert.equal(detail.url, null);
+    assert.equal(detail.descriptionMarkdown, 'body');
 });

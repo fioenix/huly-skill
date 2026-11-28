@@ -212,7 +212,8 @@ export function registerHulyTools(server: McpServer): void {
         },
         async ({ parentId, parent, ...rest }) => withHuly(async (client) => {
             const result = await createIssue(client, { ...rest, parent: parentId ?? parent });
-            return { task: result.task, projectIdentifier: result.projectIdentifier, assigneeName: result.assigneeName };
+            const url = await client.getIssueUrl(result.task.identifier).catch(() => null);
+            return { task: { ...result.task, url }, projectIdentifier: result.projectIdentifier, assigneeName: result.assigneeName };
         }),
     );
 

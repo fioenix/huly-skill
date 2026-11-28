@@ -42,7 +42,9 @@ export function createTaskCommand() {
                         rawFields,
                     });
 
-                    const task = result.task;
+                    // A failed link lookup must not hide that the task was created.
+                    const url = await client.getIssueUrl(result.task.identifier).catch(() => null);
+                    const task = { ...result.task, url };
 
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', data: task });
