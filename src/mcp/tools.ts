@@ -17,6 +17,8 @@ import { listComments, getCommentById, updateComment, deleteComment } from '../s
 import { DEFAULT_LIST_LIMIT, LIST_FIELDS, shapeList, type ListEntity } from '../utils/projection.js';
 import { describeContext, sanitizeHost } from '../utils/context.js';
 import { peekCredentials } from '../utils/auth.js';
+import { buildTaskDetail, DEFAULT_LINK_TIMEOUT_MS, issueUrlWithin } from '../utils/task-detail.js';
+import { getTaskInputSchema } from './get-task-schema.js';
 import { errorPayload, hulyError } from '../utils/errors.js';
 
 // --- result helpers --------------------------------------------------------
@@ -75,7 +77,12 @@ async function resolveTeamspace(client: HulyClient, input: string): Promise<any>
  * commands one-to-one and return the same JSON envelope, so behaviour stays
  * consistent across the CLI and MCP adapters.
  */
-export function registerHulyTools(server: McpServer): void {
+export interface HulyToolOptions {
+    /** Whether tools may write to the server's disk; off unless the transport opts in (stdio). */
+    allowDownloads?: boolean;
+}
+
+export function registerHulyTools(server: McpServer, { allowDownloads = false }: HulyToolOptions = {}): void {
     server.registerTool(
         'huly_context',
         {
@@ -200,19 +207,15 @@ export function registerHulyTools(server: McpServer): void {
         'huly_get_task',
         {
             title: 'Get task detail',
-            description: 'Get full details for a single task by its identifier (e.g. DELTA-123), including the description as markdown.',
-            inputSchema: z.object({
-                taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
-            }).strict(),
+            description: allowDownloads
+                ? 'Get full details for a single task by its identifier (e.g. DELTA-123): the description as markdown (`descriptionMarkdown`, null with a `descriptionError` when it could not be read), its attached files (`attachmentFiles`) and its web link (`url`). Pass `downloadDir` to also save those files locally and get each `localPath`.'
+                : 'Get full details for a single task by its identifier (e.g. DELTA-123): the description as markdown (`descriptionMarkdown`, null with a `descriptionError` when it could not be read), its attached files (`attachmentFiles`, metadata only on this server) and its web link (`url`).',
+            inputSchema: getTaskInputSchema(allowDownloads),
         },
-        async ({ taskId }) => withHuly(async (client) => {
-            const task = await client.getTask(taskId);
-            if (!task) throw new Error(`Task not found: ${taskId}`);
-            let description: string | null = null;
-            if (task.description) {
-                try { description = await client.fetchMarkup(task, 'description'); } catch { /* ignore */ }
-            }
-            return { task: { ...task, descriptionMarkdown: description } };
+        async (args: { taskId: string; downloadDir?: string }) => withHuly(async (client) => {
+            const task = await client.getTask(args.taskId);
+            if (!task) throw new Error(`Task not found: ${args.taskId}`);
+            return { task: await buildTaskDetail(client, task, { downloadDir: allowDownloads ? args.downloadDir : undefined }) };
         }),
     );
 
@@ -220,7 +223,7 @@ export function registerHulyTools(server: McpServer): void {
         'huly_create_task',
         {
             title: 'Create task',
-            description: 'Create a new task in a project. Pass `parentId` to create it as a sub-issue of an existing task.',
+            description: 'Create a new task in a project. Pass `parentId` to create it as a sub-issue of an existing task. The result carries the task\'s web link (`url`, null when the lookup fails).',
             // Strict: an unknown argument is rejected instead of dropped. A
             // silently ignored `parentId` used to return ok while creating a
             // top-level task, which reads as success and is not.
@@ -240,7 +243,8 @@ export function registerHulyTools(server: McpServer): void {
         },
         async ({ parentId, parent, ...rest }) => withHuly(async (client) => {
             const result = await createIssue(client, { ...rest, parent: parentId ?? parent });
-            return { task: result.task, projectIdentifier: result.projectIdentifier, assigneeName: result.assigneeName };
+            const url = await issueUrlWithin(client, result.task.identifier, DEFAULT_LINK_TIMEOUT_MS);
+            return { task: { ...result.task, url }, projectIdentifier: result.projectIdentifier, assigneeName: result.assigneeName };
         }),
     );
 

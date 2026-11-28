@@ -185,6 +185,17 @@ for whoever authenticates. Note this repo's pinned `@hcengineering/account-clien
 (and its latest release) expose no token-creation call, so the two routes above,
 a member's own session token or the settings screen, are the supported ones.
 
+### Where attachment downloads may write
+
+`huly task <id> --download <dir>` (MCP over stdio: `downloadDir`) writes only
+inside `HULY_DOWNLOAD_ROOT`. Unset, the working directory (unless it is `/`,
+home, or a parent of home) and the temp directory are allowed; hidden
+directories such as `.git` or `.ssh` never are.
+
+```bash
+export HULY_DOWNLOAD_ROOT="$HOME/huly-files"   # optional; a leading ~ also means home
+```
+
 ### Verify
 
 ```bash
@@ -199,7 +210,8 @@ huly tasks --assignee me              # My tasks
 huly tasks --project DELTA --overdue  # Overdue in project
 huly tasks --parent LAMBD-568         # Direct children of a parent (Epic / sub-issue group)
 huly tasks --milestone-id <id>        # All tasks attached to a milestone
-huly task DELTA-123                   # Task details by identifier
+huly task DELTA-123                   # Task details by identifier (description + attachments)
+huly task DELTA-123 --download ./out  # ...and save the attachments locally
 huly task-by-id <internalId>          # Lookup by internal _id (e.g. from childInfo)
 huly create task "Title" --project DELTA --priority HIGH --due tomorrow
 huly create task "Sub-task" --project DELTA --parent DELTA-16   # as a sub-issue
@@ -355,6 +367,8 @@ npx -y @fioenix/huly-mcp@latest
 ```
 
 Serves `POST /mcp` (default port 3000, override with `PORT`) and `GET /health`. When `HULY_MCP_AUTH_TOKEN` is set, callers must send `Authorization: Bearer <token>` — because the server holds Huly credentials, always set it for any non-local deployment. Without it the server listens on `127.0.0.1` only, so an open endpoint is not reachable from the network; with it, on every interface. `HULY_MCP_HOST` sets the bind address explicitly either way (e.g. `0.0.0.0` inside a container behind your own gateway). Errors inside a request are answered `500` with a generic message; the detail goes to the server's stderr.
+
+Over HTTP `huly_get_task` has no `downloadDir` argument (its strict schema rejects it): a remote caller cannot read the server's disk and must not be able to write to it, so attachments come back as metadata only.
 
 **Per-caller Huly credentials.** A caller can bring its own token so Huly attributes
 its writes to it rather than to whoever owns the server's token:

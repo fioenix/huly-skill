@@ -7,7 +7,7 @@ import { createProxySocketFactory } from './utils/proxy.js';
 const WS = require('ws');
 
 // CJS interop: these packages use module.exports, named ESM imports don't work
-const { connect, NodeWebSocketFactory } = apiClient as any;
+const { connect, createStorageClient, getWorkspaceToken, loadServerConfig, NodeWebSocketFactory } = apiClient as any;
 
 /** The proxy-aware factory when HTTPS_PROXY is set, else the default one. */
 function createSocketFactory() {
@@ -27,13 +27,15 @@ type PlatformClient = any;
 type Ref<T> = string & { __ref: T };
 type Doc = any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
+import { issueUrl, storageUrls } from './utils/links.js';
+import { hulyError } from './utils/errors.js';
+import { ATTACHMENT_QUERY, isSafeBlobId, memoizeSuccess, withTimeout } from './utils/task-detail.js';
 import {
     tracker, contact, document as hulyDocument, tags, hr,
-    activity, chunter, task,
+    activity, chunter, task, attachment,
     IssuePriority, MilestoneStatus, AvatarType,
     makeRank,
 } from './huly-types.js';
-import { hulyError } from './utils/errors.js';
 import { applyMove, currentParentId, planMove } from './utils/move.js';
 import { labelDisplay, planAssign, planLabelRepair } from './utils/labels.js';
 import { buildTeams, type Teams } from './utils/teams.js';
@@ -101,6 +103,9 @@ export class HulyClient {
             await this.client.close();
             this.client = null;
         }
+        // Never carry one connection's workspace token into the next.
+        this.workspace.reset();
+        this.storage.reset();
     }
 
     getRawClient(): PlatformClient {
@@ -986,6 +991,65 @@ export class HulyClient {
             { sort: { modifiedOn: SortingOrder.Ascending }, limit }
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Attachments
+    // -----------------------------------------------------------------------
+
+    /** Files attached to the issue itself; files on its comments attach to the message instead. */
+    async getAttachments(issueInternalId: string): Promise<any[]> {
+        return await this.client!.findAll(
+            attachment.class.Attachment as any,
+            { attachedTo: issueInternalId } as any,
+            ATTACHMENT_QUERY as any,
+        );
+    }
+
+    /**
+     * Web link of an issue. The link needs the workspace URL slug, which the
+     * account service returns from selectWorkspace; HULY_WORKSPACE_ID is
+     * usually the UUID. Looked up once per command.
+     */
+    async getIssueUrl(identifier: string): Promise<string | null> {
+        const { ws } = await this.workspace();
+        const slug = typeof ws?.info?.workspaceUrl === 'string' ? ws.info.workspaceUrl : null;
+        return issueUrl(getHost(), slug, identifier);
+    }
+
+    /**
+     * Server config and workspace token, fetched once per command and shared by
+     * the link lookup and the files client (connectStorage would fetch both
+     * again). Retried after a failure rather than cached as one.
+     */
+    /** How long loading the server config and workspace token may take. */
+    workspaceTimeoutMs = 30_000;
+
+    private readonly workspace = memoizeSuccess<{ config: any; ws: any }>(() => withTimeout((async () => {
+        const config = await loadServerConfig(getHost());
+        const ws = await getWorkspaceToken(getHost(), { token: getApiKey(), workspace: getWorkspaceId() }, config);
+        return { config, ws };
+    })(), this.workspaceTimeoutMs, 'Timed out loading the server config and workspace token'));
+    // A hang becomes a rejection here, which memoizeSuccess does not keep, so
+    // the next file or link lookup tries again instead of waiting on it.
+
+    /**
+     * Stream one stored file. Blobs live behind the HTTP files endpoint, not
+     * the WebSocket, so a storage client is opened on first use with the same
+     * token and kept for the rest of the command — unless opening it failed,
+     * in which case the next file tries again.
+     */
+    async downloadBlob(blobId: string): Promise<AsyncIterable<Uint8Array>> {
+        // The id is spliced into the files URL next to the workspace token.
+        if (!isSafeBlobId(blobId)) throw hulyError('invalid_input', 'Invalid attachment file reference');
+        const storage = await this.storage();
+        return await storage.get(encodeURIComponent(blobId));
+    }
+
+    private readonly storage = memoizeSuccess<any>(async () => {
+        const { config, ws } = await this.workspace();
+        const { filesUrl, uploadUrl } = storageUrls(getHost(), config, ws.workspaceId);
+        return createStorageClient(filesUrl, uploadUrl, ws.token, ws.workspaceId);
+    });
 
     // -----------------------------------------------------------------------
     // Markup helpers
