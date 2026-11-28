@@ -11,7 +11,8 @@
  * The message stays exactly as it was; this only adds fields beside it.
  *
  * A failure that already changed something before it stopped (an upload that
- * attached some files, or kept a blob whose record may exist) carries
+ * attached some files, kept a blob whose record may exist, or was cut off
+ * while its blob may still land) carries
  * `retryable: false` itself, since repeating it as is would do that twice.
  */
 

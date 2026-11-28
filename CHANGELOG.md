@@ -13,7 +13,9 @@ which are released together under the same number.
   `uploadError` while the others still go; the CLI exits 1 when any failed. A
   refused credential or dropped connection fails the whole call instead (`auth`
   / `connection`, exit 2 / 5), naming the files already attached and, once any went up or a blob was kept, with
-  `retryable: false` so the same call is not repeated. A blob whose
+  `retryable: false` so the same call is not repeated. A dropped or timed-out
+  upload names the key its blob would be stored under and is `retryable: false`
+  too, since the upload keeps running and the blob may still land. A blob whose
   record was refused is removed again (a failed removal is reported as
   `cleanupError`); after a dropped connection it is kept, since the record may
   exist. Uploads time out after 120 s. Blobs are stored

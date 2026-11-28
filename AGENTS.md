@@ -107,8 +107,9 @@ On failure, `code` is one of `auth`, `connection`, `not_found`, `invalid_input`,
 `unknown`, and only `connection` is `retryable` — repeating any other call with
 the same arguments will fail the same way. A `connection` error that says
 `retryable: false` is the exception: the call had already changed something (a
-`huly attach` that attached some files, or kept a stored file whose record may
-exist), so repeating it as is would do that twice. `auth` errors carry a `hint`. The CLI
+`huly attach` that attached some files, kept a stored file whose record may
+exist, or was cut off while a file may still be stored under the key it names),
+so repeating it as is would do that twice. `auth` errors carry a `hint`. The CLI
 exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, and
 1 on anything else.
 
@@ -305,7 +306,9 @@ Each file in `files` carries `attachmentId`, or `uploadError` while the others
 still upload; the CLI exits 1 when any failed. A refused credential or dropped
 connection fails the whole call instead (`auth` / `connection`), naming the
 files already attached; once some went up, or a blob was kept because its
-record may already exist, it is `retryable: false`, so resend only the others. Read it back with `huly task DELTA-42 --json`.
+record may already exist, or an upload was cut off while its file may still be
+stored under the key the message names, it is `retryable: false`, so resend
+only the others. Read it back with `huly task DELTA-42 --json`.
 
 **"Tag an issue with a label"**
 ```bash

@@ -61,12 +61,18 @@ test('a dropped connection after a file went up is not retryable with the same a
     });
 });
 
-test('a dropped connection before anything went up stays retryable', async () => {
-    const src = source({ uploadErrors: { 'a.txt': hulyError('connection', 'fetch failed') } });
-    await assert.rejects(attachPrepared(src, 'DELTA-42', await prepareUploads(filesIn(['a.txt']))), (e: any) => {
-        assert.equal(errorPayload(e).retryable, true);
-        return true;
-    });
+// Code review 2: the timed-out `put` keeps running, so its blob may still land.
+test('a dropped connection or timeout while storing the first file is not retryable and names the key', async () => {
+    for (const message of ['fetch failed', 'Upload timed out after 120s']) {
+        const src = source({ uploadErrors: { 'a.txt': hulyError('connection', message) } });
+        await assert.rejects(attachPrepared(src, 'DELTA-42', await prepareUploads(filesIn(['a.txt']))), (e: any) => {
+            const payload = errorPayload(e);
+            assert.equal(payload.code, 'connection');
+            assert.equal(payload.retryable, false);
+            assert.ok(payload.error.includes(src.keys[0]), payload.error);
+            return true;
+        });
+    }
 });
 
 // --- A1.2: a blob that may have landed is named by its key ------------------

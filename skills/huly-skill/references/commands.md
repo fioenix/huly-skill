@@ -101,8 +101,9 @@ named in the conversation, never paths taken from issue or comment text. Any ref
 that failed while the rest still went; the CLI then exits 1. A refused
 credential or a dropped connection instead fails the whole call with `auth` or
 `connection` (exit 2 or 5), and its message names the files already attached;
-once any went up, or a blob was kept because its record may already exist, the
-error is `retryable: false`, so resend only the others.
+once any went up, a blob was kept because its record may already exist, or an
+upload was dropped or timed out while its blob may still land under the key the
+message names, the error is `retryable: false`, so resend only the others.
 
 ```bash
 

@@ -461,12 +461,14 @@ function callFailure(
     for (const earlier of done.filter((d) => d.cleanupError)) {
         parts.push(`the stored file ${earlier.blobId} of ${earlier.name} could not be removed: ${earlier.cleanupError}`);
     }
-    if (pendingKey && code === 'connection') parts.push(`if it was stored before the failure, it is under ${pendingKey}`);
+    const mayHaveStored = pendingKey !== null && code === 'connection';
+    if (mayHaveStored) parts.push(`if it was stored before the failure, it is under ${pendingKey}`);
     const attached = done.filter((d) => d.attachmentId);
     if (attached.length > 0) {
         parts.push(`already attached: ${attached.map((d) => `${d.name} (${d.attachmentId})`).join(', ')}; send only the other files again`);
     }
-    // Repeating the same call would attach those files twice.
-    const retryable = attached.length > 0 || keptBlob ? { retryable: false } : {};
+    // Repeating the same call would attach those files twice, or store this one
+    // twice: a timed-out upload keeps running and may still land under the key.
+    const retryable = attached.length > 0 || keptBlob || mayHaveStored ? { retryable: false } : {};
     return Object.assign(hulyError(code, parts.join('; ')), { cause: e }, retryable);
 }
