@@ -378,7 +378,7 @@ HULY_MCP_AUTH_TOKEN=your-shared-secret \
 npx -y @fioenix/huly-mcp@latest
 ```
 
-Serves `POST /mcp` (default port 3000, override with `PORT`) and `GET /health`. When `HULY_MCP_AUTH_TOKEN` is set, callers must send `Authorization: Bearer <token>` — because the server holds Huly credentials, always set it for any non-local deployment.
+Serves `POST /mcp` (default port 3000, override with `PORT`) and `GET /health`. When `HULY_MCP_AUTH_TOKEN` is set, callers must send `Authorization: Bearer <token>` — because the server holds Huly credentials, always set it for any non-local deployment; a blank value, or one with leading/trailing whitespace, stops the server at startup. Without it the server listens on `127.0.0.1` only, so an open endpoint is not reachable from the network; with it, on every interface. `HULY_MCP_HOST` sets the bind address explicitly either way (e.g. `0.0.0.0` inside a container behind your own gateway). Errors inside a request are answered `500` with a generic message; the detail goes to the server's stderr.
 
 Over HTTP `huly_get_task` has no `downloadDir` argument (its strict schema rejects it): a remote caller cannot read the server's disk and must not be able to write to it, so attachments come back as metadata only.
 
@@ -395,9 +395,18 @@ its writes to it rather than to whoever owns the server's token:
 without it the request is refused with `400`, so the server's own token is never
 sent to a host or used on a workspace the caller chose.
 
+`x-huly-url` must also be a host the deployment allows, because the server
+connects to it (its `/config.json`, then the endpoints listed there): the origin
+of `HULY_HOST`, or one listed in `HULY_MCP_ALLOWED_HOSTS` (comma-separated, e.g.
+`https://huly.app,https://huly.corp.example` — full origins, not bare hostnames;
+an entry that is not one is named in a startup warning). Any other value, and
+any `x-huly-url` with a path, query, fragment or `user:pass@`, is refused with
+`400`. A host other than `HULY_HOST` also needs `x-huly-workspace`, so the
+server's own workspace id is never sent to it.
+
 The process environment stays the default, so a shared token keeps working
 unchanged. Set `HULY_REQUIRE_CALLER_TOKEN=true` to reject requests that omit
-`x-huly-token` with `401` instead of quietly falling back to the server's token —
+`x-huly-token`, or send a blank one, with `401` instead of quietly falling back to the server's token —
 worth doing on any deployment where attribution matters. `huly_context` reports
 which source is in effect.
 

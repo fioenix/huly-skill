@@ -90,6 +90,70 @@ which are released together under the same number.
   is an `http(s)` URL, so a `user:pass@` or a pasted `?token=` sign-in URL in
   `HULY_HOST` never reaches the output (as with `huly whoami`).
 
+### Changed — HTTP requests whose `x-huly-url` is not an allowed host, or names another host without `x-huly-workspace`, are now refused
+- `x-huly-url` with a caller's own `x-huly-token` made the server fetch
+  `<x-huly-url>/config.json` and follow the account and WebSocket endpoints it
+  listed, for any URL at all — cloud metadata, internal services — and, with
+  `x-huly-workspace` omitted, sent the server's `HULY_WORKSPACE_ID` there in the
+  workspace login. `x-huly-url` must now be an http(s) URL whose origin is
+  `HULY_HOST`'s or is listed in the new `HULY_MCP_ALLOWED_HOSTS`
+  (comma-separated); a host other than `HULY_HOST` must come with
+  `x-huly-workspace`. Anything else is answered `400` before any connection is
+  made. A multi-instance deployment lists its hosts in `HULY_MCP_ALLOWED_HOSTS`;
+  callers must send `x-huly-workspace` with them. `runWithCredentials` enforces
+  the same rules.
+- `x-huly-url` must be a bare origin: a path, query, fragment or `user:pass@`
+  is refused, even on an allowed host, since a `?` or `#` swallows the
+  `/config.json` the server appends and so re-targets its config fetch. What
+  reaches the connection is the checked origin, not the header as sent (a
+  trailing `/` and letter case still don't matter). A blank `token`, `host` or
+  `workspace` passed to `runWithCredentials` counts as absent, as an empty
+  header does.
+- An `x-huly-token` that is blank once trimmed (including one of U+00A0
+  NO-BREAK SPACE, which the HTTP parser keeps) counts as absent there too, so
+  under `HULY_REQUIRE_CALLER_TOKEN=true` it is answered `401` rather than
+  passing the guard and falling back to the server's `HULY_API_KEY`.
+- `HULY_MCP_ALLOWED_HOSTS` entries that are not full http(s) origins — a bare
+  hostname is the usual slip — are named by position in a startup warning,
+  instead of silently never matching.
+
+### Changed — without `HULY_MCP_AUTH_TOKEN` the HTTP transport listens on `127.0.0.1` only
+- `app.listen(port)` bound every interface, so an unauthenticated server — which
+  acts with its own Huly token — was open to the local network. With no auth
+  token it now binds `127.0.0.1`; with one it still binds every interface. The
+  new `HULY_MCP_HOST` sets the address explicitly: an unauthenticated container
+  behind its own gateway needs `HULY_MCP_HOST=0.0.0.0` to stay reachable.
+- This also covers a deployment with `HULY_REQUIRE_CALLER_TOKEN=true` but no
+  `HULY_MCP_AUTH_TOKEN`. The default bind is IPv4 loopback: a client reaching
+  `http://[::1]:3000/mcp`, or a `localhost` that resolves to `::1` only, now
+  gets `ECONNREFUSED` (use `127.0.0.1`, or `HULY_MCP_HOST=::1`). An IPv6-only or
+  dual-stack container needs `HULY_MCP_HOST=::` rather than `0.0.0.0`.
+- `HULY_MCP_HOST` is trimmed and a blank one counts as unset; the startup line
+  brackets an IPv6 address (`[::1]:3000`); a bind failure (`EADDRINUSE`, an
+  unresolvable host) exits through the `[huly-mcp] fatal:` line.
+
+### Changed — a blank or whitespace-padded `HULY_MCP_AUTH_TOKEN` now stops the HTTP server at startup
+- A `HULY_MCP_AUTH_TOKEN` that is blank or has leading/trailing whitespace (a
+  secret read from a file with a trailing newline, say) now stops the server at
+  startup. Such a secret could never match (the HTTP parser trims the header),
+  and trimming it would have opened the endpoint instead. Set the secret
+  exactly, or unset it.
+
+### Security — constant-time Bearer check and no internal detail in HTTP 500s
+- The `HULY_MCP_AUTH_TOKEN` check compared strings with `!==`, which returns at
+  the first differing byte; it now compares SHA-256 digests with
+  `crypto.timingSafeEqual`.
+- An error inside a request was answered `500` with its message, which can name
+  internal hosts, paths or upstream replies. The caller now gets
+  `{ "error": "Internal error" }`; the message goes to stderr.
+- That stderr line, with the error's `cause`, keeps URLs to scheme and host,
+  masks JWT-shaped strings and stays on one line (C0/C1 controls and Unicode
+  line separators become spaces), so a WebSocket URL's token or
+  a caller-shaped message cannot reach or forge the log.
+- The JSON body is parsed only after the Bearer and caller-token guards, and a
+  malformed or oversized body is answered `400` / `413` in JSON instead of
+  Express's HTML error page with its stack trace. `X-Powered-By` is off.
+
 ### Fixed — heartbeats through `HTTPS_PROXY`
 - The proxy WebSocket passed `ws`'s `Buffer` messages straight to the Huly client,
   which recognises its `ping`/`pong!` heartbeats only as strings or ArrayBuffers;

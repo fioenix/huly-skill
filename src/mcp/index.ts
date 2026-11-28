@@ -10,7 +10,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createHulyMcpServer } from './server.js';
 import { serverOptionsFor } from './get-task-schema.js';
-import { createHttpApp } from './http.js';
+import { createHttpApp, listenAddress, listenHost } from './http.js';
+import { allowedHostsWarning } from '../utils/auth.js';
 
 // Transport is chosen by env so a single bin works for every client:
 //   HULY_MCP_TRANSPORT=stdio  (default) — local clients (Claude Code/Desktop)
@@ -42,9 +43,20 @@ function startHttp(): void {
         await transport.handleRequest(req, res, req.body);
     });
 
-    app.listen(port, () => {
+    const warning = allowedHostsWarning(process.env);
+    if (warning) process.stderr.write(`[huly-mcp] warning: ${warning}\n`);
+
+    const host = listenHost(process.env);
+    const onListening = () => {
         const auth = process.env.HULY_MCP_AUTH_TOKEN ? ' (auth required)' : '';
-        process.stderr.write(`[huly-mcp] HTTP transport listening on :${port}/mcp${auth}\n`);
+        process.stderr.write(`[huly-mcp] HTTP transport listening on ${listenAddress(host, port)}/mcp${auth}\n`);
+    };
+    const server = host ? app.listen(port, host, onListening) : app.listen(port, onListening);
+    // EADDRINUSE, EADDRNOTAVAIL and an unresolvable HULY_MCP_HOST arrive as an
+    // event, not a throw; report them like any other startup failure.
+    server.on('error', (e: Error) => {
+        process.stderr.write(`[huly-mcp] fatal: ${e.message}\n`);
+        process.exit(1);
     });
 }
 

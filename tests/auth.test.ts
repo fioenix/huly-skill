@@ -16,6 +16,7 @@ beforeEach(() => {
     process.env.HULY_HOST = 'https://env.example.com';
     process.env.HULY_WORKSPACE_ID = 'env-workspace';
     process.env.HULY_API_KEY = 'env-token';
+    process.env.HULY_MCP_ALLOWED_HOSTS = 'https://caller.example.com';
 });
 
 test('falls back to the environment — a shared token keeps working', () => {
@@ -97,4 +98,61 @@ test('credentialsError names the problem only for a target without a token', () 
     assert.equal(credentialsError({}), null);
     assert.equal(credentialsError({ token: 'caller-token' }), null);
     assert.equal(credentialsError({ token: 'caller-token', host: 'https://caller.example.com', workspace: 'ws' }), null);
+});
+
+// runWithCredentials is the boundary every entry point goes through, so the host
+// rules hold there too and not only in the HTTP transport.
+test('a caller host must be allowed and bring its own workspace', () => {
+    assert.throws(
+        () => runWithCredentials({ token: 'caller-token', host: 'http://169.254.169.254', workspace: 'ws' }, () => getApiKey()),
+        /not an allowed host/,
+    );
+    assert.throws(
+        () => runWithCredentials({ token: 'caller-token', host: 'https://caller.example.com' }, () => getWorkspaceId()),
+        /x-huly-url requires x-huly-workspace/,
+    );
+    assert.equal(credentialsError({ token: 'caller-token', host: 'https://env.example.com' }), null);
+    assert.match(credentialsError({ token: 'caller-token', host: 'javascript:alert(1)', workspace: 'ws' }) ?? '', /http\(s\) origin/);
+});
+
+test('the host in scope is the checked origin, not the string passed in', () => {
+    const host = runWithCredentials({ token: 'caller-token', host: '  https://env.example.com  ' }, () => getHost());
+    assert.equal(host, 'https://env.example.com');
+});
+
+test('a host with a path, query, fragment or userinfo is refused', () => {
+    for (const host of ['https://env.example.com/sub', 'https://env.example.com?x=1', 'https://env.example.com/#f', 'https://a:b@caller.example.com']) {
+        assert.match(credentialsError({ token: 'caller-token', host, workspace: 'ws' }) ?? '', /x-huly-url/, host);
+    }
+});
+
+// The allowlist compares origins: another scheme or port is another host, while
+// IPv6 and IDN spellings of one origin are the same host.
+test('host matching compares normalized origins and fails closed', () => {
+    const error = (host: string) => credentialsError({ token: 'caller-token', host, workspace: 'ws' });
+    assert.match(error('http://env.example.com') ?? '', /not an allowed host/);
+    assert.match(error('https://env.example.com:8443') ?? '', /not an allowed host/);
+
+    process.env.HULY_MCP_ALLOWED_HOSTS = 'http://[::1]:8080, https://bücher.example';
+    assert.equal(runWithCredentials({ token: 'caller-token', host: 'http://[0:0:0:0:0:0:0:1]:8080', workspace: 'ws' }, getHost), 'http://[::1]:8080');
+    assert.equal(runWithCredentials({ token: 'caller-token', host: 'https://BÜCHER.example', workspace: 'ws' }, getHost), 'https://xn--bcher-kva.example');
+
+    delete process.env.HULY_MCP_ALLOWED_HOSTS;
+    assert.match(error('https://caller.example.com') ?? '', /not an allowed host/);
+    delete process.env.HULY_HOST;
+    assert.match(error('https://env.example.com') ?? '', /not an allowed host/);
+});
+
+// The HTTP transport turns an empty header into "absent"; a direct caller of
+// runWithCredentials gets the same reading rather than a looser one.
+test('an empty or blank token or workspace counts as absent', () => {
+    assert.throws(
+        () => runWithCredentials({ token: '', host: 'https://caller.example.com', workspace: '' }, () => getApiKey()),
+        /requires x-huly-token/,
+    );
+    assert.throws(
+        () => runWithCredentials({ token: 'caller-token', host: 'https://caller.example.com', workspace: '  ' }, () => getWorkspaceId()),
+        /requires x-huly-workspace/,
+    );
+    assert.equal(runWithCredentials({ token: '  ' }, () => getApiKey()), 'env-token');
 });
