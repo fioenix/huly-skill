@@ -12,12 +12,20 @@ which are released together under the same number.
   `uploaded`, `failed` and per file `path` (the absolute local path),
   `name`, `type`, `size`, `attachmentId` and `blobId`, or `uploadError` while
   the others still go, plus `cleanupError` (also in the text output) when a
-  failed file's blob could not be removed; the CLI exits 1 when any failed. A
+  failed file's blob could not be removed, and `pendingKey` (also in the text
+  output) when a failed file's upload had started, naming the key its blob is
+  under if it was stored; the CLI exits 1 when any failed. A
   refused credential or dropped connection fails the whole call instead (`auth`
   / `connection`, exit 2 / 5), naming the files already attached and, once any went up or a blob was kept, with
   `retryable: false` so the same call is not repeated. A dropped or timed-out
   upload names the key its blob would be stored under and is `retryable: false`
-  too, since the upload keeps running and the blob may still land. A blob whose
+  too, since the upload keeps running and the blob may still land; an upload
+  that never started (storage could not be opened, or the connection was
+  refused or its host not resolved) names no key and stays retryable. Only a
+  storage network error, an HTTP 401/403, a Huly Unauthorized, Forbidden,
+  TokenExpired or ConnectionClosed status, or a Node network code ends the
+  call, never the wording of a message, so a file the server refuses for its
+  type fails alone. A blob whose
   record was refused is removed again (a failed removal is reported as
   `cleanupError`); after a dropped connection it is kept, since the record may
   exist. Uploads time out after 120 s. Blobs are stored
@@ -32,16 +40,21 @@ which are released together under the same number.
   whole call with `invalid_input`. A file must resolve, symlinks included,
   inside `HULY_UPLOAD_ROOT`, or the working directory when that is unset (not
   the temp directory, unlike downloads; and a root of home, any directory
-  above it, or the tmp directory itself (`/tmp` or `/private/tmp`, `tmpdir()`,
-  or its parent) is refused, since everything under it
+  above it, or a shared tmp directory (`/tmp`, `/var/tmp`, `/dev/shm`,
+  `tmpdir()`, and every directory above the system's own tmp), or a working
+  directory inside a hidden directory, is refused, since everything under it
   would be readable: a working directory that broad, and a `HULY_UPLOAD_ROOT`
-  set that broad, whose message names the variable); be a regular file (not a directory or FIFO); not be hidden or
-  inside a hidden directory; and not have a base name that looks like a key,
-  certificate or credential, case-insensitively, on the given name or a
-  symlink's target (`*.pem`, `*.key`, `*.p12`, `*.pfx`; `id_rsa`, `id_dsa`,
-  `id_ecdsa`, `id_ed25519` and names starting with them, except `*.pub`;
-  `*.tfstate` and `*.tfstate.*`; names containing `credential`, `secret` or
-  `service-account` / `service_account`), since the default root is often a
+  set that broad, whose message names the variable); be a regular file (not a
+  directory or FIFO) with a single hard link that does not change between the
+  check and the read; not be hidden or inside a hidden directory; and not look
+  like a key, certificate or credential, case-insensitively, on the given name
+  or a symlink's target (`*.p12`, `*.pfx`, `*.ppk`, `*.jks`, `*.keystore`,
+  `*.kdbx`, `AuthKey_*.p8`; `id_rsa`, `id_dsa`, `id_ecdsa`, `id_ed25519` and
+  names starting with them, except `*.pub`; `*.tfstate` and `*.tfstate.*`,
+  `*.tfvars`; `*.env` and `env.*`; `kubeconfig`; service-account JSON files;
+  backups of these; a path segment with the whole word `secret` or
+  `credential`; `*.key` and `*.pem` unless they are zip files; any file that
+  starts with a private-key header), since the default root is often a
   repository holding such files. Caps: 50 MB a file, 200 MB and 20 files a call.
   Text in an issue can steer an agent's arguments, so paths are checked rather
   than trusted, and the tool description and the skill tell an agent to attach
@@ -49,6 +62,31 @@ which are released together under the same number.
   or comment text.
 - `huly_add_attachment` exists only over stdio. Under `HULY_MCP_TRANSPORT=http`
   a remote caller must not be able to read the server's disk.
+
+### Rejects — upload roots and files refused after the upload review
+- A working directory inside a hidden directory (`~/.config`, `~/.claude`, a
+  repository under `.claude/worktrees`) is now refused as the default root,
+  with a message naming the hidden segment and telling the caller to set
+  `HULY_UPLOAD_ROOT`, since the "never hidden" rule only looks below the root.
+  An explicit `HULY_UPLOAD_ROOT` inside a hidden directory is accepted, as
+  setting it is the operator's deliberate choice; hidden files, secret names,
+  private keys and hard links below it are still refused. Also refused are
+  `/var/tmp` (`/private/var/tmp`),
+  `/dev/shm`, and every directory above the system's own `tmpdir()`
+  (`/private/var/folders`, `/private/var`). The parent of `tmpdir()` is refused
+  only when it is the macOS per-user folder, so a project that sets `TMPDIR`
+  inside itself is accepted again.
+- Newly refused files: backups of key files (`key.pem.bak`, `server.key.orig`),
+  `*.tfvars`, `prod.env`, `env.production`, `AuthKey_*.p8`, `*.ppk`, `*.jks`,
+  `*.keystore`, `*.kdbx`, `kubeconfig`, files in a `secrets/` or
+  `credentials/` directory, `*.key` and `*.pem` files that are not zips, any
+  file that starts with a `-----BEGIN … PRIVATE KEY-----` header, any file
+  with more than one hard link, and a path that changes between the check and
+  the read. Newly accepted: Apple Keynote decks (`*.key` zips) and names that
+  only contain `secret` or `credential` inside a longer word
+  (`secretary-notes.md`, `credentialing-process.docx`) or `service-account` in
+  a non-JSON file. The refusal now says to rename or zip a file that is not a
+  secret.
 
 ### Added — tasks carry their web link
 - `huly task --json`, `huly create task --json`, `huly_get_task` and

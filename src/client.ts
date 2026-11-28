@@ -30,7 +30,7 @@ import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 import { issueUrl, storageUrls } from './utils/links.js';
 import { hulyError } from './utils/errors.js';
 import { ATTACHMENT_QUERY, isSafeBlobId, memoizeSuccess, withTimeout } from './utils/task-detail.js';
-import { recordAttachment, removeStoredBlob, toCallError, uploadFile } from './utils/attachment-upload.js';
+import { recordAttachment, removeStoredBlob, storageUnreachable, uploadFile } from './utils/attachment-upload.js';
 import {
     tracker, contact, document as hulyDocument, tags, hr,
     activity, chunter, task, attachment,
@@ -1071,7 +1071,7 @@ export class HulyClient {
         try {
             return await this.storage();
         } catch (e) {
-            throw toCallError(e);
+            throw storageUnreachable(e);
         }
     }
 

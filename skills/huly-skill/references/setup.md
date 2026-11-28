@@ -12,7 +12,7 @@ The CLI reads these from a `.env` file; it never needs them passed inline.
 - `HULY_ACTOR` — optional; who is operating the CLI when the token is shared
 - `HULY_DEFAULT_ASSIGNEE` — optional; assignee used when none is given
 - `HULY_DOWNLOAD_ROOT` — optional; the only directory attachment downloads may write under (default: the working directory unless it is `/` or home or contains home, or the temp directory)
-- `HULY_UPLOAD_ROOT` — optional; the only directory `huly attach` / `huly_add_attachment` may read files from (default: the working directory; either root is refused when it is home, above it, or the system tmp directory itself: `/tmp` or `/private/tmp`, `tmpdir()`, or its parent); files named like keys, certificates or credentials are refused under any root (see `commands.md`)
+- `HULY_UPLOAD_ROOT` — optional; the only directory `huly attach` / `huly_add_attachment` may read files from (default: the working directory; either root is refused when it is home, above it, or a shared tmp directory: `/tmp`, `/var/tmp`, `/dev/shm`, `tmpdir()`, and every directory above the system's own tmp; a `TMPDIR` set inside a project leaves the project usable; the working directory is also refused inside a hidden directory such as `~/.config`, while an explicit `HULY_UPLOAD_ROOT` there is accepted); hidden and hard-linked files and files that look like keys, certificates or credentials by name or content are refused under any root (see `commands.md`)
 
 ## Where `.env` is looked up
 

@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { open, realpath } from 'node:fs/promises';
+import { lstat, open, realpath } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, parse, relative, resolve, sep } from 'node:path';
-import { classifyError, hulyError } from './errors.js';
+import { hulyError } from './errors.js';
 import { attachment, tracker } from '../huly-types.js';
 import { allowedRoots, describeError, formatSize, isSafeBlobId } from './task-detail.js';
 
@@ -32,15 +32,62 @@ type CallErrorCode = 'auth' | 'connection';
 
 /**
  * Mark an error that no later file in the same call could escape: a refused
- * credential or a dropped connection. The SDK throws plain errors, so the
- * client passes what it catches through here; anything else is returned as is
- * and stays a failure of that one file.
+ * credential or a dropped connection. The client passes what it catches
+ * through here, which decides by the error's class and status, never its
+ * message: a storage `NetworkError`, an HTTP 401 or 403, a Huly status of
+ * Unauthorized, Forbidden, TokenExpired or ConnectionClosed, or a Node network
+ * code. Anything else, such as an upload refused with "File type forbidden",
+ * is returned as is and stays a failure of that one file.
  */
 export function toCallError(e: unknown): unknown {
-    const code = classifyError(e);
-    if (code !== 'auth' && code !== 'connection') return e;
-    if ((e as { code?: unknown })?.code === code) return e;
+    const explicit = callErrorCode(e);
+    if (explicit) return e;
+    const code = callErrorClass(e);
+    if (!code) return e;
     return Object.assign(hulyError(code, describeError(e)), { cause: e });
+}
+
+/**
+ * Opening the storage client failed: a refused credential, or else storage
+ * could not be reached. Nothing was sent, so no blob can land.
+ */
+export function storageUnreachable(e: unknown): unknown {
+    const code = callErrorCode(e) ?? callErrorClass(e) ?? 'connection';
+    const error = (e as { code?: unknown })?.code === code ? e : Object.assign(hulyError(code, describeError(e)), { cause: e });
+    return notStarted(error);
+}
+
+/** Marks an upload that never reached `put`'s request, so a retry cannot store the file twice. */
+function notStarted(e: unknown): unknown {
+    return e && typeof e === 'object' ? Object.assign(e, { uploadStarted: false }) : e;
+}
+
+function uploadStarted(e: unknown): boolean {
+    return (e as { uploadStarted?: unknown })?.uploadStarted !== false;
+}
+
+// Failures to connect at all: no byte of the upload went out.
+const CONNECT_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN']);
+
+const NETWORK_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_SOCKET']);
+
+function callErrorClass(e: unknown): CallErrorCode | null {
+    const err = e as { name?: unknown; status?: any; response?: { status?: unknown }; code?: unknown; cause?: { code?: unknown } } | null;
+    if (!err || typeof err !== 'object') return null;
+    if (err.name === 'NetworkError') return 'connection';
+    const status = typeof err.status === 'number' ? err.status : err.response?.status;
+    if (status === 401 || status === 403) return 'auth';
+    const platform = typeof err.status?.code === 'string' ? err.status.code : '';
+    if (/:(Unauthorized|Forbidden|TokenExpired)$/.test(platform)) return 'auth';
+    if (/:ConnectionClosed$/.test(platform)) return 'connection';
+    return NETWORK_CODES.has(nodeErrorCode(e)) ? 'connection' : null;
+}
+
+/** A Node network error's code, on the error itself or, as fetch puts it, on its cause. */
+function nodeErrorCode(e: unknown): string {
+    const own = (e as { code?: unknown })?.code;
+    const cause = (e as { cause?: { code?: unknown } })?.cause?.code;
+    return typeof own === 'string' && NETWORK_CODES.has(own) ? own : typeof cause === 'string' ? cause : '';
 }
 
 /** Only an explicit code ends the call; a message that merely mentions "forbidden" does not. */
@@ -73,7 +120,8 @@ export async function storeBlob(
     try {
         blob = await Promise.race([storage.put(key, data, type, data.byteLength), timeout]);
     } catch (e) {
-        throw toCallError(e);
+        const error = toCallError(e);
+        throw CONNECT_CODES.has(nodeErrorCode(e)) ? notStarted(error) : error;
     } finally {
         clearTimeout(timer);
     }
@@ -147,6 +195,7 @@ export function formatAttachText(taskId: string, result: { uploaded: number; fil
         output += `  - ${file.name} (${file.type}, ${formatSize(file.size)})`;
         if (file.uploadError) output += ` ⚠️ upload failed: ${file.uploadError}`;
         if (file.cleanupError) output += ` ⚠️ stored file ${file.blobId} could not be removed: ${file.cleanupError}`;
+        if (file.pendingKey) output += ` (if it was stored, it is under ${file.pendingKey})`;
         output += '\n';
     }
     return output;
@@ -170,6 +219,8 @@ export interface UploadedFile {
     blobId: string | null;
     uploadError?: string;
     cleanupError?: string;
+    /** The key a failed file's blob is under if `put` stored it before failing. */
+    pendingKey?: string;
 }
 
 export interface AttachmentUploadSource {
@@ -247,47 +298,63 @@ export async function prepareUploads(paths: string[], limits: Partial<UploadLimi
  * default: reading sends a file to a workspace many people see, and temp is
  * shared with every other process. A working directory of home or the
  * filesystem root would expose everything under it, so that needs an explicit
- * HULY_UPLOAD_ROOT, which is held to the same rule.
+ * HULY_UPLOAD_ROOT, which is held to the same breadth rule. Only the working
+ * directory default is refused inside a hidden directory: an explicit root
+ * there (a checkout under `.claude/worktrees/…`) is the operator's choice.
  */
 async function uploadRoots(): Promise<string[]> {
     if (process.env.HULY_UPLOAD_ROOT?.trim()) {
         const roots = (await allowedRoots('HULY_UPLOAD_ROOT')).roots;
-        for (const root of roots) {
-            if (await tooBroad(root)) {
-                throw hulyError(
-                    'invalid_input',
-                    `HULY_UPLOAD_ROOT ${root} is too broad to upload from; set it to the directory that holds the files`,
-                );
-            }
-        }
+        for (const root of roots) refuseRoot(root, `HULY_UPLOAD_ROOT ${root}`, 'set it to the directory that holds the files', await tooBroad(root), false);
         return roots;
     }
     const cwd = await realpath(process.cwd());
-    if (await tooBroad(cwd)) {
-        throw hulyError(
-            'invalid_input',
-            `The working directory ${cwd} is too broad to upload from; set HULY_UPLOAD_ROOT to the directory that holds the files`,
-        );
-    }
+    refuseRoot(cwd, `The working directory ${cwd}`, 'set HULY_UPLOAD_ROOT to the directory that holds the files', await tooBroad(cwd), true);
     return [cwd];
 }
 
 /**
- * Home itself or any directory above it (`/Users`, `/`), and the shared temp
- * directory itself; a project or scratch directory below them is fine. Temp
- * means `tmpdir()` and its parent (on macOS the per-user folder that also holds
- * the cache directory) and the shared `/tmp` (`/private/tmp` on macOS).
+ * A working directory inside a hidden directory (`~/.claude`, `~/.config`)
+ * would make every file below it pass the "never hidden" rule, which only
+ * looks below the root, without anyone having chosen that root.
  */
+function refuseRoot(root: string, what: string, fix: string, broad: boolean, refuseHidden: boolean): void {
+    if (broad) throw hulyError('invalid_input', `${what} is too broad to upload from; ${fix}`);
+    const hidden = refuseHidden && root.split(sep).find((segment) => segment.startsWith('.'));
+    if (hidden) {
+        throw hulyError(
+            'invalid_input',
+            `${what} is inside a hidden directory (${hidden}), where the rule that hidden files are never uploaded cannot apply; ${fix}`,
+        );
+    }
+}
+
+/**
+ * Home itself or any directory above it (`/Users`, `/`), and the shared temp
+ * directories themselves; a project or scratch directory below them is fine.
+ * Temp means `tmpdir()`, the shared `/tmp`, `/var/tmp` (under `/private` on
+ * macOS) and `/dev/shm`, and, when `tmpdir()` is one the system manages (the
+ * macOS per-user `…/T`, or one of those shared ones), every directory above it:
+ * on macOS its parent also holds the cache directory. A TMPDIR set inside a
+ * project leaves the project usable.
+ */
+const MACOS_USER_TEMP = /^\/private\/var\/folders\/[^/]+\/[^/]+\/T$/;
+const SHARED_TEMPS = ['/tmp', '/private/tmp', '/var/tmp', '/private/var/tmp', '/dev/shm'];
+
 async function tooBroad(dir: string): Promise<boolean> {
     const home = await realpath(homedir()).catch(() => homedir());
     const temp = await realpath(tmpdir()).catch(() => tmpdir());
-    const temps = [temp, dirname(temp)];
-    for (const shared of ['/tmp', '/private/tmp']) {
+    const temps = [temp];
+    for (const shared of SHARED_TEMPS) {
         temps.push(await realpath(shared).catch(() => shared));
     }
-    const homeRel = relative(dir, home);
-    const holdsHome = homeRel === '' || (!homeRel.startsWith('..') && !isAbsolute(homeRel));
-    return holdsHome || temps.includes(dir) || dir === parse(dir).root;
+    const systemTemp = MACOS_USER_TEMP.test(temp) || temps.slice(1).some((shared) => isAncestorOrSelf(shared, temp));
+    return isAncestorOrSelf(dir, home) || temps.includes(dir) || dir === parse(dir).root || (systemTemp && isAncestorOrSelf(dir, temp));
+}
+
+function isAncestorOrSelf(dir: string, of: string): boolean {
+    const rel = relative(dir, of);
+    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
 /**
@@ -318,10 +385,10 @@ async function readAllowed(input: string, roots: string[], caps: UploadLimits, u
         throw hulyError('invalid_input', `${input} is a hidden file or inside a hidden directory`);
     }
     // The name as given and the name it resolves to, so a link cannot rename a key.
-    const secret = secretPattern(basename(path)) ?? secretPattern(basename(real));
-    if (secret) {
-        throw hulyError('invalid_input', `${input} looks like a key, certificate or credential file (${secret}) and is never uploaded`);
-    }
+    const givenRel = relativeToRoot(path, roots);
+    const segments = [...rel.split(sep), ...(givenRel ? givenRel.split(sep) : [basename(path)])];
+    const secret = secretName([basename(path), basename(real)], segments);
+    if (secret && !secret.byContent) throw secretFile(input, secret.label);
 
     // The real path is opened without following a final symlink, so swapping
     // the file for one after the check fails instead of reading elsewhere.
@@ -335,6 +402,11 @@ async function readAllowed(input: string, roots: string[], caps: UploadLimits, u
     try {
         const stat = await handle.stat();
         if (!stat.isFile()) throw hulyError('invalid_input', `${input} is not a regular file`);
+        // A hard link is a second name for a file the rules above never saw.
+        if (stat.nlink > 1) throw hulyError('invalid_input', `${input} has more than one hard link and is never uploaded`);
+        // A directory on the way swapped for a symlink after the check: what
+        // was opened is no longer what the real path names.
+        if (!(await samePath(real, stat))) throw hulyError('invalid_input', `${input} changed while it was being checked`);
         if (stat.size > cap) throw overCap(input, stat.size, cap);
         // Refused from the size alone, so a file past the call total is never read.
         if (stat.size > left) throw overTotal(caps.maxTotalBytes);
@@ -342,6 +414,10 @@ async function readAllowed(input: string, roots: string[], caps: UploadLimits, u
         // A file that grew after fstat is judged by what was actually read.
         if (data.byteLength > cap) throw overCap(input, data.byteLength, cap);
         if (data.byteLength > left) throw overTotal(caps.maxTotalBytes);
+        if (PRIVATE_KEY_HEADER.test(data.subarray(0, 4096).toString('latin1'))) {
+            throw hulyError('invalid_input', `${input} holds a private key and is never uploaded`);
+        }
+        if (secret && !data.subarray(0, 4).equals(ZIP_HEADER)) throw secretFile(input, secret.label);
         const name = basename(path);
         return { path, name, type: mimeTypeFor(name), size: data.byteLength, lastModified: Math.round(stat.mtimeMs), data };
     } finally {
@@ -352,17 +428,55 @@ async function readAllowed(input: string, roots: string[], caps: UploadLimits, u
 /**
  * Base names refused as likely secrets, case-insensitively, even when not
  * hidden: an agent's working directory is often a repository holding them.
- * Kept short and listed in the docs; a name can still hide a secret.
+ * A key file's backup (`.bak`, `.orig`, `.old`, `~`) counts as the key.
+ * `*.key` and `*.pem` are judged by content instead (`byContent`): an Apple
+ * Keynote file is a zip and passes. Kept short and listed in the docs; a name
+ * can still hide a secret, so a private-key header is refused whatever the name.
  */
-const SECRET_NAMES: { label: string; pattern: RegExp }[] = [
-    { label: '*.pem, *.key, *.p12, *.pfx', pattern: /\.(pem|key|p12|pfx)$/i },
+const BACKUP = String.raw`(\.bak|\.orig|\.old|~)?$`;
+const SECRET_NAMES: { label: string; pattern: RegExp; byContent?: boolean }[] = [
+    { label: '*.p12, *.pfx, *.ppk, *.jks, *.keystore, *.kdbx', pattern: new RegExp(String.raw`\.(p12|pfx|ppk|jks|keystore|kdbx)${BACKUP}`, 'i') },
+    { label: 'AuthKey_*.p8', pattern: new RegExp(String.raw`^authkey_.*\.p8${BACKUP}`, 'i') },
     { label: 'id_rsa, id_dsa, id_ecdsa, id_ed25519', pattern: /^id_(rsa|dsa|ecdsa|ed25519)(?!.*\.pub$)/i },
-    { label: '*.tfstate', pattern: /\.tfstate(\.|$)/i },
-    { label: 'credential, secret, service-account', pattern: /credential|secret|service[-_]?account/i },
+    { label: '*.tfstate, *.tfvars', pattern: new RegExp(String.raw`\.tfstate(\.|$)|\.tfvars(\.json)?${BACKUP}`, 'i') },
+    // `env.d.ts`, `env.example` and the like are code or templates, not secrets.
+    { label: '*.env, env.*', pattern: new RegExp(String.raw`\.env${BACKUP}|^env\.(?!(example|sample|template|dist|md|txt|ts|js|mjs|cjs|py|rb|go|rs)$)[a-z0-9_-]+${BACKUP}`, 'i') },
+    { label: 'kubeconfig', pattern: new RegExp(String.raw`^kubeconfig(\.ya?ml)?${BACKUP}`, 'i') },
+    { label: 'service-account *.json', pattern: /service[-_]?account.*\.json$/i },
+    { label: '*.key, *.pem', pattern: new RegExp(String.raw`\.(key|pem)${BACKUP}`, 'i'), byContent: true },
 ];
 
-function secretPattern(name: string): string | null {
-    return SECRET_NAMES.find((s) => s.pattern.test(name))?.label ?? null;
+/** Whole words only, on every segment below the root: `secrets/db.yaml`, `client_secret.json`, not `secretary-notes.md`. */
+const SECRET_WORDS = { label: 'secret, credential', pattern: /secrets?(?![a-z])|credentials?(?![a-z])/i };
+
+const PRIVATE_KEY_HEADER = /^\s*-----BEGIN [A-Z0-9 ]*PRIVATE KEY( BLOCK)?-----/;
+const ZIP_HEADER = Buffer.from('PK\x03\x04', 'latin1');
+
+/** The first rule a name or segment breaks; a rule judged by content only when no other one applies. */
+function secretName(names: string[], segments: string[]): { label: string; byContent: boolean } | null {
+    if (segments.some((segment) => SECRET_WORDS.pattern.test(segment))) return { label: SECRET_WORDS.label, byContent: false };
+    const hits = SECRET_NAMES.filter((s) => names.some((name) => s.pattern.test(name)));
+    const strict = hits.find((s) => !s.byContent);
+    if (strict) return { label: strict.label, byContent: false };
+    return hits.length > 0 ? { label: hits[0].label, byContent: true } : null;
+}
+
+function secretFile(input: string, label: string) {
+    return hulyError(
+        'invalid_input',
+        `${input} looks like a key, certificate or credential file (${label}) and is never uploaded; if it is not a secret, rename it or zip it`,
+    );
+}
+
+/** Whether `real` still names the file that was opened (exported for its test). */
+export async function samePath(real: string, opened: { dev: number; ino: number }): Promise<boolean> {
+    try {
+        if ((await realpath(real)) !== real) return false;
+        const now = await lstat(real);
+        return now.dev === opened.dev && now.ino === opened.ino;
+    } catch {
+        return false;
+    }
 }
 
 function relativeToRoot(real: string, roots: string[]): string | null {
@@ -448,8 +562,11 @@ export async function attachPrepared(
                     entry.cleanupError = describeError(removeError);
                 }
             }
-            if (fatal) throw callFailure(e, fatal, entry, keepBlob ? blobId : null, blobId ? null : key, results);
+            // The key is named only once `put` started, since only then can a blob land under it.
+            const pendingKey = blobId === null && uploadStarted(e) ? key : null;
+            if (fatal) throw callFailure(e, fatal, entry, keepBlob ? blobId : null, pendingKey, results);
             entry.uploadError = describeError(e);
+            if (pendingKey) entry.pendingKey = pendingKey;
         }
         results.push(entry);
     }

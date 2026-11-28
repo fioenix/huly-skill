@@ -9,6 +9,7 @@ import {
     attachExitCode,
     attachPrepared,
     prepareUploads,
+    storageUnreachable,
     storeBlob,
     toCallError,
 } from '../src/utils/attachment-upload.js';
@@ -109,13 +110,40 @@ test('TC-1.2 an auth error on the second file fails the call and names what alre
     });
 });
 
-test('TC-1.3 toCallError marks network and auth failures, and leaves others alone', () => {
-    assert.equal((toCallError(new Error('Network error TypeError: fetch failed')) as any).code, 'connection');
-    assert.equal((toCallError(new Error('401 Unauthorized')) as any).code, 'auth');
+test('TC-1.3 toCallError marks network and auth failures by class and status, and leaves others alone', () => {
+    const network = Object.assign(new Error('Network error TypeError: fetch failed'), { name: 'NetworkError' });
+    assert.equal((toCallError(network) as any).code, 'connection');
+    const refused = Object.assign(new Error('fetch failed'), { cause: Object.assign(new Error('connect'), { code: 'ECONNREFUSED' }) });
+    assert.equal((toCallError(refused) as any).code, 'connection');
+    assert.equal((toCallError(Object.assign(new Error('nope'), { status: 401 })) as any).code, 'auth');
+    assert.equal((toCallError(Object.assign(new Error('nope'), { response: { status: 403 } })) as any).code, 'auth');
+    const platform = (code: string) => Object.assign(new Error(`ERROR: ${code} {}`), { status: { code } });
+    assert.equal((toCallError(platform('platform:status:Unauthorized')) as any).code, 'auth');
+    assert.equal((toCallError(platform('platform:status:ConnectionClosed')) as any).code, 'connection');
     const other = new Error('Storage error quota');
     const kept = toCallError(other) as any;
     assert.equal(kept.code, undefined);
     assert.equal(kept.message, 'Storage error quota');
+});
+
+test('TC-1.4 a message that only mentions forbidden or 401 stays a failure of that one file', async () => {
+    for (const message of ['File type forbidden', '401 Unauthorized', 'Network error']) {
+        const storageError = Object.assign(new Error(message), { name: 'StorageError' });
+        assert.equal((toCallError(storageError) as any).code, undefined, message);
+    }
+    const storage = { put: async () => { throw Object.assign(new Error('File type forbidden'), { name: 'StorageError' }); }, remove: async () => {} };
+    const source = {
+        ...fakeSource().source,
+        uploadBlob: (file: { key: string; data: Buffer; type: string }) => storeBlob(storage, file.key, file.data, file.type, 1000),
+    };
+    const result = await attachPrepared(source, 'DELTA-42', await prepare(['a.exe', 'b.txt']));
+    assert.equal(result.failed, 2);
+    assert.match(result.files[0].uploadError ?? '', /File type forbidden/);
+});
+
+test('TC-1.5 a storage client that cannot be opened is a connection error, or auth when refused', () => {
+    assert.equal((storageUnreachable(new Error('Timed out loading the server config and workspace token')) as any).code, 'connection');
+    assert.equal((storageUnreachable(Object.assign(new Error('nope'), { status: 401 })) as any).code, 'auth');
 });
 
 // --- AC-2 (R2): the data.url sentence stays with huly task -----------------
