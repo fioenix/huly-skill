@@ -533,7 +533,9 @@ export class HulyClient {
     }
 
     async getLabel(labelId: string): Promise<any> {
-        return await this.client!.findOne(tags.class.TagElement as any, { _id: labelId } as any);
+        // Only issue labels: a TagElement of another class (a contact skill, say)
+        // must not be attachable to an issue.
+        return await this.client!.findOne(tags.class.TagElement as any, { _id: labelId, targetClass: tracker.class.Issue } as any);
     }
 
     async assignLabel(
@@ -572,7 +574,12 @@ export class HulyClient {
                 ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection
             );
         }
-        return { ...display, alreadyAssigned: plan.alreadyAssigned };
+        // Report the reference that stays: when the label was already there,
+        // its pill keeps its own title and color, not the ones asked for now.
+        const shown = plan.alreadyAssigned && plan.survivor
+            ? { title: plan.survivor.title ?? display.title, color: plan.survivor.color ?? display.color }
+            : display;
+        return { ...shown, alreadyAssigned: plan.alreadyAssigned };
     }
 
     async unassignLabel(issueId: string, labelId: string): Promise<number> {
@@ -585,9 +592,9 @@ export class HulyClient {
         return refs.length;
     }
 
-    async repairLabels(issueId: string): Promise<{ updated: number; removed: number }> {
+    async repairLabels(issueId: string, elements?: any[]): Promise<{ updated: number; removed: number }> {
         const refs = await this.getLabels(issueId);
-        const elements = await this.getAllLabels();
+        elements ??= await this.getAllLabels();
         const plan = planLabelRepair(refs, elements);
         const byId = new Map(refs.map((ref: any) => [ref._id, ref]));
 

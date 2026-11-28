@@ -1,3 +1,5 @@
+import { hulyError } from './errors.js';
+
 export interface LabelElement {
     _id: string;
     title: string;
@@ -22,7 +24,7 @@ export interface LabelRepairPlan {
 export function labelDisplay(element: LabelElement, title?: string, color?: number): { title: string; color: number } {
     return {
         title: title || element.title,
-        color: color ?? element.color ?? 11,
+        color: Number.isFinite(color) ? color as number : element.color ?? 11,
     };
 }
 
@@ -66,19 +68,32 @@ export function duplicateRefs(refs: LabelReference[], tag: string): string[] {
  * whether the label was already there. Runs whether or not this call inserted,
  * so a retry after a cleanup that never finished still converges.
  */
-export function planAssign(refsAfter: LabelReference[], tag: string, insertedRefId: string | null): { alreadyAssigned: boolean; remove: string[] } {
+export function planAssign(refsAfter: LabelReference[], tag: string, insertedRefId: string | null): { alreadyAssigned: boolean; remove: string[]; survivor: LabelReference | undefined } {
     const remove = duplicateRefs(refsAfter, tag);
-    return { alreadyAssigned: insertedRefId === null || remove.includes(insertedRefId), remove };
+    const survivor = refsAfter.find((ref) => ref.tag === tag && !remove.includes(ref._id));
+    return { alreadyAssigned: insertedRefId === null || remove.includes(insertedRefId), remove, survivor };
 }
 
 /** Pair each requested task id with its task, and list the ids that resolved to nothing. */
 export function planRepairTargets<T>(taskIds: string[], tasks: (T | null | undefined)[]): { targets: { taskId: string; task: T }[]; missing: string[] } {
     const targets: { taskId: string; task: T }[] = [];
     const missing: string[] = [];
+    const seen = new Set<string>();
     taskIds.forEach((taskId, i) => {
+        if (seen.has(taskId)) return;
+        seen.add(taskId);
         const task = tasks[i];
         if (task) targets.push({ taskId, task });
         else missing.push(taskId);
     });
     return { targets, missing };
+}
+
+/** A `--color` value: an integer 0-15, or undefined when not given. */
+export function parseColor(raw: string | undefined): number | undefined {
+    if (raw === undefined) return undefined;
+    if (!/^\d+$/.test(raw) || Number(raw) > 15) {
+        throw hulyError('invalid_input', `Color must be an integer from 0 to 15, got "${raw}"`);
+    }
+    return Number(raw);
 }

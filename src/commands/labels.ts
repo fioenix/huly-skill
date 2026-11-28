@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
 import { errorPayload, exitStatusFor, hulyError } from '../utils/errors.js';
-import { planRepairTargets } from '../utils/labels.js';
+import { parseColor, planRepairTargets } from '../utils/labels.js';
 
 export function labelsCommand() {
     const cmd = new Command('labels')
@@ -47,7 +47,7 @@ export function labelsCommand() {
         .action(async (title, options) => {
             try {
                 await withClient(async (client) => {
-                    const label = await client.createLabel(title, parseInt(options.color, 10));
+                    const label = await client.createLabel(title, parseColor(options.color) ?? 11);
 
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', data: label });
@@ -79,7 +79,7 @@ export function labelsCommand() {
                         return;
                     }
 
-                    const color = options.color === undefined ? undefined : parseInt(options.color, 10);
+                    const color = parseColor(options.color);
                     const result = await client.assignLabel(task._id, task.space, labelId, options.title, color);
 
                     if (isJsonMode()) {
@@ -140,8 +140,9 @@ export function labelsCommand() {
                     if (missing.length) throw hulyError('not_found', `Task not found: ${missing.join(', ')}`);
 
                     const results = [];
+                    const elements = await client.getAllLabels();
                     for (const { taskId, task } of targets) {
-                        results.push({ taskId, ...(await client.repairLabels((task as any)._id)) });
+                        results.push({ taskId, ...(await client.repairLabels((task as any)._id, elements)) });
                     }
 
                     if (isJsonMode()) {

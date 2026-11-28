@@ -93,13 +93,17 @@ which are released together under the same number.
   references and removes all but the oldest for that label; a racing caller
   picks the same survivor, so both converge on one reference. The cleanup also
   runs when the label was already assigned, so a retry after a cleanup that never
-  finished still removes the duplicate. `labels repair` keeps the oldest too, so
+  finished still removes the duplicate. When the label was already there, the
+  result reports the title and color of the reference that stays. `labels repair` keeps the oldest too, so
   the two paths agree.
 
 ### Changed — assigning a label id that does not exist is rejected
 - `labels assign` / `huly_assign_label` with an unknown label id now fails with
-  `not_found` instead of writing a reference to nothing. **This rejects a call
-  that previously "succeeded".**
+  `not_found` instead of writing a reference to nothing. So does an id of a tag
+  that is not an issue label (a contact skill, say). **This rejects a call that
+  previously "succeeded".**
+- `labels create` and `labels assign` reject a `--color` that is not an integer
+  from 0 to 15 with `invalid_input`; before, `--color red` wrote `NaN`.
 
 ### Added — `labels unassign` and `labels repair`
 - `huly labels unassign <taskId> <labelId>` / `huly_unassign_label` removes a
