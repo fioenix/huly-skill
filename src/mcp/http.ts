@@ -32,7 +32,9 @@ export function createHttpApp(handle: McpRequestHandler): Express {
     // process environment stays the default when it doesn't.
     const requireCallerToken = (req: Request, res: Response, next: NextFunction) => {
         if (process.env.HULY_REQUIRE_CALLER_TOKEN !== 'true') return next();
-        if (!req.header('x-huly-token')) {
+        // Trimmed as the credential scope trims it: a value that trims to nothing
+        // (U+00A0 gets past the HTTP parser) would fall back to HULY_API_KEY.
+        if (!req.header('x-huly-token')?.trim()) {
             res.status(401).json({ error: 'x-huly-token header required (HULY_REQUIRE_CALLER_TOKEN=true)' });
             return;
         }

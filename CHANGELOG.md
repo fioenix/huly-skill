@@ -77,6 +77,10 @@ which are released together under the same number.
   trailing `/` and letter case still don't matter). A blank `token`, `host` or
   `workspace` passed to `runWithCredentials` counts as absent, as an empty
   header does.
+- An `x-huly-token` that is blank once trimmed (including one of U+00A0
+  NO-BREAK SPACE, which the HTTP parser keeps) counts as absent there too, so
+  under `HULY_REQUIRE_CALLER_TOKEN=true` it is answered `401` rather than
+  passing the guard and falling back to the server's `HULY_API_KEY`.
 - `HULY_MCP_ALLOWED_HOSTS` entries that are not full http(s) origins — a bare
   hostname is the usual slip — are named by position in a startup warning,
   instead of silently never matching.

@@ -215,6 +215,40 @@ test('concurrent callers each keep their own token across an await', async () =>
     assert.equal((await fast.json()).token, 'caller-b');
 });
 
+// The guard must read x-huly-token as the credential scope does: a value that
+// trims to nothing would otherwise pass it and then fall back to HULY_API_KEY.
+// U+00A0 survives the HTTP parser (which trims only SP and HTAB) but not .trim().
+for (const [name, headers] of [
+    ['a missing caller token', {}],
+    ['an empty caller token', { 'x-huly-token': '' }],
+    ['a caller token of spaces', { 'x-huly-token': '   ' }],
+    ['a caller token of NO-BREAK SPACE', { 'x-huly-token': ' ' }],
+    ['a caller token of NO-BREAK SPACE and spaces', { 'x-huly-token': '    ' }],
+] as const) {
+    test(`${name} is refused 401 under HULY_REQUIRE_CALLER_TOKEN=true, without the server token`, async () => {
+        process.env.HULY_REQUIRE_CALLER_TOKEN = 'true';
+        try {
+            const res = await post(headers);
+            assert.equal(res.status, 401);
+            assert.match((await res.json()).error, /x-huly-token header required/);
+            assert.deepEqual(seen, [], 'the MCP handler must not run');
+        } finally {
+            delete process.env.HULY_REQUIRE_CALLER_TOKEN;
+        }
+    });
+}
+
+test('a real caller token passes HULY_REQUIRE_CALLER_TOKEN=true', async () => {
+    process.env.HULY_REQUIRE_CALLER_TOKEN = 'true';
+    try {
+        const res = await post({ 'x-huly-token': 'caller-token' });
+        assert.equal(res.status, 200);
+        assert.equal((await res.json()).token, 'caller-token');
+    } finally {
+        delete process.env.HULY_REQUIRE_CALLER_TOKEN;
+    }
+});
+
 // --- Bearer guard -----------------------------------------------------------
 
 async function withGuardedApp(fn: (url: string) => Promise<void>): Promise<void> {

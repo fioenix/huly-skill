@@ -394,7 +394,7 @@ server's own workspace id is never sent to it.
 
 The process environment stays the default, so a shared token keeps working
 unchanged. Set `HULY_REQUIRE_CALLER_TOKEN=true` to reject requests that omit
-`x-huly-token` with `401` instead of quietly falling back to the server's token —
+`x-huly-token`, or send a blank one, with `401` instead of quietly falling back to the server's token —
 worth doing on any deployment where attribution matters. `huly_context` reports
 which source is in effect.
 
