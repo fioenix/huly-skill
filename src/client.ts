@@ -76,7 +76,7 @@ import {
     makeRank,
 } from './huly-types.js';
 import { hulyError } from './utils/errors.js';
-import { planMove } from './utils/move.js';
+import { applyMove, planMove } from './utils/move.js';
 
 export interface TaskQueryOptions {
     assignee?: string;
@@ -582,9 +582,9 @@ export class HulyClient {
             throw hulyError('invalid_input', e.message);
         }
         // The server trigger fixes `parents` and `childInfo` but leaves the
-        // `subIssues` counters alone, so recount both parents from the real
-        // children. Runs on a no-op too, which repairs counters left stale by
-        // an earlier move.
+        // `subIssues` counters alone. A move adjusts them by $inc in the same
+        // transaction (applyMove); a no-op recounts the current parent from its
+        // real children, which repairs a counter left stale by older versions.
         const recount = async (parentId: string | undefined) => {
             if (!parentId) return;
             const parentDoc: any = await this.getTaskByInternalId(parentId);
@@ -609,9 +609,17 @@ export class HulyClient {
             );
             updates.rank = makeRank(last?.rank, undefined);
         }
-        await this.client!.updateDoc(tracker.class.Issue as any, task.space, task._id, updates);
-        await recount(from?.parentId);
-        await recount(newParent?._id);
+        // PlatformClient wraps a TxOperations; its apply() batches the writes
+        // into one TxApplyIf, so they land together or not at all.
+        const txOps: any = (this.client as any).client;
+        await applyMove(txOps.apply(`move-${task._id}`), {
+            issueClass: tracker.class.Issue,
+            task,
+            attachedTo: updates.attachedTo,
+            rank: updates.rank,
+            oldParentId: from?.parentId ?? null,
+            newParent: newParent ? { _id: newParent._id, space: newParent.space } : null,
+        });
         return { task, from, to, moved: true };
     }
 

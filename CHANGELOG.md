@@ -15,18 +15,22 @@ which are released together under the same number.
   child. The server trigger then rewrites `parents` on the task and every
   descendant and moves the task between the old and new ancestors' `childInfo`.
 - The trigger does not touch the `subIssues` counter, so the old parent kept
-  counting a child it no longer had and the new one missed it. The command
-  recounts both parents from their actual children. A move that turns out to be
-  a no-op still recounts the current parent, which repairs counters left stale
-  by an earlier move.
+  counting a child it no longer had and the new one missed it. The move writes
+  the new `attachedTo` and adjusts both counters by `$inc` in one server
+  transaction (`TxApplyIf`), applied only while the task is still under the
+  parent it was read from: a dropped connection leaves all of it or none of it,
+  concurrent edits to the same parent cannot overwrite each other's count, and
+  a concurrent move of the same task fails with nothing written. A move that
+  turns out to be a no-op recounts the current parent from its children, which
+  repairs counters left stale by earlier versions.
 - Moving a task under itself, under one of its own descendants, or into another
   project is rejected with `invalid_input`. So is an empty parent id: only
   `--no-parent` or `parentId: null` detaches, so a blank value from a script
   cannot silently make a task top-level. The move checks are a pure function
   covered by `tests/move.test.ts`.
-- The recount asks the server for the exact total instead of counting the
-  sub-issue listing, which is capped at 500 rows and would otherwise write 500
-  for a larger parent.
+- That repair recount asks the server for the exact total instead of counting
+  the sub-issue listing, which is capped at 500 rows and would otherwise write
+  500 for a larger parent.
 
 ## 1.10.4
 

@@ -114,8 +114,9 @@ huly move task OMEGA-601 --no-parent          # make it top-level
 
 This mirrors Huly's "Set parent" action: it updates `attachedTo` and the rank, and
 the server rewrites `parents` on the task and its sub-issues and moves it between
-the ancestors' `childInfo`. The command then recounts `subIssues` on the old and
-new parent, which the server leaves stale. Moving a task under itself or one of
+the ancestors' `childInfo`. The same transaction moves the `subIssues` count from
+the old parent to the new one, which the server leaves alone; a move that is
+already done recounts the current parent instead. Moving a task under itself or one of
 its descendants is refused. MCP: `huly_move_task` (`parentId: null` detaches).
 
 ## Comments
