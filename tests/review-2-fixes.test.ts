@@ -202,10 +202,18 @@ test('TC-3.3 a failed workspace selection is retried, a hanging one times out', 
     });
     const client = new HulyClient();
     client.workspaceTimeoutMs = 50;
-    await assert.rejects(client.getIssueUrl('D-1'), /ECONNRESET/);
-    await assert.rejects(client.getIssueUrl('D-1'), /Timed out/);
-    assert.equal(await client.getIssueUrl('D-1'), 'https://huly.test/workbench/acme/tracker/D-1');
-    assert.equal(attempt, 3);
+    // A real hanging load waits on a socket, which keeps the process alive
+    // until the (unref'd) timeout fires. This fake hang has no I/O, so hold
+    // the event loop open for it; otherwise Node 22 ends the test file early.
+    const keepAlive = setInterval(() => {}, 1_000);
+    try {
+        await assert.rejects(client.getIssueUrl('D-1'), /ECONNRESET/);
+        await assert.rejects(client.getIssueUrl('D-1'), /Timed out/);
+        assert.equal(await client.getIssueUrl('D-1'), 'https://huly.test/workbench/acme/tracker/D-1');
+        assert.equal(attempt, 3);
+    } finally {
+        clearInterval(keepAlive);
+    }
 });
 
 test('TC-3.4 disconnect drops the workspace token', async () => {
