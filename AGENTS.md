@@ -124,7 +124,7 @@ exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, an
 | `huly task-by-id <internalId>` | Get task by internal _id (e.g. from childInfo) |
 | `huly sub-issues <id>` | Recursive sub-issue tree of a parent task |
 | `huly activity <id>` | Activity timeline (changes + comments) |
-| `huly create task <title> --project <id> [options]` | Create a new task |
+| `huly create task <title> --project <id> [options]` | Create a new task; the result carries its web link `url` (null when the lookup fails) |
 | `huly create task <title> --project <id> --parent <id>` | Create it as a sub-issue of an existing task |
 | `huly update task <id> [options]` | Update task fields |
 | `huly move task <id> --parent <id>` | Re-parent a task in the same project; `--no-parent` detaches it (MCP: `huly_move_task`) |

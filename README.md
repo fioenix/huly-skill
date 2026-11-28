@@ -168,7 +168,6 @@ When a team shares one token, set two optional variables per person:
 ```bash
 export HULY_ACTOR="Nguyen Van A"       # who is operating this CLI
 export HULY_DEFAULT_ASSIGNEE="me"      # assignee when --assignee is omitted
-export HULY_DOWNLOAD_ROOT="$HOME/huly-files"  # optional: only place --download may write
 ```
 
 `HULY_ACTOR` makes `me` resolve to that person and appends
@@ -185,6 +184,17 @@ to do this", and it does nothing about the shared token's role.
 for whoever authenticates. Note this repo's pinned `@hcengineering/account-client`
 (and its latest release) expose no token-creation call, so the two routes above,
 a member's own session token or the settings screen, are the supported ones.
+
+### Where attachment downloads may write
+
+`huly task <id> --download <dir>` (MCP over stdio: `downloadDir`) writes only
+inside `HULY_DOWNLOAD_ROOT`. Unset, the working directory (unless it is `/`,
+home, or a parent of home) and the temp directory are allowed; hidden
+directories such as `.git` or `.ssh` never are.
+
+```bash
+export HULY_DOWNLOAD_ROOT="$HOME/huly-files"   # optional; a leading ~ also means home
+```
 
 ### Verify
 
@@ -357,6 +367,8 @@ npx -y @fioenix/huly-mcp@latest
 ```
 
 Serves `POST /mcp` (default port 3000, override with `PORT`) and `GET /health`. When `HULY_MCP_AUTH_TOKEN` is set, callers must send `Authorization: Bearer <token>` — because the server holds Huly credentials, always set it for any non-local deployment.
+
+Over HTTP `huly_get_task` has no `downloadDir` argument (its strict schema rejects it): a remote caller cannot read the server's disk and must not be able to write to it, so attachments come back as metadata only.
 
 **Per-caller Huly credentials.** A caller can bring its own token so Huly attributes
 its writes to it rather than to whoever owns the server's token:

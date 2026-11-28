@@ -223,7 +223,7 @@ export function registerHulyTools(server: McpServer, { allowDownloads = false }:
         'huly_create_task',
         {
             title: 'Create task',
-            description: 'Create a new task in a project. Pass `parentId` to create it as a sub-issue of an existing task.',
+            description: 'Create a new task in a project. Pass `parentId` to create it as a sub-issue of an existing task. The result carries the task\'s web link (`url`, null when the lookup fails).',
             // Strict: an unknown argument is rejected instead of dropped. A
             // silently ignored `parentId` used to return ok while creating a
             // top-level task, which reads as success and is not.

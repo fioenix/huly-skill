@@ -28,12 +28,15 @@ which are released together under the same number.
   file; a file over a cap or out of time is removed and reported, not kept half
   written.
 - The text view lists each attachment with type and size instead of a count,
-  and `huly task` / `huly create task` print the task's link.
+  and `huly task` / `huly create task` print the task's link as a `🔗 Link:` line.
 - The link lookup is capped at 5 s, so a slow account service leaves `url`
   `null` rather than holding back a detail or a task already created. It shares
   one server-config fetch and workspace selection with the files client.
 - `huly_get_task` and `huly task` now share one implementation
-  (`src/utils/task-detail.ts`), covered by `tests/task-detail.test.ts`.
+  (`src/utils/task-detail.ts`), covered by `tests/task-detail.test.ts`,
+  `tests/task-detail-hardening.test.ts`, `tests/review-fixes.test.ts`,
+  `tests/review-2-fixes.test.ts`, `tests/pr104-round2.test.ts` and
+  `tests/wiring.test.ts`.
 
 ### Rejects — where attachments may be written
 - `<dir>` must resolve, symlinks (dangling ones too) included, inside
@@ -48,8 +51,12 @@ which are released together under the same number.
   options, and the server under `HULY_MCP_TRANSPORT=http`, do not: a remote
   caller cannot read the server's disk, and must not be able to write to it.
   The strict schema rejects the argument there.
-- A `blobId` with anything but letters, digits, `.`, `_` and `-` is refused
-  without a request, since it is spliced into the files URL beside the token.
+- A `blobId` is refused without a request unless it is made of letters,
+  digits, `.`, `_` and `-` and must start with a letter or digit, since it is
+  spliced into the files URL beside the token.
+- The task link uses only the origin of `HULY_HOST` and is `null` unless that
+  is an `http(s)` URL, so a `user:pass@` or a pasted `?token=` sign-in URL in
+  `HULY_HOST` never reaches the output (as with `huly whoami`).
 
 ### Fixed — heartbeats through `HTTPS_PROXY`
 - The proxy WebSocket passed `ws`'s `Buffer` messages straight to the Huly client,

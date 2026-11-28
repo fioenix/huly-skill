@@ -72,7 +72,7 @@ export const ATTACHMENT_QUERY = { sort: { modifiedOn: 1 }, limit: 500 } as const
 const MAX_NAME_BYTES = 255;
 const MAX_NAME_ATTEMPTS = 1000;
 const MAX_ERROR_CHARS = 200;
-const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
+const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])\s*(\.|$)/i;
 // Huly blob ids are UUID-like. Anything else would be spliced into the files
 // URL next to the workspace token, so refuse it rather than escape it.
 const SAFE_BLOB_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -85,10 +85,14 @@ const SAFE_BLOB_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 export function memoizeSuccess<T>(factory: () => Promise<T>): (() => Promise<T>) & { reset(): void } {
     let pending: Promise<T> | null = null;
     const get = () => {
-        pending ??= factory().catch((e) => {
-            pending = null;
-            throw e;
-        });
+        if (!pending) {
+            const attempt: Promise<T> = factory().catch((e) => {
+                // Only forget this attempt; a reset() may already have started a newer one.
+                if (pending === attempt) pending = null;
+                throw e;
+            });
+            pending = attempt;
+        }
         return pending;
     };
     return Object.assign(get, { reset: () => { pending = null; } });
@@ -108,6 +112,17 @@ export async function withTimeout<T>(promise: Promise<T>, ms: number, message: s
 
 export function isSafeBlobId(blobId: string): boolean {
     return SAFE_BLOB_ID.test(blobId) && blobId !== '.' && blobId !== '..';
+}
+
+/** Each limit from the caller, or the default when it is absent or not a positive number. */
+function resolveLimits(limits: DownloadLimits = {}): Required<DownloadLimits> {
+    const pick = (value: number | undefined, fallback: number) =>
+        typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+    return {
+        maxFileBytes: pick(limits.maxFileBytes, DEFAULT_LIMITS.maxFileBytes),
+        maxTotalBytes: pick(limits.maxTotalBytes, DEFAULT_LIMITS.maxTotalBytes),
+        timeoutMs: pick(limits.timeoutMs, DEFAULT_LIMITS.timeoutMs),
+    };
 }
 
 export async function buildTaskDetail<T extends Record<string, any>>(
@@ -142,7 +157,7 @@ export async function buildTaskDetail<T extends Record<string, any>>(
     const attachmentFiles = docs.map(toAttachmentInfo);
 
     if (downloadDir && attachmentFiles.length > 0) {
-        await saveAttachments(source, attachmentFiles, downloadDir, { ...DEFAULT_LIMITS, ...options.limits });
+        await saveAttachments(source, attachmentFiles, downloadDir, resolveLimits(options.limits));
     }
 
     // Like the description, a failed or slow link lookup must not cost the rest of the detail.
@@ -282,6 +297,11 @@ async function saveAttachments(
     target: { path: string; real: string },
     limits: Required<DownloadLimits>,
 ): Promise<void> {
+    // Network calls ran since the check; a parent swapped for a symlink in the
+    // meantime would make mkdir create directories wherever it points.
+    if ((await realpathOfNearest(target.path)) !== target.real) {
+        throw hulyError('invalid_input', `downloadDir changed while saving: ${target.path}`);
+    }
     try {
         await mkdir(target.path, { recursive: true });
     } catch (e: any) {
@@ -409,8 +429,10 @@ async function openUnique(dir: string, name: string): Promise<{ handle: FileHand
 function safeFileName(name: string | null, fallback: string): string {
     let base = cleanName(name ?? '');
     if (!base) base = cleanName(`attachment-${fallback}`) || 'attachment';
-    if (WINDOWS_RESERVED.test(base)) base = `_${base}`;
-    return truncateName(base, MAX_NAME_BYTES);
+    // Checked on the final name: cutting can strip the spaces that kept
+    // 'CON   ….txt' from matching, and turn it into 'CON.txt'.
+    const cut = truncateName(base, MAX_NAME_BYTES);
+    return WINDOWS_RESERVED.test(cut) ? truncateName(`_${cut}`, MAX_NAME_BYTES) : cut;
 }
 
 function cleanName(value: string): string {
@@ -450,11 +472,13 @@ function byteLength(value: string): number {
 /** One short line: upstream errors can carry a whole HTML error page. */
 function describeError(e: unknown): string {
     const err = e as { message?: unknown; name?: unknown };
-    const message = String(err?.message ?? '')
+    const oneLine = (value: unknown) => String(value ?? '')
         .replace(/[\u0000-\u001f\u007f]+/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
-    const text = message || (typeof err?.name === 'string' && err.name) || String(e) || 'Download failed';
+    // Clean whichever text is used: a thrown string or an odd name can carry
+    // newlines and escapes just like a message.
+    const text = oneLine(err?.message) || oneLine(err?.name) || oneLine(e) || 'Download failed';
     const chars = Array.from(text); // by code point, so no surrogate pair is split
     return chars.length > MAX_ERROR_CHARS ? `${chars.slice(0, MAX_ERROR_CHARS - 1).join('')}…` : text;
 }
