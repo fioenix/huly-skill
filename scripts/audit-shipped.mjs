@@ -16,6 +16,11 @@
  * A failure here has one fix: add the patched range to `overrides` in
  * pnpm-workspace.yaml, cap it inside the major upstream depends on, and verify
  * the code path it belongs to. See reference/security-audit-2026-08.md.
+ *
+ * The one exception is an advisory with no fix inside the major upstream
+ * requires. It goes in EXCEPTIONS below by its GHSA id, with the evidence that
+ * its code path does not run here and a date. Past that date it fails again, so
+ * an exception is a dated decision to look again, never a permanent silence.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -28,6 +33,26 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const staging = mkdtempSync(join(tmpdir(), 'huly-audit-'));
 
 const ENTRYPOINTS = { 'bin/mcp.cjs': 'src/mcp/index.ts', 'bin/bundle.cjs': 'src/index.ts' };
+
+/** Advisories accepted until `until` (inclusive, UTC), each with its reason. */
+const EXCEPTIONS = [
+    {
+        id: 'GHSA-cp6q-959q-f8rh',
+        module: '@tiptap/core',
+        until: '2027-02-28',
+        reason: 'patched: @tiptap/core is pinned to 2.27.3, the official v2 backport of this fix '
+            + '(tests/tiptap.test.ts fails on 2.27.2 and passes on 2.27.3); the advisory still lists only '
+            + '>=3.30.4, which @hcengineering/text (^2.11.7) cannot take (28/11/2026)',
+    },
+];
+
+const today = new Date().toISOString().slice(0, 10);
+
+/** The exception covering this advisory today, or undefined. */
+function exceptionFor(advisory) {
+    return EXCEPTIONS.find((e) => e.id === advisory.github_advisory_id
+        && e.module === advisory.module_name && today <= e.until);
+}
 
 /** Package names esbuild actually pulled into each bundle. */
 function bundledPackages() {
@@ -68,9 +93,20 @@ function advisories() {
 try {
     const shipped = bundledPackages();
     const found = advisories();
-    const reaching = found.filter((a) => shipped.has(a.module_name));
+    const shippedAdvisories = found.filter((a) => shipped.has(a.module_name));
+    const excepted = shippedAdvisories.filter(exceptionFor);
+    const reaching = shippedAdvisories.filter((a) => !exceptionFor(a));
 
     console.log(`${found.length} advisories in the dependency graph; ${shipped.size} packages reach a bundle`);
+
+    for (const a of excepted) {
+        const e = exceptionFor(a);
+        console.log(`  excepted until ${e.until}: ${a.module_name} ${a.github_advisory_id} — ${e.reason}`);
+    }
+    for (const e of EXCEPTIONS) {
+        if (today > e.until) console.log(`  exception expired on ${e.until}: ${e.module} ${e.id} — fix it or renew it with fresh evidence`);
+        else if (!shippedAdvisories.some((a) => a.github_advisory_id === e.id)) console.log(`  exception no longer needed: ${e.module} ${e.id} — remove it`);
+    }
 
     for (const a of reaching) {
         console.log(`  ${a.severity.toUpperCase()} ${a.module_name} ${a.vulnerable_versions} — needs ${a.patched_versions}`);
@@ -82,7 +118,9 @@ try {
         console.log('overrides in pnpm-workspace.yaml, capped inside the current major.');
         process.exit(1);
     }
-    console.log('\nNo advisory reaches a shipped bundle. The rest stay in the graph — build-time only.');
+    console.log(excepted.length
+        ? `\nNo unexcepted advisory reaches a shipped bundle (${excepted.length} excepted above). The rest stay in the graph — build-time only.`
+        : '\nNo advisory reaches a shipped bundle. The rest stay in the graph — build-time only.');
 } finally {
     rmSync(staging, { recursive: true, force: true });
 }
