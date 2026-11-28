@@ -10,7 +10,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createHulyMcpServer } from './server.js';
-import { runWithCredentials, type HulyCredentials } from '../utils/auth.js';
+import { credentialsError, runWithCredentials, type HulyCredentials } from '../utils/auth.js';
 
 // Transport is chosen by env so a single bin works for every client:
 //   HULY_MCP_TRANSPORT=stdio  (default) — local clients (Claude Code/Desktop)
@@ -73,12 +73,18 @@ function startHttp(): void {
 
     // Stateless Streamable HTTP: a fresh server + transport per request.
     app.post('/mcp', requireAuth, requireCallerToken, async (req: Request, res: Response) => {
+        const credentials = credentialsFromRequest(req);
+        const refused = credentialsError(credentials);
+        if (refused) {
+            res.status(400).json({ error: refused });
+            return;
+        }
         const server = createHulyMcpServer();
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
         res.on('close', () => { void transport.close(); void server.close(); });
         try {
             await server.connect(transport);
-            await runWithCredentials(credentialsFromRequest(req), () =>
+            await runWithCredentials(credentials, () =>
                 transport.handleRequest(req, res, req.body));
         } catch (e: any) {
             if (!res.headersSent) {

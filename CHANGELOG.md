@@ -3,6 +3,19 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Changed — HTTP requests that set `x-huly-url` or `x-huly-workspace` without `x-huly-token` are now refused
+- Before, such a request ran with the server's own `HULY_API_KEY` against the
+  host or workspace the caller named, so any caller of the HTTP transport could
+  send the server's token to a host of its choosing, or use it on a workspace
+  the deployment never configured. The request is now answered `400` naming
+  the headers, before any connection is made. A caller that relied on this must
+  send its own `x-huly-token` too; requests with no `x-huly-*` headers, or with
+  `x-huly-token` alone, behave as before.
+- `runWithCredentials` refuses the same combination, so no other entry point
+  can reach the server token for a caller-chosen host.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse

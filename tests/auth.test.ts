@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     credentialSource,
+    credentialsError,
     getApiKey,
     getHost,
     getWorkspaceId,
@@ -72,4 +73,28 @@ test('maskToken keeps only the ends, and hides short secrets entirely', () => {
     assert.equal(maskToken('abcdefghijklmnop'), 'abcd...mnop');
     assert.equal(maskToken('short'), '****');
     assert.equal(maskToken(''), '');
+});
+
+// A caller that redirects the host or workspace must bring its own token: the
+// server's token sent to a caller-chosen host is a leaked token.
+test('a caller host without a caller token never reaches the server token', () => {
+    assert.throws(
+        () => runWithCredentials({ host: 'https://attacker.example' }, () => getApiKey()),
+        /x-huly-token/,
+    );
+});
+
+test('a caller workspace without a caller token is refused too', () => {
+    assert.throws(
+        () => runWithCredentials({ workspace: 'other-ws' }, () => getApiKey()),
+        /x-huly-token/,
+    );
+});
+
+test('credentialsError names the problem only for a target without a token', () => {
+    assert.match(credentialsError({ host: 'https://attacker.example' }) ?? '', /x-huly-url/);
+    assert.match(credentialsError({ workspace: 'other-ws' }) ?? '', /x-huly-workspace/);
+    assert.equal(credentialsError({}), null);
+    assert.equal(credentialsError({ token: 'caller-token' }), null);
+    assert.equal(credentialsError({ token: 'caller-token', host: 'https://caller.example.com', workspace: 'ws' }), null);
 });
