@@ -99,9 +99,13 @@ which are released together under the same number.
 - `HULY_MCP_HOST` is trimmed and a blank one counts as unset; the startup line
   brackets an IPv6 address (`[::1]:3000`); a bind failure (`EADDRINUSE`, an
   unresolvable host) exits through the `[huly-mcp] fatal:` line.
-- A `HULY_MCP_AUTH_TOKEN` that is blank or has leading/trailing whitespace now
-  stops the server at startup. Such a secret could never match (the HTTP parser
-  trims the header), and trimming it would have opened the endpoint instead.
+
+### Changed — a blank or whitespace-padded `HULY_MCP_AUTH_TOKEN` now stops the HTTP server at startup
+- A `HULY_MCP_AUTH_TOKEN` that is blank or has leading/trailing whitespace (a
+  secret read from a file with a trailing newline, say) now stops the server at
+  startup. Such a secret could never match (the HTTP parser trims the header),
+  and trimming it would have opened the endpoint instead. Set the secret
+  exactly, or unset it.
 
 ### Security — constant-time Bearer check and no internal detail in HTTP 500s
 - The `HULY_MCP_AUTH_TOKEN` check compared strings with `!==`, which returns at
