@@ -61,8 +61,8 @@ Ensure these environment variables are set (the CLI reads them from a `.env`; th
   contains home) and the temp directory are allowed.
 - `HULY_UPLOAD_ROOT` — optional; the only directory `huly attach` /
   `huly_add_attachment` may read files from. Unset, only the working directory
-  is allowed, and not when that is home, a directory above it, or the system
-  tmp directory itself.
+  is allowed. Either root is refused when it is home, a directory above it, or
+  the system tmp directory itself.
 
 ### MCP setup (Codex)
 
@@ -128,7 +128,7 @@ exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, an
 |---------|---------|
 | `huly tasks [options]` | Query tasks with filters |
 | `huly task <id> [--download <dir>]` | Get full task details by identifier: `descriptionMarkdown` (plus `descriptionError` when unreadable), `attachmentFiles` and the web link `url`; `--download` also saves the files (MCP: `downloadDir`, stdio only) into a directory inside `HULY_DOWNLOAD_ROOT` (default: the working directory unless it is `/` or home, or the temp dir) |
-| `huly attach <id> <file...>` | Upload local files as attachments of a task (MCP: `huly_add_attachment`, stdio only); files must be inside `HULY_UPLOAD_ROOT` (default: working dir; not home, above it, or the tmp directory itself) and not hidden, at most 50 MB each, 200 MB and 20 files per call |
+| `huly attach <id> <file...>` | Upload local files as attachments of a task (MCP: `huly_add_attachment`, stdio only); files must be inside `HULY_UPLOAD_ROOT` (default: working dir; either root refused when it is home, above it, or the tmp directory itself) and not hidden, at most 50 MB each, 200 MB and 20 files per call |
 | `huly task-by-id <internalId>` | Get task by internal _id (e.g. from childInfo) |
 | `huly sub-issues <id>` | Recursive sub-issue tree of a parent task |
 | `huly activity <id>` | Activity timeline (changes + comments) |

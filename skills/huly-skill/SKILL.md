@@ -105,7 +105,7 @@ teamspaces, milestones, labels, priorities, dates, pasted-link resolution:
 - `me` is `HULY_ACTOR` when set, else the owner of `HULY_API_KEY` — and Huly always
   records that token owner as the author, whatever `HULY_ACTOR` says.
 - `huly attach` reads only inside `HULY_UPLOAD_ROOT` (default: the working
-  directory, refused when that is home, above it, or the tmp directory itself), never hidden files; it exits 1
+  directory; either root is refused when it is home, above it, or the tmp directory itself), never hidden files; it exits 1
   when some file failed, so check `failed` before saying it is done.
 - Deletes need `--yes`. Errors print with an `Error:` prefix; in JSON, `code` and
   `retryable` say whether another attempt can help.

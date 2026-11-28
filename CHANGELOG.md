@@ -27,9 +27,10 @@ which are released together under the same number.
 - Every path is checked and read before anything is sent; one refusal fails the
   whole call with `invalid_input`. A file must resolve, symlinks included,
   inside `HULY_UPLOAD_ROOT`, or the working directory when that is unset (not
-  the temp directory, unlike downloads; and a working directory of home, any
-  directory above it, or the tmp directory itself is refused, since everything
-  under it would be readable); be a regular file (not a directory or FIFO); and not be hidden or
+  the temp directory, unlike downloads; and a root of home, any directory
+  above it, or the tmp directory itself is refused, since everything under it
+  would be readable: a working directory that broad, and a `HULY_UPLOAD_ROOT`
+  set that broad, whose message names the variable); be a regular file (not a directory or FIFO); and not be hidden or
   inside a hidden directory. Caps: 50 MB a file, 200 MB and 20 files a call.
   Text in an issue can steer an agent's arguments, so paths are checked rather
   than trusted.

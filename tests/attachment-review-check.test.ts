@@ -120,3 +120,31 @@ test('without HULY_UPLOAD_ROOT the temp directory itself is refused as a working
     process.chdir(realpathSync(tmpdir()));
     await assert.rejects(prepareUploads(['x.txt']), (e: any) => /HULY_UPLOAD_ROOT/.test(e.message));
 });
+
+// --- Security review 1: a configured HULY_UPLOAD_ROOT that broad is refused too
+
+async function refusedAsRoot(root: string) {
+    const [path] = filesIn(['a.txt']);
+    process.env.HULY_UPLOAD_ROOT = root;
+    await assert.rejects(prepareUploads([path]), (e: any) => {
+        assert.equal(e.code, 'invalid_input');
+        assert.match(e.message, /HULY_UPLOAD_ROOT .* is too broad/);
+        return true;
+    });
+}
+
+test('HULY_UPLOAD_ROOT=/ is refused as too broad', async () => {
+    await refusedAsRoot('/');
+});
+
+test('HULY_UPLOAD_ROOT set to home is refused as too broad', async () => {
+    await refusedAsRoot(homedir());
+});
+
+test('HULY_UPLOAD_ROOT set to the parent of home is refused as too broad', async () => {
+    await refusedAsRoot(dirname(homedir()));
+});
+
+test('HULY_UPLOAD_ROOT set to the temp directory is refused as too broad', async () => {
+    await refusedAsRoot(tmpdir());
+});

@@ -10,20 +10,24 @@ import { isSafeBlobId } from '../src/utils/task-detail.js';
 import { addAttachmentInputSchema } from '../src/mcp/attachment-schema.js';
 
 const created: string[] = [];
+// The temp directory itself is too broad to be a root: every test works in a
+// directory below it, which is the default root.
+const BASE = realpathSync(mkdtempSync(join(tmpdir(), 'huly-upload-base-')));
+created.push(BASE);
 after(() => {
     for (const dir of created) rmSync(dir, { recursive: true, force: true });
 });
 // The temp directory is no longer a default upload root, and the machine
 // running the tests may have its own HULY_UPLOAD_ROOT: pin it for every test.
 beforeEach(() => {
-    process.env.HULY_UPLOAD_ROOT = realpathSync(tmpdir());
+    process.env.HULY_UPLOAD_ROOT = BASE;
 });
 afterEach(() => {
     delete process.env.HULY_UPLOAD_ROOT;
 });
 
 function tempDir(): string {
-    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'huly-upload-')));
+    const dir = realpathSync(mkdtempSync(join(BASE, 'huly-upload-')));
     created.push(dir);
     return dir;
 }

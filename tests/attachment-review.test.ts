@@ -20,13 +20,17 @@ const ROOT = resolve(import.meta.dirname, '..');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const created: string[] = [];
+// The temp directory itself is too broad to be a root: every test works in a
+// directory below it, which is the default root.
+const BASE = realpathSync(mkdtempSync(join(tmpdir(), 'huly-review-base-')));
+created.push(BASE);
 const startCwd = process.cwd();
 after(() => {
     process.chdir(startCwd);
     for (const dir of created) rmSync(dir, { recursive: true, force: true });
 });
 beforeEach(() => {
-    process.env.HULY_UPLOAD_ROOT = realpathSync(tmpdir());
+    process.env.HULY_UPLOAD_ROOT = BASE;
 });
 afterEach(() => {
     delete process.env.HULY_UPLOAD_ROOT;
@@ -34,7 +38,7 @@ afterEach(() => {
 });
 
 function tempDir(): string {
-    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'huly-review-')));
+    const dir = realpathSync(mkdtempSync(join(BASE, 'huly-review-')));
     created.push(dir);
     return dir;
 }

@@ -84,8 +84,8 @@ Files attached to comments are not included.
 `huly attach <id> <file...>` (MCP: `huly_add_attachment` with `taskId`, `paths`;
 stdio only) uploads files to the issue itself. Every path is checked and read
 before anything is sent: each must resolve, symlinks included, inside
-`HULY_UPLOAD_ROOT` (default: the working directory only, refused when that is
-home, a directory above it, or the system tmp directory itself), be a regular file,
+`HULY_UPLOAD_ROOT` (default: the working directory only; either root is refused
+when it is home, a directory above it, or the system tmp directory itself), be a regular file,
 and not be hidden or inside a hidden directory (`.env`, `.ssh/…`); at most 50 MB
 each, 200 MB and 20 files per call. Any refusal fails the whole call with
 `invalid_input` and nothing is uploaded. The result is

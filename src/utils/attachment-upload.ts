@@ -235,24 +235,41 @@ export async function prepareUploads(paths: string[], limits: Partial<UploadLimi
  * default: reading sends a file to a workspace many people see, and temp is
  * shared with every other process. A working directory of home or the
  * filesystem root would expose everything under it, so that needs an explicit
- * HULY_UPLOAD_ROOT.
+ * HULY_UPLOAD_ROOT, which is held to the same rule.
  */
 async function uploadRoots(): Promise<string[]> {
-    if (process.env.HULY_UPLOAD_ROOT?.trim()) return (await allowedRoots('HULY_UPLOAD_ROOT')).roots;
+    if (process.env.HULY_UPLOAD_ROOT?.trim()) {
+        const roots = (await allowedRoots('HULY_UPLOAD_ROOT')).roots;
+        for (const root of roots) {
+            if (await tooBroad(root)) {
+                throw hulyError(
+                    'invalid_input',
+                    `HULY_UPLOAD_ROOT ${root} is too broad to upload from; set it to the directory that holds the files`,
+                );
+            }
+        }
+        return roots;
+    }
     const cwd = await realpath(process.cwd());
-    const home = await realpath(homedir()).catch(() => homedir());
-    const temp = await realpath(tmpdir()).catch(() => tmpdir());
-    // Home itself or any directory above it (`/Users`, `/`), and the shared
-    // temp directory itself; a project or scratch directory below them is fine.
-    const homeRel = relative(cwd, home);
-    const holdsHome = homeRel === '' || (!homeRel.startsWith('..') && !isAbsolute(homeRel));
-    if (holdsHome || cwd === temp || cwd === parse(cwd).root) {
+    if (await tooBroad(cwd)) {
         throw hulyError(
             'invalid_input',
             `The working directory ${cwd} is too broad to upload from; set HULY_UPLOAD_ROOT to the directory that holds the files`,
         );
     }
     return [cwd];
+}
+
+/**
+ * Home itself or any directory above it (`/Users`, `/`), and the shared temp
+ * directory itself; a project or scratch directory below them is fine.
+ */
+async function tooBroad(dir: string): Promise<boolean> {
+    const home = await realpath(homedir()).catch(() => homedir());
+    const temp = await realpath(tmpdir()).catch(() => tmpdir());
+    const homeRel = relative(dir, home);
+    const holdsHome = homeRel === '' || (!homeRel.startsWith('..') && !isAbsolute(homeRel));
+    return holdsHome || dir === temp || dir === parse(dir).root;
 }
 
 /**
