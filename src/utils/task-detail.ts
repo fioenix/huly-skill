@@ -373,7 +373,13 @@ async function downloadTo(
             if (cancelled) throw new Error('Download cancelled');
             bytes += chunk.byteLength;
             if (bytes > cap) throw new Error(`File is over the ${formatSize(cap)} download limit`);
-            await handle!.write(chunk);
+            // One write may store less than asked; keep going until the chunk is down.
+            for (let offset = 0; offset < chunk.byteLength;) {
+                const { bytesWritten } = await handle!.write(chunk, offset, chunk.byteLength - offset);
+                if (cancelled) throw new Error('Download cancelled');
+                if (bytesWritten <= 0) throw new Error('Could not write the file');
+                offset += bytesWritten;
+            }
         }
         return bytes;
     })();

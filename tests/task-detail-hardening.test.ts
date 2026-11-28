@@ -1,6 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, readdirSync, existsSync, symlinkSync, realpathSync, rmSync } from 'node:fs';
+import { open } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep, relative } from 'node:path';
 
@@ -380,4 +381,54 @@ test('TC-7.2 valid size and lastModified are kept', async () => {
     const detail = await buildTaskDetail(source, TASK);
     assert.equal(detail.attachmentFiles[0].size, 2048);
     assert.equal(detail.attachmentFiles[0].lastModified, 1700000000000);
+});
+
+// --- round 2 review --------------------------------------------------------
+
+test('TC-9.1 a short write is continued, so the saved file is complete', async () => {
+    const dir = tempDir();
+    // A FileHandle write may store fewer bytes than asked; simulate a disk
+    // that takes at most 3 bytes per call.
+    const probe = await open(join(dir, 'probe'), 'w');
+    const proto = Object.getPrototypeOf(probe);
+    await probe.close();
+    rmSync(join(dir, 'probe'));
+    const original = proto.write;
+    proto.write = function (buffer: any, offset?: any, length?: any, position?: any) {
+        if (typeof buffer === 'string') return original.call(this, buffer, offset, length, position);
+        const start = typeof offset === 'number' ? offset : 0;
+        const max = typeof length === 'number' ? length : buffer.byteLength - start;
+        return original.call(this, buffer, start, Math.min(3, max), position);
+    };
+    try {
+        const { source } = fakeSource({ attachments: [attachment('a1', 'a.txt')], blobs: { 'blob-a1': chunks(['hello ', 'world']) } });
+        const detail = await buildTaskDetail(source, TASK, { downloadDir: dir });
+        assert.equal(readFileSync(detail.attachmentFiles[0].localPath!, 'utf8'), 'hello world');
+    } finally {
+        proto.write = original;
+    }
+});
+
+test('TC-9.2 a timeout during a slow write closes the file handle and leaves no file', async () => {
+    const dir = tempDir();
+    const probe = await open(join(dir, 'probe'), 'w');
+    const proto = Object.getPrototypeOf(probe);
+    await probe.close();
+    rmSync(join(dir, 'probe'));
+    const original = proto.write;
+    let written: any = null;
+    proto.write = function (this: any, ...args: any[]) {
+        written = this;
+        return new Promise((r) => setTimeout(r, 200)).then(() => original.apply(this, args));
+    };
+    try {
+        const { source } = fakeSource({ attachments: [attachment('a1', 'slow.txt')], blobs: { 'blob-a1': chunks(['data']) } });
+        const detail = await buildTaskDetail(source, TASK, { downloadDir: dir, limits: { timeoutMs: 50 } });
+        assert.match(detail.attachmentFiles[0].downloadError ?? '', /time/i);
+        assert.ok(written, 'the write started before the timeout');
+        assert.equal(written.fd, -1, 'the handle is closed once the pending write settles');
+        assert.deepEqual(readdirSync(dir), []);
+    } finally {
+        proto.write = original;
+    }
 });
