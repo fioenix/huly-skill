@@ -105,8 +105,9 @@ teamspaces, milestones, labels, priorities, dates, pasted-link resolution:
 - `me` is `HULY_ACTOR` when set, else the owner of `HULY_API_KEY` — and Huly always
   records that token owner as the author, whatever `HULY_ACTOR` says.
 - `huly attach` reads only inside `HULY_UPLOAD_ROOT` (default: the working
-  directory; either root is refused when it is home, above it, inside a hidden
-  directory, or the tmp directory itself or another shared one), never hidden or hard-linked files, nor
+  directory; either root is refused when it is home, above it, or the
+  tmp directory itself or another shared one, and the working directory also
+  inside a hidden directory), never hidden or hard-linked files, nor
   keys, certificates or credentials by name or content (`*.p12`, `*.ppk`,
   `*.jks`, `id_rsa`-style keys, `*.tfstate`, `*.tfvars`, `*.env`, `env.*`,
   `kubeconfig`, a path with the word `secret` or `credential`, `*.key` and

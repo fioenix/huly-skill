@@ -85,11 +85,13 @@ Files attached to comments are not included.
 stdio only) uploads files to the issue itself. Every path is checked and read
 before anything is sent: each must resolve, symlinks included, inside
 `HULY_UPLOAD_ROOT` (default: the working directory only; either root is refused
-when it is home, a directory above it, inside a hidden directory such as
-`~/.config` or `~/.claude`, or a shared tmp directory: `/tmp`, `/var/tmp`
+when it is home, a directory above it, or a shared tmp directory: `/tmp`, `/var/tmp`
 (both also under `/private` on macOS), `/dev/shm`, `tmpdir()`, and, when
 `tmpdir()` is the system's own, every directory above it, such as the macOS
-per-user folder; a `TMPDIR` set inside a project leaves the project usable),
+per-user folder; a `TMPDIR` set inside a project leaves the project usable;
+the working directory is also refused inside a hidden directory such as
+`~/.config` or `~/.claude`, while an explicit `HULY_UPLOAD_ROOT` there, such as
+a checkout under `.claude/worktrees/…`, is accepted),
 be a regular file with a single hard link that does not change between the
 check and the read, and not be hidden or inside a hidden directory (`.env`,
 `.ssh/…`), nor look like a key, certificate or credential, case-insensitively,

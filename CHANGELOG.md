@@ -40,9 +40,9 @@ which are released together under the same number.
   whole call with `invalid_input`. A file must resolve, symlinks included,
   inside `HULY_UPLOAD_ROOT`, or the working directory when that is unset (not
   the temp directory, unlike downloads; and a root of home, any directory
-  above it, inside a hidden directory, or a shared tmp directory (`/tmp`,
-  `/var/tmp`, `/dev/shm`, `tmpdir()`, and every directory above the system's
-  own tmp) is refused, since everything under it
+  above it, or a shared tmp directory (`/tmp`, `/var/tmp`, `/dev/shm`,
+  `tmpdir()`, and every directory above the system's own tmp), or a working
+  directory inside a hidden directory, is refused, since everything under it
   would be readable: a working directory that broad, and a `HULY_UPLOAD_ROOT`
   set that broad, whose message names the variable); be a regular file (not a
   directory or FIFO) with a single hard link that does not change between the
@@ -64,10 +64,14 @@ which are released together under the same number.
   a remote caller must not be able to read the server's disk.
 
 ### Rejects — upload roots and files refused after the upload review
-- A `HULY_UPLOAD_ROOT` or working directory inside a hidden directory
-  (`~/.config`, `~/.claude`, a repository under `.claude/worktrees`) is now
-  refused with a message naming the hidden segment, since the "never hidden"
-  rule only looks below the root. So are `/var/tmp` (`/private/var/tmp`),
+- A working directory inside a hidden directory (`~/.config`, `~/.claude`, a
+  repository under `.claude/worktrees`) is now refused as the default root,
+  with a message naming the hidden segment and telling the caller to set
+  `HULY_UPLOAD_ROOT`, since the "never hidden" rule only looks below the root.
+  An explicit `HULY_UPLOAD_ROOT` inside a hidden directory is accepted, as
+  setting it is the operator's deliberate choice; hidden files, secret names,
+  private keys and hard links below it are still refused. Also refused are
+  `/var/tmp` (`/private/var/tmp`),
   `/dev/shm`, and every directory above the system's own `tmpdir()`
   (`/private/var/folders`, `/private/var`). The parent of `tmpdir()` is refused
   only when it is the macOS per-user folder, so a project that sets `TMPDIR`

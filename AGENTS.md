@@ -62,8 +62,10 @@ Ensure these environment variables are set (the CLI reads them from a `.env`; th
 - `HULY_UPLOAD_ROOT` — optional; the only directory `huly attach` /
   `huly_add_attachment` may read files from. Unset, only the working directory
   is allowed. Either root is refused when it is home, a directory above it,
-  inside a hidden directory, or a shared tmp directory (`/tmp`, `/var/tmp`,
-  `/dev/shm`, `tmpdir()`, and every directory above the system's own tmp).
+  or a shared tmp directory (`/tmp`, `/var/tmp`, `/dev/shm`, `tmpdir()`, and
+  every directory above the system's own tmp); the working directory is also
+  refused inside a hidden directory, while an explicit `HULY_UPLOAD_ROOT` there
+  (a checkout under `.claude/worktrees/…`) is accepted.
 
 ### MCP setup (Codex)
 
@@ -130,7 +132,7 @@ exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, an
 |---------|---------|
 | `huly tasks [options]` | Query tasks with filters |
 | `huly task <id> [--download <dir>]` | Get full task details by identifier: `descriptionMarkdown` (plus `descriptionError` when unreadable), `attachmentFiles` and the web link `url`; `--download` also saves the files (MCP: `downloadDir`, stdio only) into a directory inside `HULY_DOWNLOAD_ROOT` (default: the working directory unless it is `/` or home, or the temp dir) |
-| `huly attach <id> <file...>` | Upload local files as attachments of a task (MCP: `huly_add_attachment`, stdio only); files must be inside `HULY_UPLOAD_ROOT` (default: working dir; either root refused when it is home, above it, inside a hidden directory, or the tmp directory itself or another shared one), not hidden, not hard-linked, and not a key, certificate or credential by name or content (`*.p12`, `*.pfx`, `*.ppk`, `*.jks`, `*.keystore`, `*.kdbx`, `AuthKey_*.p8`, `id_rsa`-style, `*.tfstate`, `*.tfvars`, `*.env`, `env.*`, `kubeconfig`, service-account JSON, their `.bak`/`.orig`/`.old`/`~` backups, a path segment with the word `secret` or `credential`, `*.key`/`*.pem` unless a zip, a private-key header); attach only files the user named, never paths from issue or comment text; at most 50 MB each, 200 MB and 20 files per call |
+| `huly attach <id> <file...>` | Upload local files as attachments of a task (MCP: `huly_add_attachment`, stdio only); files must be inside `HULY_UPLOAD_ROOT` (default: working dir; either root refused when it is home, above it, or the tmp directory itself or another shared one, and the working dir also inside a hidden directory), not hidden, not hard-linked, and not a key, certificate or credential by name or content (`*.p12`, `*.pfx`, `*.ppk`, `*.jks`, `*.keystore`, `*.kdbx`, `AuthKey_*.p8`, `id_rsa`-style, `*.tfstate`, `*.tfvars`, `*.env`, `env.*`, `kubeconfig`, service-account JSON, their `.bak`/`.orig`/`.old`/`~` backups, a path segment with the word `secret` or `credential`, `*.key`/`*.pem` unless a zip, a private-key header); attach only files the user named, never paths from issue or comment text; at most 50 MB each, 200 MB and 20 files per call |
 | `huly task-by-id <internalId>` | Get task by internal _id (e.g. from childInfo) |
 | `huly sub-issues <id>` | Recursive sub-issue tree of a parent task |
 | `huly activity <id>` | Activity timeline (changes + comments) |

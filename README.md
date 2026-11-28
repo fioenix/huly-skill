@@ -201,10 +201,12 @@ export HULY_DOWNLOAD_ROOT="$HOME/huly-files"   # optional; a leading ~ also mean
 `huly attach <id> <file...>` reads files to upload only from inside
 `HULY_UPLOAD_ROOT` (MCP over stdio: `huly_add_attachment`, same rule). Unset,
 only the working directory is allowed. Either way the root is refused when it
-is home, a directory above it, inside a hidden directory (`~/.config`,
-`~/.claude`), or a shared tmp directory (`/tmp`, `/var/tmp`, `/dev/shm` and
-`tmpdir()`, plus every directory above the system's own tmp, such as the macOS
-per-user folder; a `TMPDIR` set inside a project leaves the project usable).
+is home, a directory above it, or a shared tmp directory (`/tmp`, `/var/tmp`,
+`/dev/shm` and `tmpdir()`, plus every directory above the system's own tmp,
+such as the macOS per-user folder; a `TMPDIR` set inside a project leaves the
+project usable). The working directory is also refused when it is inside a
+hidden directory (`~/.config`, `~/.claude`); to upload from a checkout under
+`.claude/worktrees/…`, set `HULY_UPLOAD_ROOT` to it explicitly.
 Hidden files and directories are never read, nor files that look like keys,
 certificates or credentials: `*.p12`, `*.pfx`, `*.ppk`, `*.jks`, `*.keystore`,
 `*.kdbx`, `AuthKey_*.p8`, `id_rsa`-style keys, `*.tfstate`, `*.tfvars`,
