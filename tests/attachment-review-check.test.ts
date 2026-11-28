@@ -1,6 +1,6 @@
 import { test, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -172,6 +172,23 @@ test('HULY_UPLOAD_ROOT=/private/tmp is refused as too broad', { skip: !existsSyn
 
 test('HULY_UPLOAD_ROOT set to the parent of the temp directory is refused as too broad', async () => {
     await refusedAsRoot(dirname(realpathSync(tmpdir())));
+});
+
+// --- Review round 2, N2: a project holding a custom TMPDIR is not too broad --
+
+test('a project directory that holds a custom TMPDIR is accepted as a root', async () => {
+    const [path] = filesIn(['report.txt']);
+    const project = dirname(path);
+    const savedTmp = process.env.TMPDIR;
+    process.env.TMPDIR = join(project, 'tmp');
+    mkdirSync(process.env.TMPDIR);
+    try {
+        const files = await prepareUploads([path]);
+        assert.deepEqual(files.map((f) => f.name), ['report.txt']);
+    } finally {
+        if (savedTmp === undefined) delete process.env.TMPDIR;
+        else process.env.TMPDIR = savedTmp;
+    }
 });
 
 // --- Security review 2: files named like keys or credentials are refused ----

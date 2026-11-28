@@ -275,13 +275,17 @@ async function uploadRoots(): Promise<string[]> {
 /**
  * Home itself or any directory above it (`/Users`, `/`), and the shared temp
  * directory itself; a project or scratch directory below them is fine. Temp
- * means `tmpdir()` and its parent (on macOS the per-user folder that also holds
- * the cache directory) and the shared `/tmp` (`/private/tmp` on macOS).
+ * means `tmpdir()`, its parent when that is the macOS per-user folder (which
+ * also holds the cache directory; a TMPDIR set inside a project leaves the
+ * project usable) and the shared `/tmp` (`/private/tmp` on macOS).
  */
+const MACOS_USER_TEMP = /^\/private\/var\/folders\/[^/]+\/[^/]+\/T$/;
+
 async function tooBroad(dir: string): Promise<boolean> {
     const home = await realpath(homedir()).catch(() => homedir());
     const temp = await realpath(tmpdir()).catch(() => tmpdir());
-    const temps = [temp, dirname(temp)];
+    const temps = [temp];
+    if (MACOS_USER_TEMP.test(temp)) temps.push(dirname(temp));
     for (const shared of ['/tmp', '/private/tmp']) {
         temps.push(await realpath(shared).catch(() => shared));
     }
