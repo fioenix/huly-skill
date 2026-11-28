@@ -8,7 +8,7 @@ The Huly capabilities ship two ways. Pick per agent:
 | **Antigravity** | copy `skills/huly-skill/` → `<project>/.agents/skills/huly-skill/` | [`antigravity.mcp_config.json`](./antigravity.mcp_config.json) → `~/.gemini/config/mcp_config.json` |
 | **Codex** | `npx skills add fioenix/huly-skill --skill huly-skill --agent codex` | [`codex.config.toml`](./codex.config.toml) → `~/.codex/config.toml`; usage from [`AGENTS.md`](../../AGENTS.md) |
 
-Replace the three `HULY_*` placeholders with your workspace credentials before use. The MCP server (`@fioenix/huly-mcp`) is single-workspace: one credential set, shared by all callers.
+Replace the three `HULY_*` placeholders with your workspace credentials before use. By default the MCP server (`@fioenix/huly-mcp`) uses one credential set shared by all callers; over the HTTP transport a caller can send its own `x-huly-token` (with `x-huly-url` / `x-huly-workspace` only alongside it), as the [main README](../../README.md#mcp-server) describes.
 
 Both the Skill and the MCP server expose the **same** operations and return the same `{ "status": "ok" | "error", ... }` envelope — choose by what your runtime supports, not by capability.
 

@@ -288,7 +288,7 @@ way. `auth` errors carry a `hint`. The MCP tools return the identical envelope.
 
 Besides the CLI skill, the same Huly operations are exposed as an **MCP server** — a better fit for Claude Cowork and any MCP-capable client. It is published to npm as [`@fioenix/huly-mcp`](https://www.npmjs.com/package/@fioenix/huly-mcp) and runs via `npx` with no install step.
 
-A single entry point picks its transport from `HULY_MCP_TRANSPORT` (`stdio` default, or `http`). The server is **single-workspace**: one set of Huly credentials, shared by all callers. Full templates: [`examples/agents/`](./examples/agents).
+A single entry point picks its transport from `HULY_MCP_TRANSPORT` (`stdio` default, or `http`). By default every caller shares the server's one set of Huly credentials; over HTTP a caller can bring its own (see *Per-caller Huly credentials* below). Full templates: [`examples/agents/`](./examples/agents).
 
 ### stdio — Claude (`.mcp.json`) and Antigravity (`~/.gemini/config/mcp_config.json`)
 
