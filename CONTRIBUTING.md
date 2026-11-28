@@ -59,6 +59,11 @@ HULY_SMOKE=1 pnpm smoke
 `evals/evals.json` holds prompts used to check that the skill triggers on the
 right requests; add one when you add a command an agent should reach for.
 
+For changes to agent instructions, replay the synthetic workspace-content
+scenarios in [`evals/security/`](./evals/security/README.md). `pnpm test` guards
+policy presence and scenario coverage only; report behavioral replay results
+separately, and never use a real workspace for adversarial payloads.
+
 `reference/` holds the reasoning behind the decisions above, including an ADR for
 the WebSocket transport and a criterion-by-criterion comparison against the other
 Huly MCP server. Read the relevant note before proposing to reverse one of them —
