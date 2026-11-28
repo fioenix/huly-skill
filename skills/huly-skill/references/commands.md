@@ -35,7 +35,8 @@ A team in the Huly UI is an HR **department**; its members are people whose
 Staff record points at it. Project membership is separate and usually larger
 (everyone who can see the project), so `huly teams <name>` prints both and the
 two lists can disagree. MCP: `huly_list_teams` (`name`, `includeProjects`, `limit`,
-`fields`; drop `members` from `fields` to get `memberCount` only).
+`fields`; it returns `memberCount` by default, add `members` to `fields` or pass
+`fields: "all"` for the member lists).
 
 Task types are scoped by project **type**, not by project: the same name (e.g.
 `KPI`) can exist under several project types with different ids. Always read the id

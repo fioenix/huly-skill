@@ -27,8 +27,10 @@ which are released together under the same number.
 - `huly teams --json` follows the list envelope: departments under `data` with
   `count`; projects, when shown, under `projects.data`.
 - `huly_list_teams` takes the usual `limit` (default 50, `0` for no cap) and
-  `fields` arguments and returns `count`, `total` and `truncated`. Every row
-  carries `memberCount`, so `fields` without `members` returns sizes only.
+  `fields` arguments and returns `count`, `total` and `truncated`. By default
+  each row carries `memberCount` and leaves the member list out, so one large
+  department cannot fill the result whatever `limit` says; add `members` to
+  `fields`, or pass `fields: "all"`, for the lists.
 - The assembly is a pure function in `src/utils/teams.ts`, covered by
   `tests/teams.test.ts`.
 

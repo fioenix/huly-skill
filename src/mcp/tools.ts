@@ -138,7 +138,7 @@ export function registerHulyTools(server: McpServer): void {
         'huly_list_teams',
         {
             title: 'List teams',
-            description: 'List teams: HR departments (teams in the Huly UI) with lead, managers and members, and optionally the members and owners of each tracker project. Department and project membership are separate in Huly and can disagree. Pass `name` to match one department, project name or project identifier.',
+            description: 'List teams: HR departments (teams in the Huly UI) with lead, managers and members, and optionally the members and owners of each tracker project. Department and project membership are separate in Huly and can disagree. Pass `name` to match one department, project name or project identifier. Returns `memberCount` by default; add `members` to `fields` (or pass `fields: "all"`) for the member list.',
             inputSchema: z.object({
                 name: z.string().optional().describe('Department name, project name or project identifier, case-insensitive'),
                 includeProjects: z.boolean().optional().describe('Also return project membership (default: true when `name` is given, otherwise false)'),
