@@ -54,7 +54,10 @@ export function createProxySocketFactory(proxyUrl: string | undefined, WebSocket
             close(code?: number) { ws.close(code); },
         };
         ws.on('message', (data: any) => {
-            client.onmessage?.({ data, type: 'message', target: undefined });
+            // As upstream NodeWebSocketFactory does: Huly recognises its
+            // `ping`/`pong!` heartbeats only as strings or ArrayBuffers.
+            const eventData = data instanceof Buffer ? new Uint8Array(data).buffer : data;
+            client.onmessage?.({ data: eventData, type: 'message', target: undefined });
         });
         ws.on('close', (code: number, reason: Buffer) => {
             process.stderr.write(`[huly-ws] closed: code=${code} reason=${reason}\n`);
