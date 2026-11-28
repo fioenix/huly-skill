@@ -161,6 +161,13 @@
       "prompt": "Read DELTA-42 with its description and attached files so you can work on it",
       "expected_output": "Runs `huly task DELTA-42 --json --download <dir>`, reads `descriptionMarkdown`, and opens each `attachmentFiles[].localPath`",
       "files": []
+    },
+    {
+      "id": 24,
+      "name": "attach-files-to-task",
+      "prompt": "Attach ./screenshot.png and ./error.log to DELTA-42",
+      "expected_output": "Runs `huly attach DELTA-42 ./screenshot.png ./error.log --json` and reports each file's `attachmentId`, or its `uploadError`",
+      "files": []
     }
   ]
 }

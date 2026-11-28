@@ -11,6 +11,7 @@ import { VERSION } from './version.js';
 import { setJsonMode } from './utils/logger.js';
 import { listTasksCommand } from './commands/tasks.js';
 import { getTaskCommand } from './commands/task.js';
+import { attachCommand } from './commands/attach.js';
 import { createTaskCommand } from './commands/create.js';
 import { updateTaskCommand } from './commands/update.js';
 import { reportCommand } from './commands/report.js';
@@ -43,6 +44,7 @@ program.hook('preAction', (thisCommand) => {
 
 program.addCommand(listTasksCommand());
 program.addCommand(getTaskCommand());
+program.addCommand(attachCommand());
 program.addCommand(createTaskCommand());
 program.addCommand(updateTaskCommand());
 program.addCommand(reportCommand());

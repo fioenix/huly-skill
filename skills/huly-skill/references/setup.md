@@ -12,6 +12,7 @@ The CLI reads these from a `.env` file; it never needs them passed inline.
 - `HULY_ACTOR` — optional; who is operating the CLI when the token is shared
 - `HULY_DEFAULT_ASSIGNEE` — optional; assignee used when none is given
 - `HULY_DOWNLOAD_ROOT` — optional; the only directory attachment downloads may write under (default: the working directory unless it is `/` or home or contains home, or the temp directory)
+- `HULY_UPLOAD_ROOT` — optional; the only directory `huly attach` / `huly_add_attachment` may read files from (default: the working directory, refused when that is home, above it, or the system tmp directory)
 
 ## Where `.env` is looked up
 

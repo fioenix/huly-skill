@@ -236,8 +236,11 @@ function expandHome(path: string): string {
     return path;
 }
 
-async function allowedRoots(): Promise<{ roots: string[]; skippedCwd?: string }> {
-    const configured = process.env.HULY_DOWNLOAD_ROOT?.trim();
+/** Real paths of the directories files may be read from or written to; `envName` replaces the default pair. */
+export async function allowedRoots(
+    envName: 'HULY_DOWNLOAD_ROOT' | 'HULY_UPLOAD_ROOT' = 'HULY_DOWNLOAD_ROOT',
+): Promise<{ roots: string[]; skippedCwd?: string }> {
+    const configured = process.env[envName]?.trim();
     const candidates = configured ? [resolve(expandHome(configured))] : [process.cwd(), tmpdir()];
     const home = await realpath(homedir()).catch(() => resolve(homedir()));
     const roots: string[] = [];
@@ -258,7 +261,7 @@ async function allowedRoots(): Promise<{ roots: string[]; skippedCwd?: string }>
         }
     }
     if (configured && roots.length === 0) {
-        throw hulyError('invalid_input', `HULY_DOWNLOAD_ROOT does not exist: ${configured}`);
+        throw hulyError('invalid_input', `${envName} does not exist: ${configured}`);
     }
     return { roots, skippedCwd };
 }
@@ -476,7 +479,7 @@ function byteLength(value: string): number {
 }
 
 /** One short line: upstream errors can carry a whole HTML error page. */
-function describeError(e: unknown): string {
+export function describeError(e: unknown): string {
     const err = e as { message?: unknown; name?: unknown };
     const oneLine = (value: unknown) => String(value ?? '')
         .replace(/[\u0000-\u001f\u007f]+/g, ' ')
@@ -504,7 +507,7 @@ export function formatAttachmentLines(files: AttachmentInfo[]): string {
     return out;
 }
 
-function formatSize(bytes: number): string {
+export function formatSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;

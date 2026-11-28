@@ -30,6 +30,7 @@ import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 import { issueUrl, storageUrls } from './utils/links.js';
 import { hulyError } from './utils/errors.js';
 import { ATTACHMENT_QUERY, isSafeBlobId, memoizeSuccess, withTimeout } from './utils/task-detail.js';
+import { recordAttachment, removeStoredBlob, toCallError, uploadFile } from './utils/attachment-upload.js';
 import {
     tracker, contact, document as hulyDocument, tags, hr,
     activity, chunter, task, attachment,
@@ -1043,6 +1044,35 @@ export class HulyClient {
         if (!isSafeBlobId(blobId)) throw hulyError('invalid_input', 'Invalid attachment file reference');
         const storage = await this.storage();
         return await storage.get(encodeURIComponent(blobId));
+    }
+
+    /**
+     * Store one file over the HTTP upload endpoint under `key`, a UUID the
+     * caller generated (the endpoint stores under the key it is sent). `name`
+     * belongs on the attachment record, never on the blob.
+     */
+    async uploadBlob(file: { key: string; name: string; data: Buffer; type: string }): Promise<{ _id: string }> {
+        return await uploadFile(await this.openStorage(), file);
+    }
+
+    async removeBlob(blobId: string): Promise<void> {
+        await removeStoredBlob(await this.openStorage(), blobId);
+    }
+
+    async addIssueAttachment(
+        issue: any,
+        attrs: { name: string; file: string; type: string; size: number; lastModified: number },
+    ): Promise<string> {
+        return await recordAttachment(this.client as any, issue, attrs);
+    }
+
+    /** The storage client, with a failure to reach it marked like any other dropped connection. */
+    private async openStorage(): Promise<any> {
+        try {
+            return await this.storage();
+        } catch (e) {
+            throw toCallError(e);
+        }
     }
 
     private readonly storage = memoizeSuccess<any>(async () => {

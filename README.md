@@ -196,6 +196,17 @@ directories such as `.git` or `.ssh` never are.
 export HULY_DOWNLOAD_ROOT="$HOME/huly-files"   # optional; a leading ~ also means home
 ```
 
+### Where attachment uploads may read
+
+`huly attach <id> <file...>` reads files to upload only from inside
+`HULY_UPLOAD_ROOT` (MCP over stdio: `huly_add_attachment`, same rule). Unset,
+only the working directory is allowed, and not when it is home, a directory
+above it, or the temp directory itself; hidden files and directories never are.
+
+```bash
+export HULY_UPLOAD_ROOT="$HOME/huly-files"     # optional: only place huly attach / huly_add_attachment may read
+```
+
 ### Verify
 
 ```bash
@@ -212,6 +223,7 @@ huly tasks --parent LAMBD-568         # Direct children of a parent (Epic / sub-
 huly tasks --milestone-id <id>        # All tasks attached to a milestone
 huly task DELTA-123                   # Task details by identifier (description + attachments)
 huly task DELTA-123 --download ./out  # ...and save the attachments locally
+huly attach DELTA-123 ./shot.png      # Upload files as attachments of the task
 huly task-by-id <internalId>          # Lookup by internal _id (e.g. from childInfo)
 huly create task "Title" --project DELTA --priority HIGH --due tomorrow
 huly create task "Sub-task" --project DELTA --parent DELTA-16   # as a sub-issue

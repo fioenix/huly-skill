@@ -61,6 +61,7 @@ huly tasks --milestone-id <id>                    # all tasks in a milestone
 
 huly task DELTA-123                               # full details for one task
 huly task DELTA-123 --json --download ./DELTA-123 # also save its attachments, each gets localPath
+huly attach DELTA-123 ./shot.png ./log.txt --json # upload local files as attachments
 huly task-by-id <internalId>                      # look up by internal _id
 ```
 
@@ -75,9 +76,26 @@ directory unless it is `/` or home or contains home, or the temp directory) and 
 `invalid_input`. Over the HTTP MCP transport `downloadDir` does not exist.
 Each file is capped at 100 MB and 120 s, 500 MB per call.
 Files attached to comments are not included.
+
 `data.url` is the issue's web link, `<HULY_HOST>/workbench/<workspace slug>/tracker/<id>`
 (also on `huly create task --json`); the slug comes from the account service, so
 `url` is `null` when that lookup fails while the rest of the detail is kept.
+
+`huly attach <id> <file...>` (MCP: `huly_add_attachment` with `taskId`, `paths`;
+stdio only) uploads files to the issue itself. Every path is checked and read
+before anything is sent: each must resolve, symlinks included, inside
+`HULY_UPLOAD_ROOT` (default: the working directory only, refused when that is
+home, a directory above it, or the system tmp directory itself), be a regular file,
+and not be hidden or inside a hidden directory (`.env`, `.ssh/…`); at most 50 MB
+each, 200 MB and 20 files per call. Any refusal fails the whole call with
+`invalid_input` and nothing is uploaded. The result is
+`{"status":"ok","taskId","uploaded","failed","files":[…]}`, each entry with
+`name`, `type`, `size`, `attachmentId` and `blobId`, or `uploadError` for a file
+that failed while the rest still went; the CLI then exits 1. A refused
+credential or a dropped connection instead fails the whole call with `auth` or
+`connection` (exit 2 or 5), and its message names the files already attached;
+once any went up, or a blob was kept because its record may already exist, the
+error is `retryable: false`, so resend only the others.
 
 ```bash
 
