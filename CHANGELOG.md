@@ -9,8 +9,10 @@ which are released together under the same number.
   (`taskId`, `paths`) upload local files to the issue: each is stored over the
   HTTP upload endpoint, then recorded as an `attachment:class:Attachment` in the
   issue's `attachments` collection, so `huly task` lists it. The result carries
-  `uploaded`, `failed` and per file `attachmentId` and `blobId`, or
-  `uploadError` while the others still go; the CLI exits 1 when any failed. A
+  `uploaded`, `failed` and per file `path` (the absolute local path),
+  `name`, `type`, `size`, `attachmentId` and `blobId`, or `uploadError` while
+  the others still go, plus `cleanupError` (also in the text output) when a
+  failed file's blob could not be removed; the CLI exits 1 when any failed. A
   refused credential or dropped connection fails the whole call instead (`auth`
   / `connection`, exit 2 / 5), naming the files already attached and, once any went up or a blob was kept, with
   `retryable: false` so the same call is not repeated. A dropped or timed-out

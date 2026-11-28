@@ -302,8 +302,10 @@ huly update task DELTA-42 --status Done --add-comment "Completed and tested" --j
 ```bash
 huly attach DELTA-42 ./screenshot.png --json
 ```
-Each file in `files` carries `attachmentId`, or `uploadError` while the others
-still upload; the CLI exits 1 when any failed. A refused credential or dropped
+Each file in `files` carries `path` (the absolute local path), `name`, `type`,
+`size`, `blobId` and `attachmentId`, or `uploadError` while the others still
+upload, plus `cleanupError` (also printed in text mode) when a failed file's
+stored blob could not be removed; the CLI exits 1 when any failed. A refused credential or dropped
 connection fails the whole call instead (`auth` / `connection`), naming the
 files already attached; once some went up, or a blob was kept because its
 record may already exist, or an upload was cut off while its file may still be

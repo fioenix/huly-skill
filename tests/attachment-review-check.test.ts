@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSy
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { attachPrepared, prepareUploads, readCapped, removeStoredBlob } from '../src/utils/attachment-upload.js';
+import { attachPrepared, formatAttachText, prepareUploads, readCapped, removeStoredBlob } from '../src/utils/attachment-upload.js';
 import { errorPayload, hulyError } from '../src/utils/errors.js';
 
 // Found by the independent check of the review-1 fixes (fix-check A1.1, A1.2,
@@ -207,6 +207,26 @@ test('a symlink with an ordinary name pointing at a key file is refused', async 
     const link = join(dirname(key), 'notes.txt');
     symlinkSync(key, link);
     await assert.rejects(prepareUploads([link]), (e: any) => /looks like a key/.test(e.message));
+});
+
+// --- Code review 4: text output shows a blob that could not be removed -----
+
+test('the text output names a stored file that could not be removed', async () => {
+    const text = formatAttachText('DELTA-42', {
+        uploaded: 1,
+        failed: 1,
+        files: [
+            { path: '/w/a.txt', name: 'a.txt', type: 'text/plain', size: 3, attachmentId: 'att-1', blobId: 'blob-1' },
+            {
+                path: '/w/b.txt', name: 'b.txt', type: 'text/plain', size: 3, attachmentId: null, blobId: 'blob-2',
+                uploadError: 'record refused', cleanupError: 'remove failed',
+            },
+        ],
+    });
+    assert.match(text, /Attached 1 of 2 file\(s\) to DELTA-42/);
+    assert.match(text, /b\.txt .*upload failed: record refused/);
+    assert.match(text, /stored file blob-2 could not be removed: remove failed/);
+    assert.doesNotMatch(text.split('\n').find((l) => l.includes('a.txt'))!, /could not be removed/);
 });
 
 test('ordinary files, including a public SSH key, still pass', async () => {

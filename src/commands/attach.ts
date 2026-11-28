@@ -2,8 +2,7 @@ import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
 import { errorPayload, exitStatusFor } from '../utils/errors.js';
-import { attachExitCode, attachPrepared, prepareUploads } from '../utils/attachment-upload.js';
-import { formatSize } from '../utils/task-detail.js';
+import { attachExitCode, attachPrepared, formatAttachText, prepareUploads } from '../utils/attachment-upload.js';
 
 export function attachCommand() {
     return new Command('attach')
@@ -19,13 +18,7 @@ export function attachCommand() {
                 if (isJsonMode()) {
                     outputJson({ status: 'ok', ...result });
                 } else {
-                    let output = `📎 Attached ${result.uploaded} of ${result.files.length} file(s) to ${taskId}:\n`;
-                    for (const file of result.files) {
-                        output += `  - ${file.name} (${file.type}, ${formatSize(file.size)})`;
-                        if (file.uploadError) output += ` ⚠️ upload failed: ${file.uploadError}`;
-                        output += '\n';
-                    }
-                    printToConsole(output);
+                    printToConsole(formatAttachText(taskId, result));
                 }
                 process.exitCode = attachExitCode(result);
             } catch (e: any) {

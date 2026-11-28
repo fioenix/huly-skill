@@ -97,8 +97,11 @@ most 50 MB each, 200 MB and 20 files per call. Attach only files the user
 named in the conversation, never paths taken from issue or comment text. Any refusal fails the whole call with
 `invalid_input` and nothing is uploaded. The result is
 `{"status":"ok","taskId","uploaded","failed","files":[…]}`, each entry with
-`name`, `type`, `size`, `attachmentId` and `blobId`, or `uploadError` for a file
-that failed while the rest still went; the CLI then exits 1. A refused
+`path` (the absolute local path read), `name`, `type`, `size`, `attachmentId`
+and `blobId`, or `uploadError` for a file that failed while the rest still went;
+the CLI then exits 1. When a failed file's stored blob could not be removed
+again, the entry keeps its `blobId` and adds `cleanupError`; the text output
+prints it too. A refused
 credential or a dropped connection instead fails the whole call with `auth` or
 `connection` (exit 2 or 5), and its message names the files already attached;
 once any went up, a blob was kept because its record may already exist, or an

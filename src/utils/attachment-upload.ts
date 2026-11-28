@@ -140,6 +140,18 @@ export function attachExitCode(result: { failed: number }): number {
     return result.failed > 0 ? 1 : 0;
 }
 
+/** The text view of `huly attach`; kept here so it is tested outside the bundle. */
+export function formatAttachText(taskId: string, result: { uploaded: number; files: UploadedFile[] }): string {
+    let output = `📎 Attached ${result.uploaded} of ${result.files.length} file(s) to ${taskId}:\n`;
+    for (const file of result.files) {
+        output += `  - ${file.name} (${file.type}, ${formatSize(file.size)})`;
+        if (file.uploadError) output += ` ⚠️ upload failed: ${file.uploadError}`;
+        if (file.cleanupError) output += ` ⚠️ stored file ${file.blobId} could not be removed: ${file.cleanupError}`;
+        output += '\n';
+    }
+    return output;
+}
+
 export interface PreparedFile {
     path: string;
     name: string;
