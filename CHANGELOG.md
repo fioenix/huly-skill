@@ -27,6 +27,10 @@ which are released together under the same number.
   newer view does not run beside a second copy of the schema code.
 - Checked: the MCP server lists the same 31 tools and still rejects unknown
   arguments; markdown → markup → markdown gives byte-identical output to 1.10.4.
+- `@tiptap/core` GHSA-cp6q-959q-f8rh has no fix on the 2.x line Huly requires;
+  `pnpm audit:shipped` now accepts it until 2027-02-28 as a dated exception with
+  its evidence, and fails again after that date
+  (`reference/security-audit-2026-08.md`).
 
 ## 1.10.4
 
