@@ -57,7 +57,9 @@ function expectOk(envelope) {
     return envelope;
 }
 
-console.log(`Smoke test against ${process.env.HULY_HOST} / ${process.env.HULY_WORKSPACE_ID}\n`);
+// Origin only: a host pasted with a token or user:pass@ must not reach CI logs.
+const hostOrigin = (() => { try { return new URL(process.env.HULY_HOST).origin; } catch { return '(invalid HULY_HOST)'; } })();
+console.log(`Smoke test against ${hostOrigin} / ${process.env.HULY_WORKSPACE_ID}\n`);
 try {
     step('whoami', () => expectOk(huly('whoami')).data?.host ?? 'connected');
 
