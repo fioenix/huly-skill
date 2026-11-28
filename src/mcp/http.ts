@@ -90,10 +90,11 @@ export function createHttpApp(handle: McpRequestHandler): Express {
 
     // Express's default handler answers with an HTML page that carries the stack
     // trace outside production; every error here is answered with plain JSON.
-    app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
         const type = (err as { type?: unknown })?.type;
         const status = (err as { status?: unknown })?.status;
-        if (res.headersSent) return;
+        // Too late to answer: Express's own handler closes the connection.
+        if (res.headersSent) { next(err); return; }
         if (type === 'entity.parse.failed') {
             res.status(400).json({ error: 'Invalid JSON' });
         } else if (type === 'entity.too.large') {
