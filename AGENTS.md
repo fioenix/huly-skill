@@ -223,8 +223,15 @@ person.
 |---------|---------|
 | `huly labels list` | List all workspace labels |
 | `huly labels create <title> [--color N]` | Create a new label |
-| `huly labels assign <taskId> <labelId>` | Assign label to a task |
+| `huly labels assign <taskId> <labelId>` | Assign label to a task; title and color default to the label's own, and an existing label is not added twice |
+| `huly labels unassign <taskId> <labelId>` | Remove a label from a task |
+| `huly labels repair <taskId...>` | Rewrite label references whose title or color does not match the label, drop duplicates |
 | `huly labels show <taskId>` | Show labels on a task |
+
+A label pill in the Huly UI shows the title and color stored on the task's
+reference, not those of the label it points at. Earlier versions stored the
+label id as that title when `--title` was omitted; run `labels repair` on tasks
+labelled that way.
 
 ### Documents
 | Command | Purpose |
