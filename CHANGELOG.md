@@ -48,6 +48,11 @@ which are released together under the same number.
   and static policy checks. These checks do not prove model resistance or replace
   a fresh platform security audit.
 
+### Docs — the eval suite covers every content source
+- `evals/security/workspace-content.json` adds synthetic cases for an attachment
+  name, a label title and a milestone description; `tests/skill-boundary.test.ts`
+  requires those sources too.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse
