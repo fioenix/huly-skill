@@ -366,7 +366,7 @@ HULY_MCP_AUTH_TOKEN=your-shared-secret \
 npx -y @fioenix/huly-mcp@latest
 ```
 
-Serves `POST /mcp` (default port 3000, override with `PORT`) and `GET /health`. When `HULY_MCP_AUTH_TOKEN` is set, callers must send `Authorization: Bearer <token>` — because the server holds Huly credentials, always set it for any non-local deployment. Without it the server listens on `127.0.0.1` only, so an open endpoint is not reachable from the network; with it, on every interface. `HULY_MCP_HOST` sets the bind address explicitly either way (e.g. `0.0.0.0` inside a container behind your own gateway). Errors inside a request are answered `500` with a generic message; the detail goes to the server's stderr.
+Serves `POST /mcp` (default port 3000, override with `PORT`) and `GET /health`. When `HULY_MCP_AUTH_TOKEN` is set, callers must send `Authorization: Bearer <token>` — because the server holds Huly credentials, always set it for any non-local deployment; a blank value, or one with leading/trailing whitespace, stops the server at startup. Without it the server listens on `127.0.0.1` only, so an open endpoint is not reachable from the network; with it, on every interface. `HULY_MCP_HOST` sets the bind address explicitly either way (e.g. `0.0.0.0` inside a container behind your own gateway). Errors inside a request are answered `500` with a generic message; the detail goes to the server's stderr.
 
 Over HTTP `huly_get_task` has no `downloadDir` argument (its strict schema rejects it): a remote caller cannot read the server's disk and must not be able to write to it, so attachments come back as metadata only.
 

@@ -107,7 +107,8 @@ which are released together under the same number.
   internal hosts, paths or upstream replies. The caller now gets
   `{ "error": "Internal error" }`; the message goes to stderr.
 - That stderr line, with the error's `cause`, keeps URLs to scheme and host,
-  masks JWT-shaped strings and stays on one line, so a WebSocket URL's token or
+  masks JWT-shaped strings and stays on one line (C0/C1 controls and Unicode
+  line separators become spaces), so a WebSocket URL's token or
   a caller-shaped message cannot reach or forge the log.
 - The JSON body is parsed only after the Bearer and caller-token guards, and a
   malformed or oversized body is answered `400` / `413` in JSON instead of

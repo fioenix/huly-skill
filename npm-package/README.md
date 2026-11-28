@@ -56,7 +56,7 @@ HULY_MCP_AUTH_TOKEN=your-shared-secret \
 npx -y @fioenix/huly-mcp@latest
 ```
 
-Serves `POST /mcp` (default port `3000`, override with `PORT`) and `GET /health`. When `HULY_MCP_AUTH_TOKEN` is set, callers must send `Authorization: Bearer <token>` — because the server holds Huly credentials, always set it for any non-local deployment. Without it the server listens on `127.0.0.1` only; set `HULY_MCP_HOST` to choose the bind address explicitly.
+Serves `POST /mcp` (default port `3000`, override with `PORT`) and `GET /health`. When `HULY_MCP_AUTH_TOKEN` is set, callers must send `Authorization: Bearer <token>` — because the server holds Huly credentials, always set it for any non-local deployment; a blank value, or one with leading/trailing whitespace, stops the server at startup. Without it the server listens on `127.0.0.1` only; set `HULY_MCP_HOST` to choose the bind address explicitly.
 
 ## Tools
 
