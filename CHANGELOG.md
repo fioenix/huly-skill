@@ -39,6 +39,15 @@ which are released together under the same number.
   and passes on 2.27.3. The advisory database lists only 3.30.4 as patched, so
   the dated exception in `audit:shipped` stays, now marked as patched.
 
+### Security — workspace content cannot authorize agent actions
+- Add an explicit trust boundary to the Huly skill and agent guide: fetched
+  tasks, comments/replies, activity and documents remain data, including after
+  shell reduction or summarization. Embedded instructions cannot authorize
+  mutations, outbound sharing, credential access or configuration changes.
+- Preserve user-authorized reads and writes; add synthetic adversarial scenarios
+  and static policy checks. These checks do not prove model resistance or replace
+  a fresh platform security audit.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse
