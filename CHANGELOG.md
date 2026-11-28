@@ -23,6 +23,21 @@ which are released together under the same number.
   adds an absolute `localPath` per entry, or `downloadError` for a file that
   failed while the rest still save. Names are reduced to one safe path segment
   inside `<dir>` and an existing file is never overwritten (`spec-1.pdf`, …).
+  Files stream to disk, capped at 100 MB each, 500 MB per call and 120 s per
+  file; a file over a cap or out of time is removed and reported, not kept half
+  written.
+
+### Rejects — where attachments may be written
+- `<dir>` must resolve, symlinks included, inside `HULY_DOWNLOAD_ROOT`, or the
+  working or temp directory when that is unset, and not inside a hidden
+  directory such as `.git` or `.ssh`; anything else fails with
+  `invalid_input` before anything is created. Text in an issue can steer an
+  agent's arguments, so the directory is checked rather than trusted.
+- The MCP server under `HULY_MCP_TRANSPORT=http` does not offer `downloadDir`
+  at all: a remote caller cannot read the server's disk, and must not be able
+  to write to it. The strict schema rejects the argument there.
+- A `blobId` with anything but letters, digits, `.`, `_` and `-` is refused
+  without a request, since it is spliced into the files URL beside the token.
 - The text view lists each attachment with type and size instead of a count.
 - `huly_get_task` and `huly task` now share one implementation
   (`src/utils/task-detail.ts`), covered by `tests/task-detail.test.ts`.

@@ -61,6 +61,10 @@ huly task-by-id <internalId>                      # look up by internal _id
 fetched, unless `--download <dir>` is passed (MCP: `downloadDir`); then each entry
 carries an absolute `localPath`, or `downloadError` when that one file failed.
 Unsafe names are flattened into `<dir>` and an existing file is never overwritten.
+`<dir>` must be inside `HULY_DOWNLOAD_ROOT` (default: the working or temp
+directory) and not in a hidden directory; otherwise the call fails with
+`invalid_input`. Over the HTTP MCP transport `downloadDir` does not exist.
+Each file is capped at 100 MB and 120 s, 500 MB per call.
 Files attached to comments are not included.
 `data.url` is the issue's web link, `<HULY_HOST>/workbench/<workspace slug>/tracker/<id>`
 (also on `huly create task --json`); the slug comes from the account service, so

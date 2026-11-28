@@ -82,6 +82,7 @@ When a team shares one token, set two optional variables per person:
 ```bash
 export HULY_ACTOR="Nguyen Van A"       # who is operating this CLI
 export HULY_DEFAULT_ASSIGNEE="me"      # assignee when --assignee is omitted
+export HULY_DOWNLOAD_ROOT="$HOME/huly-files"  # optional: only place --download may write
 ```
 
 `HULY_ACTOR` makes `me` resolve to that person and appends

@@ -73,7 +73,8 @@ function startHttp(): void {
 
     // Stateless Streamable HTTP: a fresh server + transport per request.
     app.post('/mcp', requireAuth, requireCallerToken, async (req: Request, res: Response) => {
-        const server = createHulyMcpServer();
+        // A remote caller must not be able to write to this host's disk.
+        const server = createHulyMcpServer({ allowDownloads: false });
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
         res.on('close', () => { void transport.close(); void server.close(); });
         try {

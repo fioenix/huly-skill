@@ -16,6 +16,7 @@ import { listComments, getCommentById, updateComment, deleteComment } from '../s
 import { DEFAULT_LIST_LIMIT, LIST_FIELDS, shapeList, type ListEntity } from '../utils/projection.js';
 import { describeContext } from '../utils/context.js';
 import { buildTaskDetail } from '../utils/task-detail.js';
+import { getTaskInputSchema } from './get-task-schema.js';
 import { errorPayload, hulyError } from '../utils/errors.js';
 
 // --- result helpers --------------------------------------------------------
@@ -74,7 +75,12 @@ async function resolveTeamspace(client: HulyClient, input: string): Promise<any>
  * commands one-to-one and return the same JSON envelope, so behaviour stays
  * consistent across the CLI and MCP adapters.
  */
-export function registerHulyTools(server: McpServer): void {
+export interface HulyToolOptions {
+    /** Whether tools may write to the server's disk; false for the HTTP transport. */
+    allowDownloads?: boolean;
+}
+
+export function registerHulyTools(server: McpServer, { allowDownloads = true }: HulyToolOptions = {}): void {
     server.registerTool(
         'huly_context',
         {
@@ -175,16 +181,15 @@ export function registerHulyTools(server: McpServer): void {
         'huly_get_task',
         {
             title: 'Get task detail',
-            description: 'Get full details for a single task by its identifier (e.g. DELTA-123): the description as markdown (`descriptionMarkdown`) and its attached files (`attachmentFiles`). Pass `downloadDir` to also save those files locally and get each `localPath`.',
-            inputSchema: z.object({
-                taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
-                downloadDir: z.string().optional().describe('Directory to save every attachment into; each entry then carries `localPath` (or `downloadError`). Omit for metadata only.'),
-            }).strict(),
+            description: allowDownloads
+                ? 'Get full details for a single task by its identifier (e.g. DELTA-123): the description as markdown (`descriptionMarkdown`) and its attached files (`attachmentFiles`). Pass `downloadDir` to also save those files locally and get each `localPath`.'
+                : 'Get full details for a single task by its identifier (e.g. DELTA-123): the description as markdown (`descriptionMarkdown`) and its attached files (`attachmentFiles`, metadata only on this server).',
+            inputSchema: getTaskInputSchema(allowDownloads),
         },
-        async ({ taskId, downloadDir }) => withHuly(async (client) => {
-            const task = await client.getTask(taskId);
-            if (!task) throw new Error(`Task not found: ${taskId}`);
-            return { task: await buildTaskDetail(client, task, { downloadDir }) };
+        async (args: { taskId: string; downloadDir?: string }) => withHuly(async (client) => {
+            const task = await client.getTask(args.taskId);
+            if (!task) throw new Error(`Task not found: ${args.taskId}`);
+            return { task: await buildTaskDetail(client, task, { downloadDir: allowDownloads ? args.downloadDir : undefined }) };
         }),
     );
 

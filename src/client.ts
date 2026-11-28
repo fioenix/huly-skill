@@ -70,6 +70,8 @@ type Ref<T> = string & { __ref: T };
 type Doc = any;
 import { getApiKey, getHost, getWorkspaceId } from './utils/auth.js';
 import { issueUrl } from './utils/links.js';
+import { hulyError } from './utils/errors.js';
+import { ATTACHMENT_QUERY, isSafeBlobId, memoizeSuccess } from './utils/task-detail.js';
 import {
     tracker, contact, document as hulyDocument, tags,
     activity, chunter, task, attachment,
@@ -123,7 +125,6 @@ export class HulyClient {
     private _projects: any[] | null = null;
     private _statuses: any[] | null = null;
     private _account: any | null = null;
-    private _storage: Promise<any> | null = null;
     private _workspaceSlug: Promise<string | null> | null = null;
 
     async connect() {
@@ -142,6 +143,8 @@ export class HulyClient {
             await this.client.close();
             this.client = null;
         }
+        // Never carry one connection's storage token into the next.
+        this.storage.reset();
     }
 
     getRawClient(): PlatformClient {
@@ -855,6 +858,7 @@ export class HulyClient {
         return await this.client!.findAll(
             attachment.class.Attachment as any,
             { attachedTo: issueInternalId } as any,
+            ATTACHMENT_QUERY as any,
         );
     }
 
@@ -870,17 +874,21 @@ export class HulyClient {
     }
 
     /**
-     * Download one stored file. Blobs live behind the HTTP files endpoint, not
-     * the WebSocket, so this opens a storage client on first use with the same
-     * token and keeps it for the rest of the command.
+     * Stream one stored file. Blobs live behind the HTTP files endpoint, not
+     * the WebSocket, so a storage client is opened on first use with the same
+     * token and kept for the rest of the command — unless opening it failed,
+     * in which case the next file tries again.
      */
-    async downloadBlob(blobId: string): Promise<Buffer> {
-        this._storage ??= connectStorage(getHost(), { token: getApiKey(), workspace: getWorkspaceId() });
-        const storage = await this._storage;
-        const chunks: Buffer[] = [];
-        for await (const chunk of await storage.get(blobId)) chunks.push(Buffer.from(chunk));
-        return Buffer.concat(chunks);
+    async downloadBlob(blobId: string): Promise<AsyncIterable<Uint8Array>> {
+        // The id is spliced into the files URL next to the workspace token.
+        if (!isSafeBlobId(blobId)) throw hulyError('invalid_input', 'Invalid attachment file reference');
+        const storage = await this.storage();
+        return await storage.get(encodeURIComponent(blobId));
     }
+
+    private readonly storage = memoizeSuccess<any>(() =>
+        connectStorage(getHost(), { token: getApiKey(), workspace: getWorkspaceId() }),
+    );
 
     // -----------------------------------------------------------------------
     // Markup helpers
