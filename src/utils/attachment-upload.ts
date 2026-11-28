@@ -252,46 +252,55 @@ export async function prepareUploads(paths: string[], limits: Partial<UploadLimi
 async function uploadRoots(): Promise<string[]> {
     if (process.env.HULY_UPLOAD_ROOT?.trim()) {
         const roots = (await allowedRoots('HULY_UPLOAD_ROOT')).roots;
-        for (const root of roots) {
-            if (await tooBroad(root)) {
-                throw hulyError(
-                    'invalid_input',
-                    `HULY_UPLOAD_ROOT ${root} is too broad to upload from; set it to the directory that holds the files`,
-                );
-            }
-        }
+        for (const root of roots) refuseRoot(root, `HULY_UPLOAD_ROOT ${root}`, 'set it to the directory that holds the files', await tooBroad(root));
         return roots;
     }
     const cwd = await realpath(process.cwd());
-    if (await tooBroad(cwd)) {
-        throw hulyError(
-            'invalid_input',
-            `The working directory ${cwd} is too broad to upload from; set HULY_UPLOAD_ROOT to the directory that holds the files`,
-        );
-    }
+    refuseRoot(cwd, `The working directory ${cwd}`, 'set HULY_UPLOAD_ROOT to the directory that holds the files', await tooBroad(cwd));
     return [cwd];
 }
 
 /**
+ * A root inside a hidden directory (`~/.claude`, `~/.config`) would make every
+ * file below it pass the "never hidden" rule, which only looks below the root.
+ */
+function refuseRoot(root: string, what: string, fix: string, broad: boolean): void {
+    if (broad) throw hulyError('invalid_input', `${what} is too broad to upload from; ${fix}`);
+    const hidden = root.split(sep).find((segment) => segment.startsWith('.'));
+    if (hidden) {
+        throw hulyError(
+            'invalid_input',
+            `${what} is inside a hidden directory (${hidden}), where the rule that hidden files are never uploaded cannot apply; ${fix}`,
+        );
+    }
+}
+
+/**
  * Home itself or any directory above it (`/Users`, `/`), and the shared temp
- * directory itself; a project or scratch directory below them is fine. Temp
- * means `tmpdir()`, its parent when that is the macOS per-user folder (which
- * also holds the cache directory; a TMPDIR set inside a project leaves the
- * project usable) and the shared `/tmp` (`/private/tmp` on macOS).
+ * directories themselves; a project or scratch directory below them is fine.
+ * Temp means `tmpdir()`, the shared `/tmp`, `/var/tmp` (under `/private` on
+ * macOS) and `/dev/shm`, and, when `tmpdir()` is one the system manages (the
+ * macOS per-user `…/T`, or one of those shared ones), every directory above it:
+ * on macOS its parent also holds the cache directory. A TMPDIR set inside a
+ * project leaves the project usable.
  */
 const MACOS_USER_TEMP = /^\/private\/var\/folders\/[^/]+\/[^/]+\/T$/;
+const SHARED_TEMPS = ['/tmp', '/private/tmp', '/var/tmp', '/private/var/tmp', '/dev/shm'];
 
 async function tooBroad(dir: string): Promise<boolean> {
     const home = await realpath(homedir()).catch(() => homedir());
     const temp = await realpath(tmpdir()).catch(() => tmpdir());
     const temps = [temp];
-    if (MACOS_USER_TEMP.test(temp)) temps.push(dirname(temp));
-    for (const shared of ['/tmp', '/private/tmp']) {
+    for (const shared of SHARED_TEMPS) {
         temps.push(await realpath(shared).catch(() => shared));
     }
-    const homeRel = relative(dir, home);
-    const holdsHome = homeRel === '' || (!homeRel.startsWith('..') && !isAbsolute(homeRel));
-    return holdsHome || temps.includes(dir) || dir === parse(dir).root;
+    const systemTemp = MACOS_USER_TEMP.test(temp) || temps.slice(1).some((shared) => isAncestorOrSelf(shared, temp));
+    return isAncestorOrSelf(dir, home) || temps.includes(dir) || dir === parse(dir).root || (systemTemp && isAncestorOrSelf(dir, temp));
+}
+
+function isAncestorOrSelf(dir: string, of: string): boolean {
+    const rel = relative(dir, of);
+    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
 /**

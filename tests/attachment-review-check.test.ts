@@ -174,6 +174,50 @@ test('HULY_UPLOAD_ROOT set to the parent of the temp directory is refused as too
     await refusedAsRoot(dirname(realpathSync(tmpdir())));
 });
 
+// --- Review round 2, N4: a hidden root, other shared temps, temp's ancestors --
+
+function hiddenProject(): { root: string; path: string } {
+    const [seed] = filesIn(['seed.txt']);
+    const root = join(dirname(seed), '.config', 'proj');
+    mkdirSync(root, { recursive: true });
+    const path = join(root, 'history.jsonl');
+    writeFileSync(path, 'transcript');
+    return { root, path };
+}
+
+test('HULY_UPLOAD_ROOT inside a hidden directory is refused, naming why', async () => {
+    const { root, path } = hiddenProject();
+    process.env.HULY_UPLOAD_ROOT = root;
+    await assert.rejects(prepareUploads([path]), (e: any) => {
+        assert.equal(e.code, 'invalid_input');
+        assert.match(e.message, /HULY_UPLOAD_ROOT .* is inside a hidden directory/);
+        return true;
+    });
+});
+
+test('without HULY_UPLOAD_ROOT a working directory inside a hidden directory is refused', async () => {
+    const { root } = hiddenProject();
+    delete process.env.HULY_UPLOAD_ROOT;
+    process.chdir(root);
+    await assert.rejects(prepareUploads(['history.jsonl']), (e: any) => /working directory .* is inside a hidden directory/.test(e.message));
+});
+
+test('HULY_UPLOAD_ROOT=/var/tmp is refused as too broad', { skip: !existsSync('/var/tmp') }, async () => {
+    await refusedAsRoot('/var/tmp');
+});
+
+test('HULY_UPLOAD_ROOT=/dev/shm is refused as too broad', { skip: !existsSync('/dev/shm') }, async () => {
+    await refusedAsRoot('/dev/shm');
+});
+
+test('HULY_UPLOAD_ROOT set to the grandparent of a macOS temp directory is refused', {
+    skip: !realpathSync(tmpdir()).startsWith('/private/var/folders/'),
+}, async () => {
+    await refusedAsRoot(dirname(dirname(realpathSync(tmpdir()))));
+    await refusedAsRoot('/private/var/folders');
+    await refusedAsRoot('/private/var');
+});
+
 // --- Review round 2, N2: a project holding a custom TMPDIR is not too broad --
 
 test('a project directory that holds a custom TMPDIR is accepted as a root', async () => {
