@@ -60,3 +60,25 @@ function byAge(a: LabelReference, b: LabelReference): number {
 export function duplicateRefs(refs: LabelReference[], tag: string): string[] {
     return refs.filter((r) => r.tag === tag).sort(byAge).slice(1).map((r) => r._id);
 }
+
+/**
+ * After an assign, which references to remove so exactly one remains, and
+ * whether the label was already there. Runs whether or not this call inserted,
+ * so a retry after a cleanup that never finished still converges.
+ */
+export function planAssign(refsAfter: LabelReference[], tag: string, insertedRefId: string | null): { alreadyAssigned: boolean; remove: string[] } {
+    const remove = duplicateRefs(refsAfter, tag);
+    return { alreadyAssigned: insertedRefId === null || remove.includes(insertedRefId), remove };
+}
+
+/** Pair each requested task id with its task, and list the ids that resolved to nothing. */
+export function planRepairTargets<T>(taskIds: string[], tasks: (T | null | undefined)[]): { targets: { taskId: string; task: T }[]; missing: string[] } {
+    const targets: { taskId: string; task: T }[] = [];
+    const missing: string[] = [];
+    taskIds.forEach((taskId, i) => {
+        const task = tasks[i];
+        if (task) targets.push({ taskId, task });
+        else missing.push(taskId);
+    });
+    return { targets, missing };
+}

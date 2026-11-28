@@ -76,7 +76,7 @@ import {
     makeRank,
 } from './huly-types.js';
 import { hulyError } from './utils/errors.js';
-import { duplicateRefs, labelDisplay, planLabelRepair } from './utils/labels.js';
+import { labelDisplay, planAssign, planLabelRepair } from './utils/labels.js';
 
 export interface TaskQueryOptions {
     assignee?: string;
@@ -586,33 +586,35 @@ export class HulyClient {
         const display = labelDisplay(element, title, color);
 
         const existing = await this.getLabels(issueId);
-        if (existing.some((ref: any) => ref.tag === labelId)) {
-            return { ...display, alreadyAssigned: true };
+        let insertedRefId: string | null = null;
+        if (!existing.some((ref: any) => ref.tag === labelId)) {
+            insertedRefId = generateId();
+            await this.client!.addCollection(
+                tags.class.TagReference as any,
+                spaceId as any,
+                issueId as any,
+                tracker.class.Issue as any,
+                'labels',
+                { title: display.title, color: display.color, tag: labelId } as any,
+                insertedRefId
+            );
         }
 
-        const refId = generateId();
-        await this.client!.addCollection(
-            tags.class.TagReference as any,
-            spaceId as any,
-            issueId as any,
-            tracker.class.Issue as any,
-            'labels',
-            { title: display.title, color: display.color, tag: labelId } as any,
-            refId
-        );
-
         // The check above and the insert are not atomic: two calls racing on the
-        // same task can both insert. Re-read and drop every reference but the
-        // oldest; a racing caller makes the same choice, so both converge.
-        const after = await this.getLabels(issueId);
-        const extra = new Set(duplicateRefs(after, labelId));
+        // same task can both insert. Drop every reference but the oldest; a racing
+        // caller makes the same choice, so both converge. This runs when the label
+        // was already there too, so a retry after a cleanup that never finished
+        // still removes the duplicate.
+        const after = insertedRefId ? await this.getLabels(issueId) : existing;
+        const plan = planAssign(after, labelId, insertedRefId);
+        const remove = new Set(plan.remove);
         for (const ref of after) {
-            if (!extra.has(ref._id)) continue;
+            if (!remove.has(ref._id)) continue;
             await this.client!.removeCollection(
                 ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection
             );
         }
-        return { ...display, alreadyAssigned: extra.has(refId) };
+        return { ...display, alreadyAssigned: plan.alreadyAssigned };
     }
 
     async unassignLabel(issueId: string, labelId: string): Promise<number> {

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { duplicateRefs, labelDisplay, planLabelRepair } from '../src/utils/labels.js';
+import { duplicateRefs, labelDisplay, planAssign, planLabelRepair, planRepairTargets } from '../src/utils/labels.js';
 
 const dso = { _id: 'tag-1', title: 'DSO - Security', color: 1 };
 const obs = { _id: 'tag-2', title: 'DSO - Observability', color: 12 };
@@ -54,4 +54,29 @@ test('repair drops the same duplicate the race guard would', () => {
         [{ _id: 'L', title: 'Label', color: 1 }],
     );
     assert.deepEqual(plan.removals, ['new']);
+});
+
+test('an already-assigned label still has its duplicates removed, so a retry after a failed cleanup converges', () => {
+    const refs = [
+        { _id: 'ref-old', tag: 'tag-1', createdOn: 1 },
+        { _id: 'ref-new', tag: 'tag-1', createdOn: 2 },
+    ];
+    const plan = planAssign(refs, 'tag-1', null);
+    assert.equal(plan.alreadyAssigned, true);
+    assert.deepEqual(plan.remove, ['ref-new']);
+});
+
+test('a fresh insert that lost the race reports alreadyAssigned and removes itself', () => {
+    const refs = [
+        { _id: 'ref-other', tag: 'tag-1', createdOn: 1 },
+        { _id: 'ref-mine', tag: 'tag-1', createdOn: 2 },
+    ];
+    assert.deepEqual(planAssign(refs, 'tag-1', 'ref-mine'), { alreadyAssigned: true, remove: ['ref-mine'] });
+    assert.deepEqual(planAssign([{ _id: 'ref-mine', tag: 'tag-1', createdOn: 2 }], 'tag-1', 'ref-mine'), { alreadyAssigned: false, remove: [] });
+});
+
+test('repair resolves every task before writing, and reports the ones that do not exist', () => {
+    const t1 = { _id: 'i1' };
+    assert.deepEqual(planRepairTargets(['A-1', 'A-2', 'A-3'], [t1, null, null]), { targets: [{ taskId: 'A-1', task: t1 }], missing: ['A-2', 'A-3'] });
+    assert.deepEqual(planRepairTargets(['A-1'], [t1]), { targets: [{ taskId: 'A-1', task: t1 }], missing: [] });
 });

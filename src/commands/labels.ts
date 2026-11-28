@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
 import { errorPayload, exitStatusFor, hulyError } from '../utils/errors.js';
+import { planRepairTargets } from '../utils/labels.js';
 
 export function labelsCommand() {
     const cmd = new Command('labels')
@@ -131,21 +132,23 @@ export function labelsCommand() {
         .action(async (taskIds: string[]) => {
             try {
                 await withClient(async (client) => {
+                    // Resolve every task first, so a mistyped id fails the call
+                    // before anything is written instead of after a partial repair.
+                    const tasks = [];
+                    for (const taskId of taskIds) tasks.push(await client.getTask(taskId));
+                    const { targets, missing } = planRepairTargets(taskIds, tasks);
+                    if (missing.length) throw hulyError('not_found', `Task not found: ${missing.join(', ')}`);
+
                     const results = [];
-                    for (const taskId of taskIds) {
-                        const task = await client.getTask(taskId);
-                        if (!task) {
-                            results.push({ taskId, error: 'not_found' });
-                            continue;
-                        }
-                        results.push({ taskId, ...(await client.repairLabels(task._id)) });
+                    for (const { taskId, task } of targets) {
+                        results.push({ taskId, ...(await client.repairLabels((task as any)._id)) });
                     }
 
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', count: results.length, data: results });
                     } else {
                         for (const r of results as any[]) {
-                            printToConsole(r.error ? `${r.taskId}: not found` : `${r.taskId}: ${r.updated} fixed, ${r.removed} duplicate removed`);
+                            printToConsole(`${r.taskId}: ${r.updated} fixed, ${r.removed} duplicate removed`);
                         }
                     }
                 });
