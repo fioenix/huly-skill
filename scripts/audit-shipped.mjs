@@ -40,9 +40,9 @@ const EXCEPTIONS = [
         id: 'GHSA-cp6q-959q-f8rh',
         module: '@tiptap/core',
         until: '2027-02-28',
-        reason: 'no 2.x fix and @hcengineering/text 0.7.423 requires ^2.11.7; the flaw is in '
-            + 'mergeAttributes() rendering DOM attributes, which neither bundle does: src/ renders '
-            + 'no HTML and markdown <-> markup made 0 calls to it (28/11/2026)',
+        reason: 'patched: @tiptap/core is pinned to 2.27.3, the official v2 backport of this fix '
+            + '(tests/tiptap.test.ts fails on 2.27.2 and passes on 2.27.3); the advisory still lists only '
+            + '>=3.30.4, which @hcengineering/text (^2.11.7) cannot take (28/11/2026)',
     },
 ];
 

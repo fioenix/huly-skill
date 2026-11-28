@@ -32,6 +32,12 @@ which are released together under the same number.
   its evidence, and fails again after that date
   (`reference/security-audit-2026-08.md`).
 
+### Security — `@tiptap/core` pinned to the official 2.x backport
+- `@tiptap/core` 2.27.3 carries the fix for GHSA-cp6q-959q-f8rh on the 2.x line
+  Huly requires; it is now pinned, and `tests/tiptap.test.ts` fails on 2.27.2
+  and passes on 2.27.3. The advisory database lists only 3.30.4 as patched, so
+  the dated exception in `audit:shipped` stays, now marked as patched.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse
