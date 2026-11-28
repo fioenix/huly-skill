@@ -20,8 +20,9 @@ Code, Codex, and other AI agents, using the official
 
 ## Quickstart (read-only)
 
-Requires **Node.js 20.18.1+**, access to a Huly workspace, and an API token issued
-by its admin. For an offline preview with no credentials, run the
+Requires **Node.js 20.18.1+**, access to a Huly workspace, and a valid Huly token:
+your own session token, or one an admin issues
+([where tokens come from](./skills/huly-skill/references/setup.md#where-the-token-comes-from)). For an offline preview with no credentials, run the
 [synthetic demo](./examples/demo/README.md).
 
 ```bash
