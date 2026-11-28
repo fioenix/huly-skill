@@ -15,6 +15,7 @@ overrides:
   hono: '>=4.13.16 <5'                 # @hono/node-server 2, @modelcontextprotocol/sdk (^4.11.4)
   proxy-addr: '>=2.0.8 <3'             # express
   qs: '>=6.16.1 <7'                    # body-parser, express
+  '@tiptap/core': '2.27.3'             # official v2 backport of GHSA-cp6q-959q-f8rh; @hcengineering/text needs ^2.11.7
   prosemirror-view: '>=1.42.3 <2'      # @tiptap/pm, via @hcengineering/text
   prosemirror-model: '>=1.25.13 <2'    # one copy: prosemirror-view 1.42+ needs it, two copies break schema checks
 

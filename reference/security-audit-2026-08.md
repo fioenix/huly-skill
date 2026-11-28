@@ -97,3 +97,9 @@ and the run says to fix it or renew it with fresh evidence; an exception whose
 advisory is gone is reported for removal. This one runs to 2027-02-28: by then
 either Huly has moved to tiptap 3 and an override closes it, or the evidence is
 checked again.
+
+Update, same day: Tiptap published 2.27.3, an official backport of the fix to the
+2.x line. `@tiptap/core` is now pinned to it in `pnpm-workspace.yaml`, and
+`tests/tiptap.test.ts` (from #92) fails on 2.27.2 and passes on 2.27.3. The
+advisory database still lists only `>=3.30.4` as patched, so the exception stays,
+now recording that the code is patched rather than unreachable.
