@@ -16,6 +16,7 @@ beforeEach(() => {
     process.env.HULY_HOST = 'https://env.example.com';
     process.env.HULY_WORKSPACE_ID = 'env-workspace';
     process.env.HULY_API_KEY = 'env-token';
+    process.env.HULY_MCP_ALLOWED_HOSTS = 'https://caller.example.com';
 });
 
 test('falls back to the environment — a shared token keeps working', () => {
@@ -97,4 +98,19 @@ test('credentialsError names the problem only for a target without a token', () 
     assert.equal(credentialsError({}), null);
     assert.equal(credentialsError({ token: 'caller-token' }), null);
     assert.equal(credentialsError({ token: 'caller-token', host: 'https://caller.example.com', workspace: 'ws' }), null);
+});
+
+// runWithCredentials is the boundary every entry point goes through, so the host
+// rules hold there too and not only in the HTTP transport.
+test('a caller host must be allowed and bring its own workspace', () => {
+    assert.throws(
+        () => runWithCredentials({ token: 'caller-token', host: 'http://169.254.169.254', workspace: 'ws' }, () => getApiKey()),
+        /not an allowed host/,
+    );
+    assert.throws(
+        () => runWithCredentials({ token: 'caller-token', host: 'https://caller.example.com' }, () => getWorkspaceId()),
+        /x-huly-url requires x-huly-workspace/,
+    );
+    assert.equal(credentialsError({ token: 'caller-token', host: 'https://env.example.com' }), null);
+    assert.match(credentialsError({ token: 'caller-token', host: 'javascript:alert(1)', workspace: 'ws' }) ?? '', /http\(s\) URL/);
 });

@@ -5,6 +5,34 @@ which are released together under the same number.
 
 ## Unreleased
 
+### Changed — HTTP requests whose `x-huly-url` is not an allowed host, or names another host without `x-huly-workspace`, are now refused
+- `x-huly-url` with a caller's own `x-huly-token` made the server fetch
+  `<x-huly-url>/config.json` and follow the account and WebSocket endpoints it
+  listed, for any URL at all — cloud metadata, internal services — and, with
+  `x-huly-workspace` omitted, sent the server's `HULY_WORKSPACE_ID` there in the
+  workspace login. `x-huly-url` must now be an http(s) URL whose origin is
+  `HULY_HOST`'s or is listed in the new `HULY_MCP_ALLOWED_HOSTS`
+  (comma-separated); a host other than `HULY_HOST` must come with
+  `x-huly-workspace`. Anything else is answered `400` before any connection is
+  made. A multi-instance deployment lists its hosts in `HULY_MCP_ALLOWED_HOSTS`;
+  callers must send `x-huly-workspace` with them. `runWithCredentials` enforces
+  the same rules.
+
+### Changed — without `HULY_MCP_AUTH_TOKEN` the HTTP transport listens on `127.0.0.1` only
+- `app.listen(port)` bound every interface, so an unauthenticated server — which
+  acts with its own Huly token — was open to the local network. With no auth
+  token it now binds `127.0.0.1`; with one it still binds every interface. The
+  new `HULY_MCP_HOST` sets the address explicitly: an unauthenticated container
+  behind its own gateway needs `HULY_MCP_HOST=0.0.0.0` to stay reachable.
+
+### Security — constant-time Bearer check and no internal detail in HTTP 500s
+- The `HULY_MCP_AUTH_TOKEN` check compared strings with `!==`, which returns at
+  the first differing byte; it now compares SHA-256 digests with
+  `crypto.timingSafeEqual`.
+- An error inside a request was answered `500` with its message, which can name
+  internal hosts, paths or upstream replies. The caller now gets
+  `{ "error": "Internal error" }`; the message goes to stderr.
+
 ### Fixed — heartbeats through `HTTPS_PROXY`
 - The proxy WebSocket passed `ws`'s `Buffer` messages straight to the Huly client,
   which recognises its `ping`/`pong!` heartbeats only as strings or ArrayBuffers;

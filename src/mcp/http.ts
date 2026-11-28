@@ -1,5 +1,7 @@
+import crypto from 'node:crypto';
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import { credentialsError, runWithCredentials, type HulyCredentials } from '../utils/auth.js';
+import { classifyError } from '../utils/errors.js';
 
 /** Serves one MCP request; runs inside the caller's credential scope. */
 export type McpRequestHandler = (req: Request, res: Response) => Promise<void>;
@@ -13,6 +15,7 @@ export function createHttpApp(handle: McpRequestHandler): Express {
     // public deployment should set HULY_MCP_AUTH_TOKEN and have callers send
     // it as a Bearer token. When unset, the endpoint is open (local/dev use).
     const authToken = process.env.HULY_MCP_AUTH_TOKEN;
+    const authDigest = authToken ? digest(authToken) : null;
 
     const app = express();
     app.use(express.json());
@@ -36,10 +39,12 @@ export function createHttpApp(handle: McpRequestHandler): Express {
     });
 
     const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-        if (!authToken) return next();
+        if (!authDigest) return next();
         const header = req.header('authorization') || '';
         const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-        if (token !== authToken) {
+        // Hashing first gives both sides one length, so the comparison takes the
+        // same time however much of a guess is right, and whatever its length.
+        if (!crypto.timingSafeEqual(digest(token), authDigest)) {
             res.status(401).json({ error: 'Unauthorized' });
             return;
         }
@@ -57,9 +62,12 @@ export function createHttpApp(handle: McpRequestHandler): Express {
         }
         try {
             await runWithCredentials(credentials, () => handle(req, res));
-        } catch (e: any) {
+        } catch (e: unknown) {
+            // The message can name internal hosts, paths or upstream replies, so
+            // it goes to the operator's log and the caller gets a generic one.
+            process.stderr.write(`[huly-mcp] request failed (${classifyError(e)}): ${(e as Error)?.message ?? e}\n`);
             if (!res.headersSent) {
-                res.status(500).json({ error: e?.message || 'Internal error' });
+                res.status(500).json({ error: 'Internal error' });
             }
         }
     });
@@ -71,4 +79,19 @@ export function createHttpApp(handle: McpRequestHandler): Express {
     app.delete('/mcp', methodNotAllowed);
 
     return app;
+}
+
+function digest(value: string): Buffer {
+    return crypto.createHash('sha256').update(value).digest();
+}
+
+/**
+ * Where the HTTP transport listens. Without `HULY_MCP_AUTH_TOKEN` the endpoint is
+ * open and acts with the server's Huly token, so it stays on loopback unless
+ * `HULY_MCP_HOST` names an address. With the token set it listens on every
+ * interface (`undefined`), as before, for hosted deployments.
+ */
+export function listenHost(env: NodeJS.ProcessEnv): string | undefined {
+    if (env.HULY_MCP_HOST) return env.HULY_MCP_HOST;
+    return env.HULY_MCP_AUTH_TOKEN ? undefined : '127.0.0.1';
 }

@@ -9,7 +9,7 @@ loadEnvFile();
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createHulyMcpServer } from './server.js';
-import { createHttpApp } from './http.js';
+import { createHttpApp, listenHost } from './http.js';
 
 // Transport is chosen by env so a single bin works for every client:
 //   HULY_MCP_TRANSPORT=stdio  (default) — local clients (Claude Code/Desktop)
@@ -40,10 +40,13 @@ function startHttp(): void {
         await transport.handleRequest(req, res, req.body);
     });
 
-    app.listen(port, () => {
+    const host = listenHost(process.env);
+    const onListening = () => {
         const auth = process.env.HULY_MCP_AUTH_TOKEN ? ' (auth required)' : '';
-        process.stderr.write(`[huly-mcp] HTTP transport listening on :${port}/mcp${auth}\n`);
-    });
+        process.stderr.write(`[huly-mcp] HTTP transport listening on ${host ?? ''}:${port}/mcp${auth}\n`);
+    };
+    if (host) app.listen(port, host, onListening);
+    else app.listen(port, onListening);
 }
 
 async function main(): Promise<void> {

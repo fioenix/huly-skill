@@ -19,17 +19,56 @@ const credentialStore = new AsyncLocalStorage<HulyCredentials>();
  * Why these caller credentials must be refused, or null when they are usable.
  * A caller that chooses the host or workspace must bring its own token too:
  * otherwise the server's own token would be sent to a host the caller picked,
- * or used on a workspace the deployment never configured.
+ * or used on a workspace the deployment never configured. A caller-chosen host
+ * must also be one the deployment allows, and comes with its own workspace.
  */
 export function credentialsError(credentials: HulyCredentials): string | null {
-    if (credentials.token !== undefined) return null;
-    const targets = [
-        credentials.host !== undefined ? 'x-huly-url' : null,
-        credentials.workspace !== undefined ? 'x-huly-workspace' : null,
-    ].filter(Boolean);
-    if (targets.length === 0) return null;
-    const verb = targets.length === 1 ? 'requires' : 'require';
-    return `${targets.join(' and ')} ${verb} x-huly-token: the server's own token is never sent to a caller-chosen host or workspace`;
+    if (credentials.token === undefined) {
+        const targets = [
+            credentials.host !== undefined ? 'x-huly-url' : null,
+            credentials.workspace !== undefined ? 'x-huly-workspace' : null,
+        ].filter(Boolean);
+        if (targets.length === 0) return null;
+        const verb = targets.length === 1 ? 'requires' : 'require';
+        return `${targets.join(' and ')} ${verb} x-huly-token: the server's own token is never sent to a caller-chosen host or workspace`;
+    }
+    if (credentials.host === undefined) return null;
+    return hostError(credentials.host, credentials.workspace !== undefined);
+}
+
+/** An http(s) URL reduced to its origin, or null for anything else. */
+function originOf(url: string | undefined): string | null {
+    if (!url) return null;
+    try {
+        const parsed = new URL(url.trim());
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.origin : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * The server connects to whatever `x-huly-url` names (its `/config.json`, then the
+ * account and WebSocket endpoints listed there), so an arbitrary value lets any
+ * caller make the server issue requests inside its own network. Only the
+ * configured `HULY_HOST` and the origins listed in `HULY_MCP_ALLOWED_HOSTS` are
+ * accepted. The server's `HULY_WORKSPACE_ID` belongs to its own host: a caller
+ * pointing anywhere else names its workspace, or the server's id would be sent
+ * there as part of the workspace login.
+ */
+function hostError(host: string, hasWorkspace: boolean): string | null {
+    const origin = originOf(host);
+    if (!origin) return 'x-huly-url must be an http(s) URL';
+    const serverOrigin = originOf(process.env.HULY_HOST);
+    if (origin === serverOrigin) return null;
+    const allowed = (process.env.HULY_MCP_ALLOWED_HOSTS ?? '').split(',').map((h) => originOf(h));
+    if (!allowed.includes(origin)) {
+        return 'x-huly-url is not an allowed host: only HULY_HOST and the origins in HULY_MCP_ALLOWED_HOSTS are accepted';
+    }
+    if (!hasWorkspace) {
+        return "x-huly-url requires x-huly-workspace: the server's own workspace is never sent to another host";
+    }
+    return null;
 }
 
 /**
