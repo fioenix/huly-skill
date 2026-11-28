@@ -122,6 +122,21 @@ test('a reset after the upload started is still not retryable and names the key'
     });
 });
 
+// Code review 3: a failure of one file after put started names the key.
+test('a file refused by storage after put started names its pending key, in JSON and text', async () => {
+    const src = storingWith(async () => { throw Object.assign(new Error('File type forbidden'), { name: 'StorageError' }); });
+    const result = await attachPrepared(src, 'DELTA-42', await prepareUploads(filesIn(['a.txt'])));
+    assert.equal(result.failed, 1);
+    assert.equal(result.files[0].pendingKey, src.keys[0]);
+    assert.match(formatAttachText('DELTA-42', result), new RegExp(`if it was stored, it is under ${src.keys[0]}`));
+});
+
+test('a file whose record was refused and blob removed names no pending key', async () => {
+    const src = Object.assign(source(), { async addIssueAttachment() { throw new Error('record refused'); } });
+    const result = await attachPrepared(src, 'DELTA-42', await prepareUploads(filesIn(['a.txt'])));
+    assert.equal(result.files[0].pendingKey, undefined);
+});
+
 // --- A1.2: a blob that may have landed is named by its key ------------------
 
 test('a dropped connection while storing names the key the blob would be under', async () => {

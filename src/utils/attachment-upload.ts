@@ -195,6 +195,7 @@ export function formatAttachText(taskId: string, result: { uploaded: number; fil
         output += `  - ${file.name} (${file.type}, ${formatSize(file.size)})`;
         if (file.uploadError) output += ` ⚠️ upload failed: ${file.uploadError}`;
         if (file.cleanupError) output += ` ⚠️ stored file ${file.blobId} could not be removed: ${file.cleanupError}`;
+        if (file.pendingKey) output += ` (if it was stored, it is under ${file.pendingKey})`;
         output += '\n';
     }
     return output;
@@ -218,6 +219,8 @@ export interface UploadedFile {
     blobId: string | null;
     uploadError?: string;
     cleanupError?: string;
+    /** The key a failed file's blob is under if `put` stored it before failing. */
+    pendingKey?: string;
 }
 
 export interface AttachmentUploadSource {
@@ -560,6 +563,7 @@ export async function attachPrepared(
             const pendingKey = blobId === null && uploadStarted(e) ? key : null;
             if (fatal) throw callFailure(e, fatal, entry, keepBlob ? blobId : null, pendingKey, results);
             entry.uploadError = describeError(e);
+            if (pendingKey) entry.pendingKey = pendingKey;
         }
         results.push(entry);
     }
