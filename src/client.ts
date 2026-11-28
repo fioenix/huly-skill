@@ -34,6 +34,7 @@ import {
     makeRank,
 } from './huly-types.js';
 import { hulyError } from './utils/errors.js';
+import { applyMove, currentParentId, planMove } from './utils/move.js';
 import { labelDisplay, planAssign, planLabelRepair } from './utils/labels.js';
 
 export interface TaskQueryOptions {
@@ -213,6 +214,18 @@ export class HulyClient {
      * Mirrors how Huly's tracker stores nested issues (`attachedTo` points
      * at the parent issue, `collection` is the `subIssues` collection).
      */
+    /**
+     * Exact number of direct sub-issues. `findSubIssues` is capped at 500 rows,
+     * which is fine for listing but would write a wrong counter, so ask the
+     * server for the total and fall back to an uncapped query if it has none.
+     */
+    async countSubIssues(parentInternalId: string): Promise<number> {
+        const query = { attachedTo: parentInternalId, collection: 'subIssues' } as any;
+        const page: any = await this.client!.findAll(tracker.class.Issue as any, query, { limit: 1, total: true } as any);
+        if (typeof page?.total === 'number' && page.total >= 0) return page.total;
+        return (await this.client!.findAll(tracker.class.Issue as any, query)).length;
+    }
+
     async findSubIssues(parentInternalId: string): Promise<any[]> {
         return await this.client!.findAll(
             tracker.class.Issue as any,
@@ -496,6 +509,81 @@ export class HulyClient {
             comment.attachedToClass,
             comment.collection
         );
+    }
+
+    /**
+     * Re-parent an issue the way Huly's "Set parent" action does: update
+     * `attachedTo` (NoParent to detach) and put it last among the new
+     * parent's children. The server trigger rewrites `parents` on the issue
+     * and its descendants and moves it between ancestors' `childInfo`.
+     */
+    async moveTask(taskId: string, newParentId: string | null): Promise<{ task: any; from: any; to: any; moved: boolean; reason?: string }> {
+        const task = await this.getTask(taskId);
+        if (!task) throw hulyError('not_found', `Task not found: ${taskId}`);
+
+        let newParent: any = null;
+        if (newParentId !== null) {
+            // Only an explicit null detaches. An empty id is a mistake, not a request
+            // to detach, so it must not silently fall through to the NoParent path.
+            if (!newParentId.trim()) {
+                throw hulyError('invalid_input', 'Parent id is empty; pass --no-parent (CLI) or parentId: null (MCP) to detach');
+            }
+            newParent = (await this.getTask(newParentId)) ?? (await this.getTaskByInternalId(newParentId));
+            if (!newParent) throw hulyError('not_found', `Parent task not found: ${newParentId}`);
+        }
+        const fromId = currentParentId(task, tracker.ids.NoParent);
+        const from = task.parents?.[0] ?? (fromId ? { parentId: fromId } : null);
+        const to = newParent ? { parentId: newParent._id, identifier: newParent.identifier, parentTitle: newParent.title } : null;
+
+        let plan;
+        try {
+            plan = planMove(task, newParent, tracker.ids.NoParent);
+        } catch (e: any) {
+            throw hulyError('invalid_input', e.message);
+        }
+        // The server trigger fixes `parents` and `childInfo` but leaves the
+        // `subIssues` counters alone. A move adjusts them by $inc in the same
+        // transaction (applyMove); a no-op recounts the current parent from its
+        // real children, which repairs a counter left stale by older versions.
+        const recount = async (parentId: string | undefined) => {
+            if (!parentId) return;
+            const parentDoc: any = await this.getTaskByInternalId(parentId);
+            if (!parentDoc) return;
+            const count = await this.countSubIssues(parentId);
+            if (parentDoc.subIssues !== count) {
+                await this.client!.updateDoc(tracker.class.Issue as any, parentDoc.space, parentDoc._id, { subIssues: count } as any);
+            }
+        };
+
+        if (plan.action === 'noop') {
+            await recount(from?.parentId);
+            return { task, from, to, moved: false, reason: plan.reason };
+        }
+
+        const updates: any = { attachedTo: plan.attachedTo };
+        if (newParent) {
+            const last: any = await this.client!.findOne(
+                tracker.class.Issue as any,
+                { attachedTo: newParent._id } as any,
+                { sort: { rank: SortingOrder.Descending } }
+            );
+            updates.rank = makeRank(last?.rank, undefined);
+        }
+        // PlatformClient wraps a TxOperations; its apply() batches the writes
+        // into one TxApplyIf, so they land together or not at all.
+        const txOps: any = (this.client as any).client;
+        if (typeof txOps?.apply !== 'function') {
+            throw new Error('This Huly client cannot batch writes (no TxOperations.apply); nothing was moved');
+        }
+        await applyMove(txOps.apply(`move-${task._id}`), {
+            issueClass: tracker.class.Issue,
+            task,
+            attachedTo: updates.attachedTo,
+            rank: updates.rank,
+            oldParentId: from?.parentId ?? null,
+            newParent: newParent ? { _id: newParent._id, space: newParent.space, attachedTo: newParent.attachedTo } : null,
+        });
+        return { task, from, to, moved: true };
     }
 
     async deleteTask(taskId: string): Promise<void> {

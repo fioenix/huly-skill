@@ -121,6 +121,42 @@ which are released together under the same number.
   `not_found` (and a non-zero exit) naming the ids that do not exist. The
   planning steps are pure functions covered by `tests/labels.test.ts`.
 
+### Added — `huly move task` re-parents an existing task
+- `huly move task <id> --parent <id>` moves a task under another task in the
+  same project; `--no-parent` makes it top-level. MCP: `huly_move_task`, with
+  `parentId: null` to detach. Until now nothing could re-parent a task after
+  creation, and the docs said so.
+- It writes what Huly's own "Set parent" action writes: `attachedTo`
+  (`tracker:ids:NoParent` to detach) and a rank after the new parent's last
+  child. The server trigger then rewrites `parents` on the task and every
+  descendant and moves the task between the old and new ancestors' `childInfo`.
+- The trigger does not touch the `subIssues` counter, so the old parent kept
+  counting a child it no longer had and the new one missed it. The move writes
+  the new `attachedTo` and adjusts both counters by `$inc` in one server
+  transaction (`TxApplyIf`), applied only while the task is still under the
+  parent it was read from: a dropped connection leaves all of it or none of it,
+  concurrent edits to the same parent cannot overwrite each other's count, and
+  a concurrent move of the same task, or of its new parent, fails with nothing
+  written. A move that turns out to be a no-op recounts the current parent from
+  its children, which repairs counters left stale by earlier versions.
+- A moved task is written as the Huly UI writes every issue: `attachedToClass`
+  Issue, `collection: 'subIssues'`. A task made top-level by `huly create task`
+  carries the project and `issues` instead, so without this it would vanish from
+  `sub-issues`, `tasks --parent` and the parent's count once moved.
+- The current parent comes from `parents`, falling back to `attachedTo`, so a
+  task whose `parents` drifted can still be detached or moved.
+- `milestones report` now counts issues attached to NoParent (made by the Huly
+  UI, or detached with `--no-parent`) as top-level epics, as it already did for
+  issues attached to the project.
+- Moving a task under itself, under one of its own descendants, or into another
+  project is rejected with `invalid_input`. So is an empty parent id: only
+  `--no-parent` or `parentId: null` detaches, so a blank value from a script
+  cannot silently make a task top-level. The move checks are a pure function
+  covered by `tests/move.test.ts`.
+- That repair recount asks the server for the exact total instead of counting
+  the sub-issue listing, which is capped at 500 rows and would otherwise write
+  500 for a larger parent.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse
