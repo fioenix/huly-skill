@@ -294,6 +294,28 @@ export function registerHulyTools(server: McpServer): void {
     );
 
     server.registerTool(
+        'huly_move_task',
+        {
+            title: 'Move task to another parent',
+            description: 'Re-parent an existing task, like Huly\'s "Set parent" action: put it under another task in the same project, or detach it (parentId null). Huly updates the ancestor chain of the task and its sub-issues. Refuses moves into the task itself or one of its descendants.',
+            inputSchema: z.object({
+                taskId: z.string().describe('Task to move, e.g. DELTA-123'),
+                parentId: z.string().nullable().describe('New parent identifier or internal _id; null to make the task top-level. An empty string is rejected, not treated as null.'),
+            }).strict(),
+        },
+        async ({ taskId, parentId }) => withHuly(async (client) => {
+            const r = await client.moveTask(taskId, parentId);
+            return {
+                moved: r.moved,
+                ...(r.reason ? { reason: r.reason } : {}),
+                task: { identifier: r.task.identifier, title: r.task.title },
+                from: r.from ? { identifier: r.from.identifier, title: r.from.parentTitle } : null,
+                to: r.to ? { identifier: r.to.identifier, title: r.to.parentTitle } : null,
+            };
+        }),
+    );
+
+    server.registerTool(
         'huly_report',
         {
             title: 'Daily/weekly report',
@@ -349,20 +371,53 @@ export function registerHulyTools(server: McpServer): void {
         'huly_assign_label',
         {
             title: 'Assign label',
-            description: 'Assign an existing label to a task.',
+            description: 'Assign an existing label to a task. Title and color default to the label\'s own; a label already on the task is not added twice.',
             inputSchema: z.object({
                 taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
                 labelId: z.string().describe('Label _id'),
-                title: z.string().optional().describe('Display title for the label reference'),
-                color: z.number().int().min(0).max(15).optional(),
+                title: z.string().optional().describe('Display title for the label reference (default: the label title)'),
+                color: z.number().int().min(0).max(15).optional().describe('Color index 0-15 (default: the label color)'),
             }).strict(),
         },
         async ({ taskId, labelId, title, color }) => withHuly(async (client) => {
             const task = await client.getTask(taskId);
             if (!task) throw new Error(`Task not found: ${taskId}`);
-            const displayTitle = title || labelId;
-            await client.assignLabel(task._id, task.space, labelId, displayTitle, color ?? 11);
-            return { taskId, labelId };
+            const result = await client.assignLabel(task._id, task.space, labelId, title, color);
+            return { taskId, labelId, ...result };
+        }),
+    );
+
+    server.registerTool(
+        'huly_unassign_label',
+        {
+            title: 'Unassign label',
+            description: 'Remove a label from a task.',
+            inputSchema: z.object({
+                taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
+                labelId: z.string().describe('Label _id'),
+            }).strict(),
+        },
+        async ({ taskId, labelId }) => withHuly(async (client) => {
+            const task = await client.getTask(taskId);
+            if (!task) throw new Error(`Task not found: ${taskId}`);
+            const removed = await client.unassignLabel(task._id, labelId);
+            return { taskId, labelId, removed };
+        }),
+    );
+
+    server.registerTool(
+        'huly_repair_labels',
+        {
+            title: 'Repair task labels',
+            description: 'Make each label reference on a task carry its label\'s title and color, and drop duplicate references to the same label.',
+            inputSchema: z.object({
+                taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
+            }).strict(),
+        },
+        async ({ taskId }) => withHuly(async (client) => {
+            const task = await client.getTask(taskId);
+            if (!task) throw new Error(`Task not found: ${taskId}`);
+            return { taskId, ...(await client.repairLabels(task._id)) };
         }),
     );
 

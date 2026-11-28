@@ -105,8 +105,7 @@ Huly documents. On a 249-task workspace the default costs ~20 KB instead of ~290
 
 ### Creating a sub-issue
 
-A subtask is just a task created with `--parent`; there is no separate command and
-nothing re-parents a task afterwards, so pass `--parent` at creation:
+A subtask is just a task created with `--parent`; there is no separate command:
 
 ```bash
 huly create task "Wire up the aggregation job" --project OMEGA --parent OMEGA-588
@@ -114,6 +113,20 @@ huly create task "Wire up the aggregation job" --project OMEGA --parent OMEGA-58
 
 The parent must live in the same project. Deeper nesting works — pass the direct
 parent and the ancestor chain is recorded. Verify with `huly sub-issues <parent>`.
+
+### Moving a task to another parent
+
+```bash
+huly move task OMEGA-601 --parent OMEGA-590   # same project only
+huly move task OMEGA-601 --no-parent          # make it top-level
+```
+
+This mirrors Huly's "Set parent" action: it updates `attachedTo` and the rank, and
+the server rewrites `parents` on the task and its sub-issues and moves it between
+the ancestors' `childInfo`. The same transaction moves the `subIssues` count from
+the old parent to the new one, which the server leaves alone; a move that is
+already done recounts the current parent instead. Moving a task under itself or one of
+its descendants is refused. MCP: `huly_move_task` (`parentId: null` detaches).
 
 ## Comments
 
@@ -171,9 +184,13 @@ Prefer these over listing rows whenever the question is "how are we doing".
 ```bash
 huly labels list                          # all workspace labels
 huly labels create "bug" --color 3
-huly labels assign DELTA-123 <labelId>
+huly labels assign DELTA-123 <labelId>    # title and color come from the label
+huly labels unassign DELTA-123 <labelId>
+huly labels repair DELTA-123 DELTA-124    # fix references titled with the label id, drop duplicates
 huly labels show DELTA-123
 ```
+
+MCP: `huly_assign_label`, `huly_unassign_label`, `huly_repair_labels`, `huly_show_labels`.
 
 ## Documents
 

@@ -124,6 +124,7 @@ exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, an
 | `huly create task <title> --project <id> [options]` | Create a new task |
 | `huly create task <title> --project <id> --parent <id>` | Create it as a sub-issue of an existing task |
 | `huly update task <id> [options]` | Update task fields |
+| `huly move task <id> --parent <id>` | Re-parent a task in the same project; `--no-parent` detaches it (MCP: `huly_move_task`) |
 | `huly delete task <id> --yes` | Permanently delete a task |
 
 #### Task Query Filters
@@ -157,8 +158,8 @@ rows of a projected field set. Pass `limit: 0` to remove the cap and
 
 #### Creating sub-issues
 There is no separate "create subtask" command — a sub-issue is a task created
-with `--parent`. Do not try to create the task first and re-parent it
-afterwards; nothing re-parents an existing task.
+with `--parent`. To move an existing task under another parent, use
+`huly move task <id> --parent <id>` (or `--no-parent` to detach).
 
 ```bash
 huly create task "Wire up the aggregation job" --project OMEGA --parent OMEGA-588
@@ -223,8 +224,15 @@ person.
 |---------|---------|
 | `huly labels list` | List all workspace labels |
 | `huly labels create <title> [--color N]` | Create a new label |
-| `huly labels assign <taskId> <labelId>` | Assign label to a task |
+| `huly labels assign <taskId> <labelId>` | Assign label to a task; title and color default to the label's own, and an existing label is not added twice |
+| `huly labels unassign <taskId> <labelId>` | Remove a label from a task |
+| `huly labels repair <taskId...>` | Rewrite label references whose title or color does not match the label, drop duplicates |
 | `huly labels show <taskId>` | Show labels on a task |
+
+A label pill in the Huly UI shows the title and color stored on the task's
+reference, not those of the label it points at. Earlier versions stored the
+label id as that title when `--title` was omitted; run `labels repair` on tasks
+labelled that way.
 
 ### Documents
 | Command | Purpose |
