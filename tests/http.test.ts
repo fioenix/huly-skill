@@ -13,6 +13,8 @@ import { allowedHostsWarning, getApiKey, getHost, getWorkspaceId } from '../src/
 
 // NEL, LINE SEPARATOR, PARAGRAPH SEPARATOR and the C1 CSI introducer.
 const [NEL, LS, PS, CSI] = [0x85, 0x2028, 0x2029, 0x9b].map((code) => String.fromCharCode(code));
+// NO-BREAK SPACE: kept by the HTTP parser, removed by String.prototype.trim.
+const NBSP = String.fromCharCode(0xa0);
 
 let server: Server;
 let base: string;
@@ -248,13 +250,13 @@ test('concurrent callers each keep their own token across an await', async () =>
 
 // The guard must read x-huly-token as the credential scope does: a value that
 // trims to nothing would otherwise pass it and then fall back to HULY_API_KEY.
-// U+00A0 survives the HTTP parser (which trims only SP and HTAB) but not .trim().
+// NBSP survives the HTTP parser (which trims only SP and HTAB) but not .trim().
 for (const [name, headers] of [
     ['a missing caller token', {}],
     ['an empty caller token', { 'x-huly-token': '' }],
     ['a caller token of spaces', { 'x-huly-token': '   ' }],
-    ['a caller token of NO-BREAK SPACE', { 'x-huly-token': ' ' }],
-    ['a caller token of NO-BREAK SPACE and spaces', { 'x-huly-token': '    ' }],
+    ['a caller token of NO-BREAK SPACE', { 'x-huly-token': NBSP }],
+    ['a caller token of NO-BREAK SPACE and spaces', { 'x-huly-token': ` ${NBSP}${NBSP} ` }],
 ] as const) {
     test(`${name} is refused 401 under HULY_REQUIRE_CALLER_TOKEN=true, without the server token`, async () => {
         process.env.HULY_REQUIRE_CALLER_TOKEN = 'true';
