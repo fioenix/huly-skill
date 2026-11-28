@@ -15,7 +15,8 @@ import { getSubIssueTree, getMilestoneReport } from '../services/sub-issues.js';
 import { getIssueActivity } from '../services/activity.js';
 import { listComments, getCommentById, updateComment, deleteComment } from '../services/comments.js';
 import { DEFAULT_LIST_LIMIT, LIST_FIELDS, shapeList, type ListEntity } from '../utils/projection.js';
-import { describeContext } from '../utils/context.js';
+import { describeContext, sanitizeHost } from '../utils/context.js';
+import { peekCredentials } from '../utils/auth.js';
 import { errorPayload, hulyError } from '../utils/errors.js';
 
 // --- result helpers --------------------------------------------------------
@@ -94,11 +95,9 @@ export function registerHulyTools(server: McpServer): void {
         },
         async () => withHuly(async (client) => {
             const account = await client.getAccount();
-            return {
-                host: process.env.HULY_HOST,
-                workspace: process.env.HULY_WORKSPACE_ID,
-                account,
-            };
+            // The credentials in scope (a caller's over HTTP), host reduced to its origin.
+            const { host, workspace } = peekCredentials();
+            return { host: sanitizeHost(host), workspace: workspace ?? null, account };
         }),
     );
 

@@ -39,7 +39,8 @@ export function decodeTokenClaims(token: string | undefined): TokenClaims | null
 }
 
 /** Origin only — a Huly URL can carry a token in its path or query. */
-function sanitizeHost(host: string | undefined): string | null {
+/** A host URL reduced to its origin: never its credentials, path or query. */
+export function sanitizeHost(host: string | undefined): string | null {
     if (!host) return null;
     try {
         return new URL(host).origin;
@@ -75,7 +76,7 @@ export function describeContext(): HulyContext {
     const warnings: string[] = [];
 
     if (!host) warnings.push('HULY_HOST is not set.');
-    else if (sanitizeHost(host) === null) warnings.push(`HULY_HOST is not a valid URL: ${host}`);
+    else if (sanitizeHost(host) === null) warnings.push('HULY_HOST is not a valid URL (value not shown: it may hold a token).');
     if (!workspace) warnings.push('HULY_WORKSPACE_ID is not set.');
     if (!apiKey) warnings.push('HULY_API_KEY is not set.');
     else if (claims === null) warnings.push('HULY_API_KEY is not a readable JWT — check it was copied whole.');

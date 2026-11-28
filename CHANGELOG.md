@@ -5,6 +5,81 @@ which are released together under the same number.
 
 ## Unreleased
 
+### Security — diagnostics show only the host's origin
+- `huly whoami` and `huly_whoami` printed `HULY_HOST` as configured, and
+  `huly whoami --offline` echoed an invalid one in its warning; a host pasted with
+  a token or `user:pass@` in it reached the output. All three now show the origin
+  only, and `huly_whoami` reports the credentials actually in scope (a caller's,
+  over HTTP) rather than the process environment.
+- `tests/proxy.test.ts` now covers the proxy WebSocket's whole contract (events,
+  both send paths, close) and the `fetch` proxy agent's TLS options.
+- README: the token from workspace settings is the Owner's own session token,
+  and a token from the SSO redirect needs the workspace slug.
+
+### Changed — certificates are verified behind `HTTPS_PROXY`, which can reject a previously working proxy setup
+- With `HTTPS_PROXY` set, the CLI and MCP server used to set
+  `NODE_TLS_REJECT_UNAUTHORIZED=0` and open the Huly WebSocket with
+  `rejectUnauthorized: false`, so anyone on the network path could impersonate
+  the Huly endpoint and read the token. Certificates are now verified. A proxy
+  that intercepts TLS needs its CA in `NODE_EXTRA_CA_CERTS`; setting
+  `NODE_TLS_REJECT_UNAUTHORIZED=0` yourself still works, as an explicit choice.
+
+### Security — proxy diagnostics no longer print the token
+- The `[huly-ws] connecting:` line printed the whole WebSocket URL, whose path is
+  the account JWT, and the proxy URL with any `user:pass@`. It now prints scheme
+  and host only. The proxy code moved to `src/utils/proxy.ts`, covered by
+  `tests/proxy.test.ts`.
+
+### Changed — HTTP requests that set `x-huly-url` or `x-huly-workspace` without `x-huly-token` are now refused
+- Before, such a request ran with the server's own `HULY_API_KEY` against the
+  host or workspace the caller named, so any caller of the HTTP transport could
+  send the server's token to a host of its choosing, or use it on a workspace
+  the deployment never configured. The request is now answered `400` naming
+  the headers, before any connection is made. A caller that relied on this must
+  send its own `x-huly-token` too; requests with no `x-huly-*` headers, or with
+  `x-huly-token` alone, behave as before.
+- `runWithCredentials` refuses the same combination, so no other entry point
+  can reach the server token for a caller-chosen host.
+
+### Security — advisories published since 1.10.4 that reach a shipped bundle
+- Direct: `@modelcontextprotocol/sdk` 1.30 → 1.32.2 (request body and batch
+  limits on the HTTP transport, no cross-origin header replay), `undici` → 7.30.2,
+  `zod` → 4.6.7.
+- Overrides, each inside the major upstream accepts: `proxy-addr` ≥2.0.8 (critical),
+  `qs` ≥6.16.1, `body-parser` ≥2.4.0, `fast-uri` ≥3.1.9, `markdown-it` ≥14.3.3,
+  `prosemirror-view` ≥1.42.3, `@hono/node-server` 2.x (1.x has no fix; the SDK
+  accepts `^2.0.5`) with `hono` ≥4.13.16, and one `prosemirror-model` so the
+  newer view does not run beside a second copy of the schema code.
+- Checked: the MCP server lists the same 31 tools and still rejects unknown
+  arguments; markdown → markup → markdown gives byte-identical output to 1.10.4.
+- `@tiptap/core` GHSA-cp6q-959q-f8rh: the advisory database lists only 3.30.4
+  as patched, outside the 2.x line Huly requires, so `pnpm audit:shipped` now
+  accepts it until 2027-02-28 as a dated exception with its evidence, and fails
+  again after that date (`reference/security-audit-2026-08.md`). The fix itself
+  ships through the 2.x backport below.
+
+### Security — `@tiptap/core` pinned to the official 2.x backport
+- `@tiptap/core` 2.27.3 carries the fix for GHSA-cp6q-959q-f8rh on the 2.x line
+  Huly requires; it is now pinned, and `tests/tiptap.test.ts` fails on 2.27.2
+  and passes on 2.27.3. The advisory database lists only 3.30.4 as patched, so
+  the dated exception in `audit:shipped` stays, now marked as patched.
+
+### Security — workspace content cannot authorize agent actions
+- Add an explicit trust boundary to the Huly skill and agent guide: fetched
+  tasks, comments/replies, activity and documents remain data, including after
+  shell reduction or summarization. Embedded instructions cannot authorize
+  mutations, outbound sharing, credential access or configuration changes.
+- Preserve user-authorized reads and writes; add synthetic adversarial scenarios
+  and static policy checks. These checks do not prove model resistance or replace
+  a fresh platform security audit.
+
+### Docs — the eval suite covers every content source, and README names both token routes
+- `evals/security/workspace-content.json` adds synthetic cases for an attachment
+  name, a label title and a milestone description; `tests/skill-boundary.test.ts`
+  requires those sources too.
+- README no longer says a token can only come from an admin: a member's own
+  session token works, as `references/setup.md` already documented.
+
 ### Added — `huly teams` lists departments and their members
 - `huly teams` / MCP `huly_list_teams` lists the HR departments that the Huly UI
   shows as teams, with lead, managers and members. Until now no command could

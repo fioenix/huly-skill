@@ -1,0 +1,44 @@
+@font-face {font-family:"Anton";font-style:normal;font-weight:400;src:url("./anton-latin-400-normal.woff2") format("woff2");}
+@font-face {font-family:"Space Grotesk";font-style:normal;font-weight:400;src:url("./space-grotesk-latin-400-normal.woff2") format("woff2");}
+@font-face {font-family:"JetBrains Mono";font-style:normal;font-weight:400;src:url("./jetbrains-mono-latin-400-normal.woff2") format("woff2");}
+/* FINOLABS token snapshot from packages/tokens/theme.css. */
+:root {
+  --color-ink-50: #F7F7FB;
+  --color-ink-200: #DCDCE8;
+  --color-ink-300: #BCBCD0;
+  --color-ink-400: #8B8BA6;
+  --color-ink-600: #3D3D55;
+  --color-ink-800: #16162A;
+  --color-ink-900: #0B0B17;
+  --color-ink-950: #050510;
+  --color-fn-mint: #7FE2CE;
+  --color-fn-teal: #87D3E1;
+  --color-fn-violet: #9750C4;
+  --font-display: "Anton", "Oswald", "Archivo Black", Impact, ui-sans-serif, sans-serif;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+  --fn-gradient-iridescent-line:
+    linear-gradient(90deg, #87D3E1 0%, #7FE2CE 35%, #B49BD8 65%, #9750C4 100%);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; }
+body { background: var(--color-ink-950); color: var(--color-ink-50); font-family: var(--font-sans); }
+main { width: 1280px; height: 640px; padding: 54px 64px; position: relative; }
+main::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 8px; background: var(--fn-gradient-iridescent-line); }
+header { display: flex; justify-content: space-between; align-items: center; }
+.brand { font-family: var(--font-display); font-size: 30px; letter-spacing: .04em; }
+.repo { font-family: var(--font-mono); color: var(--color-ink-300); font-size: 18px; }
+.layout { display: grid; grid-template-columns: 640px 1fr; gap: 50px; margin-top: 42px; }
+.eyebrow { font-family: var(--font-mono); color: var(--color-fn-mint); font-size: 17px; letter-spacing: .04em; }
+h1 { font-family: var(--font-display); font-size: 112px; line-height: 1.07; font-weight: 400; margin: 17px 0 18px; letter-spacing: -.02em; }
+.subtitle { font-size: 27px; line-height: 1.5; max-width: 620px; margin: 0; color: var(--color-ink-300); }
+.tags { display: flex; gap: 12px; margin-top: 25px; }
+.tag { border: 1px solid var(--color-ink-600); border-radius: var(--radius-full); padding: 9px 16px; font-family: var(--font-mono); font-size: 15px; }
+.panel { margin-top: 6px; border: 1px solid var(--color-ink-600); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-ink-900); height: 320px; }
+.panel-label { font-family: var(--font-mono); font-size: 13px; color: var(--color-ink-300); border-bottom: 1px solid var(--color-ink-600); padding: 19px 23px; }
+pre { font-family: var(--font-mono); font-size: 15px; line-height: 1.6; margin: 0; padding: 23px; white-space: pre-wrap; }
+.cmd { color: var(--color-fn-mint); }
+.hint { color: var(--color-ink-300); }
+footer { position: absolute; bottom: 52px; left: 64px; right: 64px; display: flex; justify-content: space-between; font-family: var(--font-mono); color: var(--color-ink-300); font-size: 16px; }
