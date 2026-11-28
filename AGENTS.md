@@ -56,6 +56,9 @@ Ensure these environment variables are set (the CLI reads them from a `.env`; th
 - `HULY_ACTOR` — optional; the person operating the CLI when the token is shared.
   Makes `me` resolve to them and stamps `Requested by: <name>` on tasks created.
 - `HULY_DEFAULT_ASSIGNEE` — optional; used when `--assignee` is omitted.
+- `HULY_DOWNLOAD_ROOT` — optional; the only directory `--download`/`downloadDir`
+  may write under. Unset, the working directory (unless it is `/` or home, or
+  contains home) and the temp directory are allowed.
 
 ### MCP setup (Codex)
 
@@ -117,11 +120,11 @@ exits 2 on `auth`, 3 on `not_found`, 4 on `invalid_input`, 5 on `connection`, an
 | Command | Purpose |
 |---------|---------|
 | `huly tasks [options]` | Query tasks with filters |
-| `huly task <id>` | Get full task details by identifier |
+| `huly task <id> [--download <dir>]` | Get full task details by identifier: `descriptionMarkdown` (plus `descriptionError` when unreadable), `attachmentFiles` and the web link `url`; `--download` also saves the files (MCP: `downloadDir`, stdio only) into a directory inside `HULY_DOWNLOAD_ROOT` (default: the working directory unless it is `/` or home, or the temp dir) |
 | `huly task-by-id <internalId>` | Get task by internal _id (e.g. from childInfo) |
 | `huly sub-issues <id>` | Recursive sub-issue tree of a parent task |
 | `huly activity <id>` | Activity timeline (changes + comments) |
-| `huly create task <title> --project <id> [options]` | Create a new task |
+| `huly create task <title> --project <id> [options]` | Create a new task; the result carries its web link `url` (null when the lookup fails) |
 | `huly create task <title> --project <id> --parent <id>` | Create it as a sub-issue of an existing task |
 | `huly update task <id> [options]` | Update task fields |
 | `huly move task <id> --parent <id>` | Re-parent a task in the same project; `--no-parent` detaches it (MCP: `huly_move_task`) |

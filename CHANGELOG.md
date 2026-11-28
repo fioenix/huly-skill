@@ -4,6 +4,59 @@ Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
 ## Unreleased
+### Added — tasks carry their web link
+- `huly task --json`, `huly create task --json`, `huly_get_task` and
+  `huly_create_task` return `url`: `<HULY_HOST>/workbench/<workspace slug>/tracker/<id>`.
+  `HULY_WORKSPACE_ID` is usually the UUID, so the slug (`workspaceUrl`) is looked
+  up once per command from the account service; a failed lookup leaves `url`
+  `null` without failing the command. Built by `src/utils/links.ts`, covered by
+  `tests/links.test.ts` and `tests/task-detail.test.ts`.
+
+### Added — task detail carries the description and the attached files
+- `huly task <id> --json` now returns `data.descriptionMarkdown` (the description
+  rendered to markdown; before, JSON mode only had the collaborative-doc ref) and
+  `data.attachmentFiles` (`_id`, `name`, `type`, `size`, `blobId`,
+  `lastModified` for every file on the issue; before, only a count). Existing
+  fields are unchanged. A description that exists but could not be read gives
+  `descriptionMarkdown: null` plus a one-line `descriptionError`, so it is not
+  mistaken for a task without one.
+- `--download <dir>` (MCP `huly_get_task`: `downloadDir`) saves those files and
+  adds an absolute `localPath` per entry, or `downloadError` for a file that
+  failed while the rest still save. Names are reduced to one safe path segment
+  inside `<dir>` and an existing file is never overwritten (`spec-1.pdf`, …).
+  Files stream to disk, capped at 100 MB each, 500 MB per call and 120 s per
+  file; a file over a cap or out of time is removed and reported, not kept half
+  written.
+- The text view lists each attachment with type and size instead of a count,
+  and `huly task` / `huly create task` print the task's link as a `🔗 Link:` line.
+- The link lookup is capped at 5 s, so a slow account service leaves `url`
+  `null` rather than holding back a detail or a task already created. It shares
+  one server-config fetch and workspace selection with the files client.
+- `huly_get_task` and `huly task` now share one implementation
+  (`src/utils/task-detail.ts`), covered by `tests/task-detail.test.ts`,
+  `tests/task-detail-hardening.test.ts`, `tests/review-fixes.test.ts`,
+  `tests/review-2-fixes.test.ts`, `tests/pr104-round2.test.ts` and
+  `tests/wiring.test.ts`.
+
+### Rejects — where attachments may be written
+- `<dir>` must resolve, symlinks (dangling ones too) included, inside
+  `HULY_DOWNLOAD_ROOT`, or (when that is unset) the working directory or temp directory, and
+  not inside a hidden directory such as `.git` or `.ssh`; anything else, or a
+  directory that cannot be created, fails with `invalid_input` before anything
+  is written. A working directory of `/`, the home directory or one of its
+  parents is not a root (MCP clients often start servers there), and a leading
+  `~` means the home directory. Text in an issue can steer an
+  agent's arguments, so the directory is checked rather than trusted.
+- Only the stdio MCP server offers `downloadDir`; tools registered without
+  options, and the server under `HULY_MCP_TRANSPORT=http`, do not: a remote
+  caller cannot read the server's disk, and must not be able to write to it.
+  The strict schema rejects the argument there.
+- A `blobId` is refused without a request unless it is made of letters,
+  digits, `.`, `_` and `-` and must start with a letter or digit, since it is
+  spliced into the files URL beside the token.
+- The task link uses only the origin of `HULY_HOST` and is `null` unless that
+  is an `http(s)` URL, so a `user:pass@` or a pasted `?token=` sign-in URL in
+  `HULY_HOST` never reaches the output (as with `huly whoami`).
 
 ### Fixed — heartbeats through `HTTPS_PROXY`
 - The proxy WebSocket passed `ws`'s `Buffer` messages straight to the Huly client,

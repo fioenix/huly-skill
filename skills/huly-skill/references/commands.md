@@ -60,7 +60,26 @@ huly tasks --parent LAMBD-568                     # direct children of a parent
 huly tasks --milestone-id <id>                    # all tasks in a milestone
 
 huly task DELTA-123                               # full details for one task
+huly task DELTA-123 --json --download ./DELTA-123 # also save its attachments, each gets localPath
 huly task-by-id <internalId>                      # look up by internal _id
+```
+
+`huly task --json` returns the description as markdown in `data.descriptionMarkdown`
+(`null` when empty; `null` plus a one-line `descriptionError` when unreadable) and the issue's files in `data.attachmentFiles`
+(`_id`, `name`, `type`, `size`, `blobId`, `lastModified`). Files are listed, not
+fetched, unless `--download <dir>` is passed (MCP: `downloadDir`); then each entry
+carries an absolute `localPath`, or `downloadError` when that one file failed.
+Unsafe names are flattened into `<dir>` and an existing file is never overwritten.
+`<dir>` (`~` is home) must be inside `HULY_DOWNLOAD_ROOT` (default: the working
+directory unless it is `/` or home or contains home, or the temp directory) and not in a hidden directory; otherwise the call fails with
+`invalid_input`. Over the HTTP MCP transport `downloadDir` does not exist.
+Each file is capped at 100 MB and 120 s, 500 MB per call.
+Files attached to comments are not included.
+`data.url` is the issue's web link, `<HULY_HOST>/workbench/<workspace slug>/tracker/<id>`
+(also on `huly create task --json`); the slug comes from the account service, so
+`url` is `null` when that lookup fails while the rest of the detail is kept.
+
+```bash
 
 huly sub-issues LAMBD-568                         # sub-issue tree (recursive by default)
 huly sub-issues LAMBD-568 --no-recursive          # direct children only

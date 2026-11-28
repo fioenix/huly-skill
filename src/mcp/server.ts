@@ -1,5 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { registerHulyTools } from './tools.js';
+import { registerHulyTools, type HulyToolOptions } from './tools.js';
 import { VERSION } from '../version.js';
 
 const INSTRUCTIONS = [
@@ -15,11 +15,11 @@ const INSTRUCTIONS = [
  * Build a fully-configured Huly MCP server. A fresh instance is created per
  * stdio process and per stateless HTTP request.
  */
-export function createHulyMcpServer(): McpServer {
+export function createHulyMcpServer(options: HulyToolOptions = {}): McpServer {
     const server = new McpServer(
         { name: 'huly-mcp', version: VERSION },
         { instructions: INSTRUCTIONS },
     );
-    registerHulyTools(server);
+    registerHulyTools(server, options);
     return server;
 }

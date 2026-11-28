@@ -4,6 +4,8 @@ import { printToConsole, formatDate, PRIORITY_LABELS, isJsonMode, outputJson } f
 import { EXIT_STATUS, errorPayload, exitStatusFor } from '../utils/errors.js';
 import { parseRawFields } from '../resolvers.js';
 import { createIssue } from '../services/issues.js';
+import { linkLine } from '../utils/links.js';
+import { DEFAULT_LINK_TIMEOUT_MS, issueUrlWithin } from '../utils/task-detail.js';
 
 export function createTaskCommand() {
     return new Command('create')
@@ -42,13 +44,17 @@ export function createTaskCommand() {
                         rawFields,
                     });
 
-                    const task = result.task;
+                    // A failed link lookup must not hide that the task was created.
+                    const url = await issueUrlWithin(client, result.task.identifier, DEFAULT_LINK_TIMEOUT_MS);
+                    const task = { ...result.task, url };
 
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', data: task });
                     } else {
                         let output = `✅ TASK CREATED\n\n`;
-                        output += `📋 ${task.identifier}: ${task.title}\n\n`;
+                        output += `📋 ${task.identifier}: ${task.title}\n`;
+                        output += linkLine(task.url);
+                        output += '\n';
                         output += `🆔 Task ID: ${task._id}\n`;
                         output += `📁 Project: ${result.projectIdentifier}\n`;
                         output += `🎯 Priority: ${PRIORITY_LABELS[task.priority] || 'MEDIUM'}\n`;
