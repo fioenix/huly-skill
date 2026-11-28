@@ -48,10 +48,15 @@ function normalize(credentials: HulyCredentials): HulyCredentials {
 
 /** An http(s) URL reduced to its origin, or null for anything else. */
 function originOf(url: string | undefined): string | null {
+    return httpUrl(url)?.origin ?? null;
+}
+
+/** An http(s) URL parsed, or null for anything else. */
+function httpUrl(url: string | undefined): URL | null {
     if (!url) return null;
     try {
         const parsed = new URL(url.trim());
-        return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.origin : null;
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed : null;
     } catch {
         return null;
     }
@@ -65,11 +70,10 @@ function originOf(url: string | undefined): string | null {
  * root path either way.
  */
 function bareOrigin(url: string | undefined): string | null {
-    const origin = originOf(url);
-    if (!origin) return null;
-    const parsed = new URL(url!.trim());
+    const parsed = httpUrl(url);
+    if (!parsed) return null;
     const bare = !parsed.username && !parsed.password && parsed.pathname === '/' && !parsed.search && !parsed.hash;
-    return bare ? origin : null;
+    return bare ? parsed.origin : null;
 }
 
 function allowedHostEntries(env: NodeJS.ProcessEnv): string[] {
