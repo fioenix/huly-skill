@@ -1,7 +1,7 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { decodeTokenClaims, describeContext } from '../src/utils/context.js';
+import { decodeTokenClaims, describeContext, sanitizeHost } from '../src/utils/context.js';
 import { runWithCredentials } from '../src/utils/auth.js';
 
 function makeToken(payload: Record<string, unknown>): string {
@@ -91,4 +91,17 @@ test('describes the caller credentials in scope, not the environment', () => {
     assert.equal(context.credentialSource, 'request');
     assert.equal(context.apiKey.claims?.account, 'caller-account');
     assert.equal(context.warnings.length, 0);
+});
+
+test('an invalid HULY_HOST is reported without echoing it — it may hold a pasted token', () => {
+    process.env.HULY_HOST = 'huly.example.com/eyJhbGciOiJIUzI1NiJ9.payload.sig';
+    const warnings = describeContext().warnings.join(' ');
+    assert.match(warnings, /HULY_HOST is not a valid URL/);
+    assert.equal(warnings.includes('eyJ'), false);
+});
+
+test('sanitizeHost drops credentials, path and query from a host URL', () => {
+    assert.equal(sanitizeHost('https://user:secret@huly.example.com/x?token=t'), 'https://huly.example.com');
+    assert.equal(sanitizeHost('not a url'), null);
+    assert.equal(sanitizeHost(undefined), null);
 });
