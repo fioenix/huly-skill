@@ -1,6 +1,10 @@
 import { HttpsProxyAgent } from 'https-proxy-agent';
 
-/** Proxy support for the Huly WebSocket. */
+/**
+ * Proxy support for the Huly WebSocket. Certificate checks stay on: a proxy
+ * that intercepts TLS (the Cowork sandbox, a corporate gateway) is trusted by
+ * giving Node its CA with NODE_EXTRA_CA_CERTS, not by turning verification off.
+ */
 
 /** Scheme and host of a URL, for diagnostics: never its credentials, path or query. */
 export function redactUrl(raw: string): string {
@@ -13,11 +17,11 @@ export function redactUrl(raw: string): string {
 }
 
 export function proxyAgent(proxyUrl: string): HttpsProxyAgent<string> {
-    return new HttpsProxyAgent(proxyUrl, { rejectUnauthorized: false });
+    return new HttpsProxyAgent(proxyUrl);
 }
 
 export function wsOptions(agent: HttpsProxyAgent<string>): { agent: HttpsProxyAgent<string> } {
-    return { agent, rejectUnauthorized: false } as any;
+    return { agent };
 }
 
 /**
