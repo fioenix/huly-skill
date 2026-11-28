@@ -9,12 +9,17 @@
  * `retryable` answer that question without parsing the sentence.
  *
  * The message stays exactly as it was; this only adds fields beside it.
+ *
+ * A failure that already changed something before it stopped (an upload that
+ * attached some files, kept a blob whose record may exist, or was cut off
+ * while its blob may still land) carries
+ * `retryable: false` itself, since repeating it as is would do that twice.
  */
 
 export type ErrorCode =
     /** A configured credential is missing, expired, or bound elsewhere. */
     | 'auth'
-    /** The connection to Huly failed or dropped — the one class worth retrying. */
+    /** The connection to Huly failed or dropped — the one class worth retrying, unless the call already changed something. */
     | 'connection'
     /** An id, name or identifier did not resolve to anything. */
     | 'not_found'
@@ -92,12 +97,15 @@ export function classifyError(e: unknown): ErrorCode {
 /** The JSON envelope for a failure, identical across the CLI and MCP. */
 export function errorPayload(e: unknown): ErrorPayload {
     const code = classifyError(e);
-    const hint = HINTS[code];
+    // A call that already changed something (some files attached before the
+    // connection dropped) says so, since repeating it as is would do it twice.
+    const notRetryable = (e as { retryable?: unknown })?.retryable === false;
+    const hint = notRetryable && code === 'connection' ? undefined : HINTS[code];
     return {
         status: 'error',
         error: messageOf(e) || String(e),
         code,
-        retryable: RETRYABLE.has(code),
+        retryable: !notRetryable && RETRYABLE.has(code),
         ...(hint ? { hint } : {}),
     };
 }

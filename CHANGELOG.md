@@ -4,6 +4,52 @@ Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
 ## Unreleased
+### Added — upload attachments to a task
+- `huly attach <id> <file...>` and the MCP tool `huly_add_attachment`
+  (`taskId`, `paths`) upload local files to the issue: each is stored over the
+  HTTP upload endpoint, then recorded as an `attachment:class:Attachment` in the
+  issue's `attachments` collection, so `huly task` lists it. The result carries
+  `uploaded`, `failed` and per file `path` (the absolute local path),
+  `name`, `type`, `size`, `attachmentId` and `blobId`, or `uploadError` while
+  the others still go, plus `cleanupError` (also in the text output) when a
+  failed file's blob could not be removed; the CLI exits 1 when any failed. A
+  refused credential or dropped connection fails the whole call instead (`auth`
+  / `connection`, exit 2 / 5), naming the files already attached and, once any went up or a blob was kept, with
+  `retryable: false` so the same call is not repeated. A dropped or timed-out
+  upload names the key its blob would be stored under and is `retryable: false`
+  too, since the upload keeps running and the blob may still land. A blob whose
+  record was refused is removed again (a failed removal is reported as
+  `cleanupError`); after a dropped connection it is kept, since the record may
+  exist. Uploads time out after 120 s. Blobs are stored
+  under a fresh UUID, not the file name: the upload endpoint keeps the key it
+  is sent, so two uploads of the same name would otherwise overwrite each other. Logic in
+  `src/utils/attachment-upload.ts`, covered by `tests/attachment-upload.test.ts`,
+  `tests/attachment-tools.test.ts` and the `tests/attachment-review*.test.ts`
+  files.
+
+### Rejects — which files may be uploaded
+- Every path is checked and read before anything is sent; one refusal fails the
+  whole call with `invalid_input`. A file must resolve, symlinks included,
+  inside `HULY_UPLOAD_ROOT`, or the working directory when that is unset (not
+  the temp directory, unlike downloads; and a root of home, any directory
+  above it, or the tmp directory itself (`/tmp` or `/private/tmp`, `tmpdir()`,
+  or its parent) is refused, since everything under it
+  would be readable: a working directory that broad, and a `HULY_UPLOAD_ROOT`
+  set that broad, whose message names the variable); be a regular file (not a directory or FIFO); not be hidden or
+  inside a hidden directory; and not have a base name that looks like a key,
+  certificate or credential, case-insensitively, on the given name or a
+  symlink's target (`*.pem`, `*.key`, `*.p12`, `*.pfx`; `id_rsa`, `id_dsa`,
+  `id_ecdsa`, `id_ed25519` and names starting with them, except `*.pub`;
+  `*.tfstate` and `*.tfstate.*`; names containing `credential`, `secret` or
+  `service-account` / `service_account`), since the default root is often a
+  repository holding such files. Caps: 50 MB a file, 200 MB and 20 files a call.
+  Text in an issue can steer an agent's arguments, so paths are checked rather
+  than trusted, and the tool description and the skill tell an agent to attach
+  only files the user named in the conversation, never paths taken from issue
+  or comment text.
+- `huly_add_attachment` exists only over stdio. Under `HULY_MCP_TRANSPORT=http`
+  a remote caller must not be able to read the server's disk.
+
 ### Added — tasks carry their web link
 - `huly task --json`, `huly create task --json`, `huly_get_task` and
   `huly_create_task` return `url`: `<HULY_HOST>/workbench/<workspace slug>/tracker/<id>`.
