@@ -47,11 +47,27 @@ export function toCallError(e: unknown): unknown {
     return Object.assign(hulyError(code, describeError(e)), { cause: e });
 }
 
-/** Opening the storage client failed: a refused credential, or else storage could not be reached. */
+/**
+ * Opening the storage client failed: a refused credential, or else storage
+ * could not be reached. Nothing was sent, so no blob can land.
+ */
 export function storageUnreachable(e: unknown): unknown {
     const code = callErrorCode(e) ?? callErrorClass(e) ?? 'connection';
-    return (e as { code?: unknown })?.code === code ? e : Object.assign(hulyError(code, describeError(e)), { cause: e });
+    const error = (e as { code?: unknown })?.code === code ? e : Object.assign(hulyError(code, describeError(e)), { cause: e });
+    return notStarted(error);
 }
+
+/** Marks an upload that never reached `put`'s request, so a retry cannot store the file twice. */
+function notStarted(e: unknown): unknown {
+    return e && typeof e === 'object' ? Object.assign(e, { uploadStarted: false }) : e;
+}
+
+function uploadStarted(e: unknown): boolean {
+    return (e as { uploadStarted?: unknown })?.uploadStarted !== false;
+}
+
+// Failures to connect at all: no byte of the upload went out.
+const CONNECT_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN']);
 
 const NETWORK_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_SOCKET']);
 
@@ -104,7 +120,8 @@ export async function storeBlob(
     try {
         blob = await Promise.race([storage.put(key, data, type, data.byteLength), timeout]);
     } catch (e) {
-        throw toCallError(e);
+        const error = toCallError(e);
+        throw CONNECT_CODES.has(nodeErrorCode(e)) ? notStarted(error) : error;
     } finally {
         clearTimeout(timer);
     }
@@ -539,7 +556,9 @@ export async function attachPrepared(
                     entry.cleanupError = describeError(removeError);
                 }
             }
-            if (fatal) throw callFailure(e, fatal, entry, keepBlob ? blobId : null, blobId ? null : key, results);
+            // The key is named only once `put` started, since only then can a blob land under it.
+            const pendingKey = blobId === null && uploadStarted(e) ? key : null;
+            if (fatal) throw callFailure(e, fatal, entry, keepBlob ? blobId : null, pendingKey, results);
             entry.uploadError = describeError(e);
         }
         results.push(entry);

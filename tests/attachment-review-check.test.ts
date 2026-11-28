@@ -4,7 +4,7 @@ import { existsSync, linkSync, mkdirSync, mkdtempSync, realpathSync, renameSync,
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { attachPrepared, formatAttachText, prepareUploads, readCapped, removeStoredBlob, samePath } from '../src/utils/attachment-upload.js';
+import { attachPrepared, formatAttachText, prepareUploads, readCapped, removeStoredBlob, samePath, storageUnreachable, storeBlob } from '../src/utils/attachment-upload.js';
 import { errorPayload, hulyError } from '../src/utils/errors.js';
 
 // Found by the independent check of the review-1 fixes (fix-check A1.1, A1.2,
@@ -73,6 +73,53 @@ test('a dropped connection or timeout while storing the first file is not retrya
             return true;
         });
     }
+});
+
+// Review round 2, N1: an upload that never started is still retryable.
+function storingWith(put: () => Promise<never>) {
+    const src = source();
+    const storage = { put, remove: async () => {} };
+    return Object.assign(src, {
+        uploadBlob: (file: { key: string; data: Buffer; type: string }) => {
+            src.keys.push(file.key);
+            return storeBlob(storage, file.key, file.data, file.type, 1000);
+        },
+    });
+}
+
+const withCode = (code: string) => Object.assign(new Error('fetch failed'), { cause: Object.assign(new Error(code), { code }) });
+
+test('a storage client that could not be opened leaves the call retryable, with no key', async () => {
+    const src = source({ uploadErrors: { 'a.txt': storageUnreachable(new Error('Timed out loading the server config')) as Error } });
+    await assert.rejects(attachPrepared(src, 'DELTA-42', await prepareUploads(filesIn(['a.txt']))), (e: any) => {
+        const payload = errorPayload(e);
+        assert.equal(payload.code, 'connection');
+        assert.equal(payload.retryable, true);
+        assert.ok(!payload.error.includes(src.keys[0]), payload.error);
+        return true;
+    });
+});
+
+test('a refused, unresolved or retried-DNS connection to storage leaves the call retryable', async () => {
+    for (const code of ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN']) {
+        const src = storingWith(async () => { throw withCode(code); });
+        await assert.rejects(attachPrepared(src, 'DELTA-42', await prepareUploads(filesIn(['a.txt']))), (e: any) => {
+            const payload = errorPayload(e);
+            assert.equal(payload.retryable, true, code);
+            assert.ok(!payload.error.includes(src.keys[0]), payload.error);
+            return true;
+        });
+    }
+});
+
+test('a reset after the upload started is still not retryable and names the key', async () => {
+    const src = storingWith(async () => { throw withCode('ECONNRESET'); });
+    await assert.rejects(attachPrepared(src, 'DELTA-42', await prepareUploads(filesIn(['a.txt']))), (e: any) => {
+        const payload = errorPayload(e);
+        assert.equal(payload.retryable, false);
+        assert.ok(payload.error.includes(src.keys[0]), payload.error);
+        return true;
+    });
 });
 
 // --- A1.2: a blob that may have landed is named by its key ------------------
