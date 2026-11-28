@@ -80,3 +80,20 @@ exercise the code path it belongs to.
 
 A permanently red `pnpm audit` gate would have been worse than none — it trains
 people to ignore it.
+
+## When the patched range is outside the major (28/11/2026)
+
+`@tiptap/core` GHSA-cp6q-959q-f8rh (moderate) is fixed only in 3.30.4, while
+`@hcengineering/text` 0.7.423, the latest, requires `^2.11.7`. Forcing 3.x would
+run Huly's 2.x extensions on a core they were never built for, in the path that
+reads and writes every description. The flaw is in `mergeAttributes()` rendering
+DOM attributes: `src/` renders no HTML, and a markdown → markup → markdown round
+trip made 0 calls to it.
+
+So the gate carries a second remedy, used only when the first is impossible: an
+entry in `EXCEPTIONS` in `scripts/audit-shipped.mjs`, by GHSA id and package, with
+that evidence and an `until` date. Past the date the advisory fails the gate again,
+and the run says to fix it or renew it with fresh evidence; an exception whose
+advisory is gone is reported for removal. This one runs to 2027-02-28: by then
+either Huly has moved to tiptap 3 and an override closes it, or the evidence is
+checked again.
