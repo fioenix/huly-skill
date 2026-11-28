@@ -124,7 +124,8 @@ function logSafe(text: string): string {
     return text
         .replace(URL_PATTERN, (url) => redactUrl(url))
         .replace(JWT_PATTERN, '<jwt>')
-        .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+        // Cc is C0, DEL and C1 (NEL, CSI); Zl/Zp are the Unicode line breaks.
+        .replace(/[\p{Cc}\p{Zl}\p{Zp}]+/gu, ' ')
         .trim();
 }
 

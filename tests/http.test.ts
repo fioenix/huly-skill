@@ -11,6 +11,9 @@ import { allowedHostsWarning, getApiKey, getHost, getWorkspaceId } from '../src/
 // server. The MCP handler is a stub that reports the credentials in scope, so a
 // refused request is proved never to reach it.
 
+// NEL, LINE SEPARATOR, PARAGRAPH SEPARATOR and the C1 CSI introducer.
+const [NEL, LS, PS, CSI] = [0x85, 0x2028, 0x2029, 0x9b].map((code) => String.fromCharCode(code));
+
 let server: Server;
 let base: string;
 let seen: Array<{ token: string; host: string; workspace: string }> = [];
@@ -30,6 +33,9 @@ before(async () => {
                 'socket failed wss://transactor.example/eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.c2lnbmF0dXJlX3Rlc3Q at https://u:p@host.example/x?token=abc\n[huly-mcp] forged line',
                 { cause: new Error('ECONNRESET https://cause.example/path?token=zzz') },
             );
+        }
+        if (req.body?.failWithUnicodeBreaks) {
+            throw new Error(['a', NEL, '[huly-mcp] forged NEL', LS, '[huly-mcp] forged LS', PS, 'b', CSI, '31m csi'].join(''));
         }
         const delay = Number(req.body?.delay ?? 0);
         if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
@@ -178,6 +184,23 @@ test('the logged error keeps only URL origins, masks JWTs and stays on one line'
         assert.match(line, /https:\/\/host\.example/);
         assert.match(line, /ECONNRESET https:\/\/cause\.example/, 'the cause is logged too');
         assert.equal(line.indexOf('\n'), line.length - 1, 'one line, ended by its own newline');
+    } finally {
+        stderr.mock.restore();
+    }
+});
+
+// Unicode line breaks and C1 controls break lines or drive terminals just as \n
+// and ESC do, so they must not reach the log either.
+test('the logged error drops Unicode line breaks and C1 controls too', async () => {
+    const stderr = mock.method(process.stderr, 'write', () => true);
+    try {
+        const res = await post({}, { failWithUnicodeBreaks: true });
+        assert.equal(res.status, 500);
+        const line = String(stderr.mock.calls[0].arguments[0]);
+        for (const char of [NEL, LS, PS, CSI]) {
+            assert.equal(line.includes(char), false, `U+${char.charCodeAt(0).toString(16).padStart(4, '0')} reached the log`);
+        }
+        assert.match(line, /a \[huly-mcp\] forged NEL \[huly-mcp\] forged LS b 31m csi\n$/);
     } finally {
         stderr.mock.restore();
     }
