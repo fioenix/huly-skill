@@ -142,8 +142,13 @@ Consequences worth knowing before you share one:
 - **Your own session token** — every member already has one after logging in,
   including through SSO and 2FA; it can be read from the browser. No admin is
   needed, and attribution is correct because the token is yours.
-- **An issued token** — workspace settings (Settings → General → Generate API
-  token). That screen is restricted to workspace admins.
+- **A token from workspace settings** — Settings → General → Generate API
+  token. That screen is restricted to workspace Owners, and what it returns is
+  the Owner's own session token, so actions taken with it look like the Owner's.
+
+A token copied from the SSO redirect URL carries an account but no workspace:
+set `HULY_WORKSPACE_ID` to the workspace **URL slug** for it, not the UUID.
+`huly whoami --offline` warns when the two do not match.
 
 Two things follow, and they pull against each other:
 
@@ -177,8 +182,8 @@ to do this", and it does nothing about the shared token's role.
 `@hcengineering/api-client` also exposes
 `getWorkspaceToken(host, { email, password, workspace })`, which returns a token
 for whoever authenticates. Note this repo's pinned `@hcengineering/account-client`
-(and its latest release) expose no token-creation call, so the settings screen is
-the supported route.
+(and its latest release) expose no token-creation call, so the two routes above,
+a member's own session token or the settings screen, are the supported ones.
 
 ### Verify
 

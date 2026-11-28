@@ -13,6 +13,8 @@ which are released together under the same number.
   over HTTP) rather than the process environment.
 - `tests/proxy.test.ts` now covers the proxy WebSocket's whole contract (events,
   both send paths, close) and the `fetch` proxy agent's TLS options.
+- README: the token from workspace settings is the Owner's own session token,
+  and a token from the SSO redirect needs the workspace slug.
 
 ### Changed — certificates are verified behind `HTTPS_PROXY`, which can reject a previously working proxy setup
 - With `HTTPS_PROXY` set, the CLI and MCP server used to set
