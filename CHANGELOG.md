@@ -5,6 +5,12 @@ which are released together under the same number.
 
 ## Unreleased
 
+### Security — proxy diagnostics no longer print the token
+- The `[huly-ws] connecting:` line printed the whole WebSocket URL, whose path is
+  the account JWT, and the proxy URL with any `user:pass@`. It now prints scheme
+  and host only. The proxy code moved to `src/utils/proxy.ts`, covered by
+  `tests/proxy.test.ts`.
+
 ### Changed — HTTP requests that set `x-huly-url` or `x-huly-workspace` without `x-huly-token` are now refused
 - Before, such a request ran with the server's own `HULY_API_KEY` against the
   host or workspace the caller named, so any caller of the HTTP transport could
