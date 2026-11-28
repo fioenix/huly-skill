@@ -20,6 +20,11 @@ export function proxyAgent(proxyUrl: string): HttpsProxyAgent<string> {
     return new HttpsProxyAgent(proxyUrl);
 }
 
+/** Options for undici's ProxyAgent, which `fetch` uses behind HTTPS_PROXY. */
+export function fetchProxyOptions(proxyUrl: string): { uri: string } {
+    return { uri: proxyUrl };
+}
+
 export function wsOptions(agent: HttpsProxyAgent<string>): { agent: HttpsProxyAgent<string> } {
     return { agent };
 }

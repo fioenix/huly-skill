@@ -3,7 +3,7 @@ import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
 import { errorPayload, exitStatusFor } from '../utils/errors.js';
 import { maskToken } from '../utils/auth.js';
-import { describeContext } from '../utils/context.js';
+import { describeContext, sanitizeHost } from '../utils/context.js';
 import { getActor, resolvePerson } from '../resolvers.js';
 
 export function whoamiCommand() {
@@ -40,7 +40,7 @@ export function whoamiCommand() {
 
                 await withClient(async (client) => {
                     const account = await client.getAccount();
-                    const host = process.env.HULY_HOST || '(not set)';
+                    const host = sanitizeHost(process.env.HULY_HOST) ?? '(not set or not a valid URL)';
                     const workspace = process.env.HULY_WORKSPACE_ID || '(not set)';
                     const apiKey = process.env.HULY_API_KEY || '';
 

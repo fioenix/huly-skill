@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 
-import { createProxySocketFactory, proxyAgent, redactUrl, wsOptions } from '../src/utils/proxy.js';
+import { createProxySocketFactory, fetchProxyOptions, proxyAgent, redactUrl, wsOptions } from '../src/utils/proxy.js';
 
 // The Huly WebSocket URL carries the account JWT in its path
 // (`wss://<transactor>/<JWT>`), and a proxy URL may carry `user:pass@`.
@@ -49,4 +49,62 @@ test('the proxy socket factory logs where it connects without the token in the U
     const log = written.join('');
     assert.match(log, /connecting: wss:\/\/huly\.example via proxy http:\/\/127\.0\.0\.1:3128/);
     assert.doesNotMatch(log, /eyJ|secret/);
+});
+
+test('the fetch proxy options leave certificate verification to Node', () => {
+    const options: any = fetchProxyOptions('http://127.0.0.1:3128');
+    assert.equal(options.uri, 'http://127.0.0.1:3128');
+    assert.notEqual(options.requestTls?.rejectUnauthorized, false);
+    assert.notEqual(options.proxyTls?.rejectUnauthorized, false);
+});
+
+test('the proxy socket keeps the WebSocket contract the Huly client relies on', async () => {
+    const created: any[] = [];
+    class RecordingWebSocket {
+        readyState = 1;
+        handlers: Record<string, (...args: any[]) => void> = {};
+        sent: any[] = [];
+        closed: any[] = [];
+        constructor(public url: string, public options: any) { created.push(this); }
+        on(event: string, handler: (...args: any[]) => void) { this.handlers[event] = handler; return this; }
+        send(data: any) { this.sent.push(data); }
+        close(code?: number) { this.closed.push(code); }
+    }
+    const original = process.stderr.write.bind(process.stderr);
+    (process.stderr as any).write = () => true;
+    try {
+        const client = createProxySocketFactory('http://127.0.0.1:3128', RecordingWebSocket)!('wss://huly.example/t');
+        const ws = created[0];
+        assert.equal(ws.url, 'wss://huly.example/t');
+        assert.ok(ws.options.agent, 'connects through the proxy agent');
+        assert.notEqual(ws.options.rejectUnauthorized, false);
+        assert.deepEqual(Object.keys(ws.handlers).sort(), ['close', 'error', 'message', 'open', 'unexpected-response']);
+        assert.equal(client.readyState, 1);
+
+        const events: any[] = [];
+        client.onopen = (e: any) => events.push(['open', e.type]);
+        client.onmessage = (e: any) => events.push(['message', e.data]);
+        client.onclose = (e: any) => events.push(['close', e.code, e.wasClean]);
+        client.onerror = (e: any) => events.push(['error', e.error.message]);
+        ws.handlers.open();
+        ws.handlers.message('payload');
+        ws.handlers.error(new Error('boom'));
+        ws.handlers.close(1000, Buffer.from(''));
+        ws.handlers.close(1006, Buffer.from('gone'));
+        assert.deepEqual(events, [
+            ['open', 'open'], ['message', 'payload'], ['error', 'boom'],
+            ['close', 1000, true], ['close', 1006, false],
+        ]);
+
+        client.send('text');
+        client.send(new Blob([new Uint8Array([1, 2, 3])]));
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        assert.equal(ws.sent[0], 'text');
+        assert.deepEqual([...new Uint8Array(ws.sent[1])], [1, 2, 3], 'a Blob is sent as its bytes');
+
+        client.close(4000);
+        assert.deepEqual(ws.closed, [4000]);
+    } finally {
+        (process.stderr as any).write = original;
+    }
 });
