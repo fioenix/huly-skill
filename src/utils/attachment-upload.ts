@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { open, realpath } from 'node:fs/promises';
+import { lstat, open, realpath } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, parse, relative, resolve, sep } from 'node:path';
@@ -348,6 +348,11 @@ async function readAllowed(input: string, roots: string[], caps: UploadLimits, u
     try {
         const stat = await handle.stat();
         if (!stat.isFile()) throw hulyError('invalid_input', `${input} is not a regular file`);
+        // A hard link is a second name for a file the rules above never saw.
+        if (stat.nlink > 1) throw hulyError('invalid_input', `${input} has more than one hard link and is never uploaded`);
+        // A directory on the way swapped for a symlink after the check: what
+        // was opened is no longer what the real path names.
+        if (!(await samePath(real, stat))) throw hulyError('invalid_input', `${input} changed while it was being checked`);
         if (stat.size > cap) throw overCap(input, stat.size, cap);
         // Refused from the size alone, so a file past the call total is never read.
         if (stat.size > left) throw overTotal(caps.maxTotalBytes);
@@ -407,6 +412,17 @@ function secretFile(input: string, label: string) {
         'invalid_input',
         `${input} looks like a key, certificate or credential file (${label}) and is never uploaded; if it is not a secret, rename it or zip it`,
     );
+}
+
+/** Whether `real` still names the file that was opened (exported for its test). */
+export async function samePath(real: string, opened: { dev: number; ino: number }): Promise<boolean> {
+    try {
+        if ((await realpath(real)) !== real) return false;
+        const now = await lstat(real);
+        return now.dev === opened.dev && now.ino === opened.ino;
+    } catch {
+        return false;
+    }
 }
 
 function relativeToRoot(real: string, roots: string[]): string | null {

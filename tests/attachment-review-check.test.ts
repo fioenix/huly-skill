@@ -1,10 +1,10 @@
 import { test, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, linkSync, mkdirSync, mkdtempSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { attachPrepared, formatAttachText, prepareUploads, readCapped, removeStoredBlob } from '../src/utils/attachment-upload.js';
+import { attachPrepared, formatAttachText, prepareUploads, readCapped, removeStoredBlob, samePath } from '../src/utils/attachment-upload.js';
 import { errorPayload, hulyError } from '../src/utils/errors.js';
 
 // Found by the independent check of the review-1 fixes (fix-check A1.1, A1.2,
@@ -335,6 +335,34 @@ test('a symlink with an ordinary name pointing at a key file is refused', async 
     const link = join(dirname(key), 'notes.txt');
     symlinkSync(key, link);
     await assert.rejects(prepareUploads([link]), (e: any) => /looks like a key/.test(e.message));
+});
+
+// --- Security review S3: a hard link can get around the name and root rules --
+
+test('a file with more than one hard link is refused', async () => {
+    const [key] = filesIn(['deploy-notes.txt']);
+    const link = join(dirname(key), 'notes.txt');
+    linkSync(key, link);
+    await assert.rejects(prepareUploads([link]), (e: any) => {
+        assert.equal(e.code, 'invalid_input');
+        assert.match(e.message, /more than one hard link/);
+        return true;
+    });
+});
+
+test('a directory swapped for a symlink after the check no longer matches the opened file', async () => {
+    const [seed] = filesIn(['seed.txt']);
+    const dir = dirname(seed);
+    mkdirSync(join(dir, 'a'));
+    mkdirSync(join(dir, 'b'));
+    const real = join(dir, 'a', 'f.txt');
+    writeFileSync(real, 'checked');
+    writeFileSync(join(dir, 'b', 'f.txt'), 'swapped');
+    const opened = statSync(real);
+    assert.equal(await samePath(real, opened), true);
+    renameSync(join(dir, 'a'), join(dir, 'a-old'));
+    symlinkSync(join(dir, 'b'), join(dir, 'a'));
+    assert.equal(await samePath(real, opened), false);
 });
 
 // --- Code review 4: text output shows a blob that could not be removed -----
