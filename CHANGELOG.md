@@ -5,6 +5,20 @@ which are released together under the same number.
 
 ## Unreleased
 
+### Changed — certificates are verified behind `HTTPS_PROXY`, which can reject a previously working proxy setup
+- With `HTTPS_PROXY` set, the CLI and MCP server used to set
+  `NODE_TLS_REJECT_UNAUTHORIZED=0` and open the Huly WebSocket with
+  `rejectUnauthorized: false`, so anyone on the network path could impersonate
+  the Huly endpoint and read the token. Certificates are now verified. A proxy
+  that intercepts TLS needs its CA in `NODE_EXTRA_CA_CERTS`; setting
+  `NODE_TLS_REJECT_UNAUTHORIZED=0` yourself still works, as an explicit choice.
+
+### Security — proxy diagnostics no longer print the token
+- The `[huly-ws] connecting:` line printed the whole WebSocket URL, whose path is
+  the account JWT, and the proxy URL with any `user:pass@`. It now prints scheme
+  and host only. The proxy code moved to `src/utils/proxy.ts`, covered by
+  `tests/proxy.test.ts`.
+
 ### Changed — HTTP requests that set `x-huly-url` or `x-huly-workspace` without `x-huly-token` are now refused
 - Before, such a request ran with the server's own `HULY_API_KEY` against the
   host or workspace the caller named, so any caller of the HTTP transport could
