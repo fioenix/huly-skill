@@ -351,6 +351,10 @@ its writes to it rather than to whoever owns the server's token:
 | `x-huly-url` | `HULY_HOST` |
 | `x-huly-workspace` | `HULY_WORKSPACE_ID` |
 
+`x-huly-url` and `x-huly-workspace` are accepted only together with `x-huly-token`;
+without it the request is refused with `400`, so the server's own token is never
+sent to a host or used on a workspace the caller chose.
+
 The process environment stays the default, so a shared token keeps working
 unchanged. Set `HULY_REQUIRE_CALLER_TOKEN=true` to reject requests that omit
 `x-huly-token` with `401` instead of quietly falling back to the server's token —

@@ -3,6 +3,42 @@
 Versions cover both `huly-skill` (CLI) and `@fioenix/huly-mcp` (MCP server),
 which are released together under the same number.
 
+## Unreleased
+
+### Changed — HTTP requests that set `x-huly-url` or `x-huly-workspace` without `x-huly-token` are now refused
+- Before, such a request ran with the server's own `HULY_API_KEY` against the
+  host or workspace the caller named, so any caller of the HTTP transport could
+  send the server's token to a host of its choosing, or use it on a workspace
+  the deployment never configured. The request is now answered `400` naming
+  the headers, before any connection is made. A caller that relied on this must
+  send its own `x-huly-token` too; requests with no `x-huly-*` headers, or with
+  `x-huly-token` alone, behave as before.
+- `runWithCredentials` refuses the same combination, so no other entry point
+  can reach the server token for a caller-chosen host.
+
+### Security — advisories published since 1.10.4 that reach a shipped bundle
+- Direct: `@modelcontextprotocol/sdk` 1.30 → 1.32.2 (request body and batch
+  limits on the HTTP transport, no cross-origin header replay), `undici` → 7.30.2,
+  `zod` → 4.6.7.
+- Overrides, each inside the major upstream accepts: `proxy-addr` ≥2.0.8 (critical),
+  `qs` ≥6.16.1, `body-parser` ≥2.4.0, `fast-uri` ≥3.1.9, `markdown-it` ≥14.3.3,
+  `prosemirror-view` ≥1.42.3, `@hono/node-server` 2.x (1.x has no fix; the SDK
+  accepts `^2.0.5`) with `hono` ≥4.13.16, and one `prosemirror-model` so the
+  newer view does not run beside a second copy of the schema code.
+- Checked: the MCP server lists the same 31 tools and still rejects unknown
+  arguments; markdown → markup → markdown gives byte-identical output to 1.10.4.
+- `@tiptap/core` GHSA-cp6q-959q-f8rh: the advisory database lists only 3.30.4
+  as patched, outside the 2.x line Huly requires, so `pnpm audit:shipped` now
+  accepts it until 2027-02-28 as a dated exception with its evidence, and fails
+  again after that date (`reference/security-audit-2026-08.md`). The fix itself
+  ships through the 2.x backport below.
+
+### Security — `@tiptap/core` pinned to the official 2.x backport
+- `@tiptap/core` 2.27.3 carries the fix for GHSA-cp6q-959q-f8rh on the 2.x line
+  Huly requires; it is now pinned, and `tests/tiptap.test.ts` fails on 2.27.2
+  and passes on 2.27.3. The advisory database lists only 3.30.4 as patched, so
+  the dated exception in `audit:shipped` stays, now marked as patched.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse
