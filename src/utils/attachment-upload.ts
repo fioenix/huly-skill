@@ -4,7 +4,7 @@ import { lstat, open, realpath } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, parse, relative, resolve, sep } from 'node:path';
-import { classifyError, hulyError } from './errors.js';
+import { hulyError } from './errors.js';
 import { attachment, tracker } from '../huly-types.js';
 import { allowedRoots, describeError, formatSize, isSafeBlobId } from './task-detail.js';
 
@@ -32,15 +32,46 @@ type CallErrorCode = 'auth' | 'connection';
 
 /**
  * Mark an error that no later file in the same call could escape: a refused
- * credential or a dropped connection. The SDK throws plain errors, so the
- * client passes what it catches through here; anything else is returned as is
- * and stays a failure of that one file.
+ * credential or a dropped connection. The client passes what it catches
+ * through here, which decides by the error's class and status, never its
+ * message: a storage `NetworkError`, an HTTP 401 or 403, a Huly status of
+ * Unauthorized, Forbidden, TokenExpired or ConnectionClosed, or a Node network
+ * code. Anything else, such as an upload refused with "File type forbidden",
+ * is returned as is and stays a failure of that one file.
  */
 export function toCallError(e: unknown): unknown {
-    const code = classifyError(e);
-    if (code !== 'auth' && code !== 'connection') return e;
-    if ((e as { code?: unknown })?.code === code) return e;
+    const explicit = callErrorCode(e);
+    if (explicit) return e;
+    const code = callErrorClass(e);
+    if (!code) return e;
     return Object.assign(hulyError(code, describeError(e)), { cause: e });
+}
+
+/** Opening the storage client failed: a refused credential, or else storage could not be reached. */
+export function storageUnreachable(e: unknown): unknown {
+    const code = callErrorCode(e) ?? callErrorClass(e) ?? 'connection';
+    return (e as { code?: unknown })?.code === code ? e : Object.assign(hulyError(code, describeError(e)), { cause: e });
+}
+
+const NETWORK_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_SOCKET']);
+
+function callErrorClass(e: unknown): CallErrorCode | null {
+    const err = e as { name?: unknown; status?: any; response?: { status?: unknown }; code?: unknown; cause?: { code?: unknown } } | null;
+    if (!err || typeof err !== 'object') return null;
+    if (err.name === 'NetworkError') return 'connection';
+    const status = typeof err.status === 'number' ? err.status : err.response?.status;
+    if (status === 401 || status === 403) return 'auth';
+    const platform = typeof err.status?.code === 'string' ? err.status.code : '';
+    if (/:(Unauthorized|Forbidden|TokenExpired)$/.test(platform)) return 'auth';
+    if (/:ConnectionClosed$/.test(platform)) return 'connection';
+    return NETWORK_CODES.has(nodeErrorCode(e)) ? 'connection' : null;
+}
+
+/** A Node network error's code, on the error itself or, as fetch puts it, on its cause. */
+function nodeErrorCode(e: unknown): string {
+    const own = (e as { code?: unknown })?.code;
+    const cause = (e as { cause?: { code?: unknown } })?.cause?.code;
+    return typeof own === 'string' && NETWORK_CODES.has(own) ? own : typeof cause === 'string' ? cause : '';
 }
 
 /** Only an explicit code ends the call; a message that merely mentions "forbidden" does not. */

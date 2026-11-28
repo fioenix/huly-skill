@@ -105,7 +105,9 @@ test('TC-2.2 recordAttachment adds an Attachment to the attachments collection o
 });
 
 test('TC-2.3 a dropped connection while recording becomes a connection error', async () => {
-    const client = { addCollection: async () => { throw new Error('connection closed'); } };
+    // The shape Huly's client throws once its socket is closed (PlatformError).
+    const closed = Object.assign(new Error('ERROR: platform:status:ConnectionClosed {}'), { status: { code: 'platform:status:ConnectionClosed' } });
+    const client = { addCollection: async () => { throw closed; } };
     await assert.rejects(recordAttachment(client, { _id: 'i', space: 's' }, {}), (e: any) => e.code === 'connection');
 });
 
