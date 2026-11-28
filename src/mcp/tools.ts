@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { filterTeams } from '../utils/teams.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { withClient, HulyClient } from '../client.js';
 import {
@@ -140,6 +141,32 @@ export function registerHulyTools(server: McpServer, { allowDownloads = false }:
     );
 
     server.registerTool(
+        'huly_list_teams',
+        {
+            title: 'List teams',
+            description: 'List teams: HR departments (teams in the Huly UI) with lead, managers and members, and optionally the members and owners of each tracker project. Department and project membership are separate in Huly and can disagree. Pass `name` to match one department, project name or project identifier. Returns `memberCount` by default; add `members` to `fields` (or pass `fields: "all"`) for the member list.',
+            inputSchema: z.object({
+                name: z.string().optional().describe('Department name, project name or project identifier, case-insensitive'),
+                includeProjects: z.boolean().optional().describe('Also return project membership (default: true when `name` is given, otherwise false)'),
+                ...listArgs('departments (and projects, separately)', 'team'),
+            }).strict(),
+        },
+        async ({ name, includeProjects, limit, fields }) => withHuly(async (client) => {
+            const teams = filterTeams(await client.getTeams(), name);
+            if (name && teams.departments.length === 0 && teams.projects.length === 0) {
+                throw hulyError('not_found', `No department or project named "${name}"`);
+            }
+            const deps = shapeList(teams.departments, 'team', { limit, fields });
+            const out: Record<string, unknown> = { count: deps.rows.length, total: deps.total, truncated: deps.truncated, departments: deps.rows };
+            if (includeProjects ?? Boolean(name)) {
+                const projs = shapeList(teams.projects, 'projectTeam', { limit, fields });
+                out.projects = { count: projs.rows.length, total: projs.total, truncated: projs.truncated, data: projs.rows };
+            }
+            return out;
+        }),
+    );
+
+    server.registerTool(
         'huly_list_tasks',
         {
             title: 'List tasks',
@@ -271,6 +298,28 @@ export function registerHulyTools(server: McpServer, { allowDownloads = false }:
     );
 
     server.registerTool(
+        'huly_move_task',
+        {
+            title: 'Move task to another parent',
+            description: 'Re-parent an existing task, like Huly\'s "Set parent" action: put it under another task in the same project, or detach it (parentId null). Huly updates the ancestor chain of the task and its sub-issues. Refuses moves into the task itself or one of its descendants.',
+            inputSchema: z.object({
+                taskId: z.string().describe('Task to move, e.g. DELTA-123'),
+                parentId: z.string().nullable().describe('New parent identifier or internal _id; null to make the task top-level. An empty string is rejected, not treated as null.'),
+            }).strict(),
+        },
+        async ({ taskId, parentId }) => withHuly(async (client) => {
+            const r = await client.moveTask(taskId, parentId);
+            return {
+                moved: r.moved,
+                ...(r.reason ? { reason: r.reason } : {}),
+                task: { identifier: r.task.identifier, title: r.task.title },
+                from: r.from ? { identifier: r.from.identifier, title: r.from.parentTitle } : null,
+                to: r.to ? { identifier: r.to.identifier, title: r.to.parentTitle } : null,
+            };
+        }),
+    );
+
+    server.registerTool(
         'huly_report',
         {
             title: 'Daily/weekly report',
@@ -326,20 +375,53 @@ export function registerHulyTools(server: McpServer, { allowDownloads = false }:
         'huly_assign_label',
         {
             title: 'Assign label',
-            description: 'Assign an existing label to a task.',
+            description: 'Assign an existing label to a task. Title and color default to the label\'s own; a label already on the task is not added twice.',
             inputSchema: z.object({
                 taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
                 labelId: z.string().describe('Label _id'),
-                title: z.string().optional().describe('Display title for the label reference'),
-                color: z.number().int().min(0).max(15).optional(),
+                title: z.string().optional().describe('Display title for the label reference (default: the label title)'),
+                color: z.number().int().min(0).max(15).optional().describe('Color index 0-15 (default: the label color)'),
             }).strict(),
         },
         async ({ taskId, labelId, title, color }) => withHuly(async (client) => {
             const task = await client.getTask(taskId);
             if (!task) throw new Error(`Task not found: ${taskId}`);
-            const displayTitle = title || labelId;
-            await client.assignLabel(task._id, task.space, labelId, displayTitle, color ?? 11);
-            return { taskId, labelId };
+            const result = await client.assignLabel(task._id, task.space, labelId, title, color);
+            return { taskId, labelId, ...result };
+        }),
+    );
+
+    server.registerTool(
+        'huly_unassign_label',
+        {
+            title: 'Unassign label',
+            description: 'Remove a label from a task.',
+            inputSchema: z.object({
+                taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
+                labelId: z.string().describe('Label _id'),
+            }).strict(),
+        },
+        async ({ taskId, labelId }) => withHuly(async (client) => {
+            const task = await client.getTask(taskId);
+            if (!task) throw new Error(`Task not found: ${taskId}`);
+            const removed = await client.unassignLabel(task._id, labelId);
+            return { taskId, labelId, removed };
+        }),
+    );
+
+    server.registerTool(
+        'huly_repair_labels',
+        {
+            title: 'Repair task labels',
+            description: 'Make each label reference on a task carry its label\'s title and color, and drop duplicate references to the same label.',
+            inputSchema: z.object({
+                taskId: z.string().describe('Task identifier, e.g. DELTA-123'),
+            }).strict(),
+        },
+        async ({ taskId }) => withHuly(async (client) => {
+            const task = await client.getTask(taskId);
+            if (!task) throw new Error(`Task not found: ${taskId}`);
+            return { taskId, ...(await client.repairLabels(task._id)) };
         }),
     );
 

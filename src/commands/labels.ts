@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { withClient } from '../client.js';
 import { printToConsole, isJsonMode, outputJson } from '../utils/logger.js';
 import { errorPayload, exitStatusFor, hulyError } from '../utils/errors.js';
+import { parseColor, planRepairTargets } from '../utils/labels.js';
 
 export function labelsCommand() {
     const cmd = new Command('labels')
@@ -46,7 +47,7 @@ export function labelsCommand() {
         .action(async (title, options) => {
             try {
                 await withClient(async (client) => {
-                    const label = await client.createLabel(title, parseInt(options.color, 10));
+                    const label = await client.createLabel(title, parseColor(options.color) ?? 11);
 
                     if (isJsonMode()) {
                         outputJson({ status: 'ok', data: label });
@@ -65,8 +66,8 @@ export function labelsCommand() {
         .description('Assign a label to an issue')
         .argument('<taskId>', 'Task identifier (e.g., DELTA-123)')
         .argument('<labelId>', 'Label ID to assign')
-        .option('--title <title>', 'Display title for the reference', '')
-        .option('--color <color>', 'Color index (0-15)', '11')
+        .option('--title <title>', 'Display title for the reference (default: the label title)')
+        .option('--color <color>', 'Color index 0-15 (default: the label color)')
         .action(async (taskId, labelId, options) => {
             try {
                 await withClient(async (client) => {
@@ -78,13 +79,78 @@ export function labelsCommand() {
                         return;
                     }
 
-                    const displayTitle = options.title || labelId;
-                    await client.assignLabel(task._id, task.space, labelId, displayTitle, parseInt(options.color, 10));
+                    const color = parseColor(options.color);
+                    const result = await client.assignLabel(task._id, task.space, labelId, options.title, color);
 
                     if (isJsonMode()) {
-                        outputJson({ status: 'ok', taskId, labelId });
+                        outputJson({ status: 'ok', taskId, labelId, ...result });
+                    } else if (result.alreadyAssigned) {
+                        printToConsole(`Task ${taskId} already has label "${result.title}"`);
                     } else {
-                        printToConsole(`Assigned label "${displayTitle}" to task ${taskId}`);
+                        printToConsole(`Assigned label "${result.title}" to task ${taskId}`);
+                    }
+                });
+            } catch (e: any) {
+                if (isJsonMode()) outputJson(errorPayload(e));
+                else console.error(`Error: ${e.message}`);
+                process.exitCode = exitStatusFor(e);
+            }
+        });
+
+    cmd.command('unassign')
+        .description('Remove a label from an issue')
+        .argument('<taskId>', 'Task identifier (e.g., DELTA-123)')
+        .argument('<labelId>', 'Label ID to remove')
+        .action(async (taskId, labelId) => {
+            try {
+                await withClient(async (client) => {
+                    const task = await client.getTask(taskId);
+                    if (!task) {
+                        const e = hulyError('not_found', `Task not found: ${taskId}`);
+                        if (isJsonMode()) outputJson(errorPayload(e)); else console.error(e.message);
+                        process.exitCode = exitStatusFor(e);
+                        return;
+                    }
+
+                    const removed = await client.unassignLabel(task._id, labelId);
+                    if (isJsonMode()) {
+                        outputJson({ status: 'ok', taskId, labelId, removed });
+                    } else {
+                        printToConsole(removed ? `Removed label ${labelId} from ${taskId}` : `Task ${taskId} has no label ${labelId}`);
+                    }
+                });
+            } catch (e: any) {
+                if (isJsonMode()) outputJson(errorPayload(e));
+                else console.error(`Error: ${e.message}`);
+                process.exitCode = exitStatusFor(e);
+            }
+        });
+
+    cmd.command('repair')
+        .description('Fix label references whose title or color does not match the label, and drop duplicates')
+        .argument('<taskIds...>', 'Task identifiers (e.g., DELTA-123 DELTA-124)')
+        .action(async (taskIds: string[]) => {
+            try {
+                await withClient(async (client) => {
+                    // Resolve every task first, so a mistyped id fails the call
+                    // before anything is written instead of after a partial repair.
+                    const tasks = [];
+                    for (const taskId of taskIds) tasks.push(await client.getTask(taskId));
+                    const { targets, missing } = planRepairTargets(taskIds, tasks);
+                    if (missing.length) throw hulyError('not_found', `Task not found: ${missing.join(', ')}`);
+
+                    const results = [];
+                    const elements = await client.getAllLabels();
+                    for (const { taskId, task } of targets) {
+                        results.push({ taskId, ...(await client.repairLabels((task as any)._id, elements)) });
+                    }
+
+                    if (isJsonMode()) {
+                        outputJson({ status: 'ok', count: results.length, data: results });
+                    } else {
+                        for (const r of results as any[]) {
+                            printToConsole(`${r.taskId}: ${r.updated} fixed, ${r.removed} duplicate removed`);
+                        }
                     }
                 });
             } catch (e: any) {

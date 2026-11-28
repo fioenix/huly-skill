@@ -132,6 +132,106 @@ which are released together under the same number.
 - README no longer says a token can only come from an admin: a member's own
   session token works, as `references/setup.md` already documented.
 
+### Fixed — label pills showed the label id instead of its name
+- `labels assign` (MCP `huly_assign_label`) wrote the label's `_id` as the
+  `title` of the `TagReference` whenever no title was passed. The Huly UI draws
+  the pill from the reference's own `title` and `color`, not from the label it
+  points at, so every label assigned that way showed up as a 24-character hex id
+  in the default color. The title and color now default to the label's own.
+- Assigning a label the task already has no longer adds a second reference. The
+  result reports `alreadyAssigned` instead.
+- The duplicate check and the insert are not atomic, so two calls racing on the
+  same task could both insert. After inserting, `assign` re-reads the task's
+  references and removes all but the oldest for that label; a racing caller
+  picks the same survivor, so both converge on one reference. The cleanup also
+  runs when the label was already assigned, so a retry after a cleanup that never
+  finished still removes the duplicate. When the label was already there, the
+  result reports the title and color of the reference that stays. `labels repair` keeps the oldest too, so
+  the two paths agree.
+
+### Changed — assigning a label id that does not exist is rejected
+- `labels assign` / `huly_assign_label` with an unknown label id now fails with
+  `not_found` instead of writing a reference to nothing. So does an id of a tag
+  that is not an issue label (a contact skill, say). **This rejects a call that
+  previously "succeeded".**
+- `labels create` and `labels assign` reject a `--color` that is not an integer
+  from 0 to 15 with `invalid_input`; before, `--color red` wrote `NaN`.
+
+### Added — `labels unassign` and `labels repair`
+- `huly labels unassign <taskId> <labelId>` / `huly_unassign_label` removes a
+  label from a task.
+- `huly labels repair <taskId...>` / `huly_repair_labels` rewrites references
+  whose title or color does not match their label and drops duplicate
+  references to the same label. References to labels that no longer exist are
+  left alone. It resolves every task id before writing anything, and fails with
+  `not_found` (and a non-zero exit) naming the ids that do not exist. The
+  planning steps are pure functions covered by `tests/labels.test.ts`.
+
+### Added — `huly move task` re-parents an existing task
+- `huly move task <id> --parent <id>` moves a task under another task in the
+  same project; `--no-parent` makes it top-level. MCP: `huly_move_task`, with
+  `parentId: null` to detach. Until now nothing could re-parent a task after
+  creation, and the docs said so.
+- It writes what Huly's own "Set parent" action writes: `attachedTo`
+  (`tracker:ids:NoParent` to detach) and a rank after the new parent's last
+  child. The server trigger then rewrites `parents` on the task and every
+  descendant and moves the task between the old and new ancestors' `childInfo`.
+- The trigger does not touch the `subIssues` counter, so the old parent kept
+  counting a child it no longer had and the new one missed it. The move writes
+  the new `attachedTo` and adjusts both counters by `$inc` in one server
+  transaction (`TxApplyIf`), applied only while the task is still under the
+  parent it was read from: a dropped connection leaves all of it or none of it,
+  concurrent edits to the same parent cannot overwrite each other's count, and
+  a concurrent move of the same task, or of its new parent, fails with nothing
+  written. A move that turns out to be a no-op recounts the current parent from
+  its children, which repairs counters left stale by earlier versions.
+- A moved task is written as the Huly UI writes every issue: `attachedToClass`
+  Issue, `collection: 'subIssues'`. A task made top-level by `huly create task`
+  carries the project and `issues` instead, so without this it would vanish from
+  `sub-issues`, `tasks --parent` and the parent's count once moved.
+- The current parent comes from `parents`, falling back to `attachedTo`, so a
+  task whose `parents` drifted can still be detached or moved.
+- `milestones report` now counts issues attached to NoParent (made by the Huly
+  UI, or detached with `--no-parent`) as top-level epics, as it already did for
+  issues attached to the project.
+- Moving a task under itself, under one of its own descendants, or into another
+  project is rejected with `invalid_input`. So is an empty parent id: only
+  `--no-parent` or `parentId: null` detaches, so a blank value from a script
+  cannot silently make a task top-level. The move checks are a pure function
+  covered by `tests/move.test.ts`.
+- That repair recount asks the server for the exact total instead of counting
+  the sub-issue listing, which is capped at 500 rows and would otherwise write
+  500 for a larger parent.
+
+### Added — `huly teams` lists departments and their members
+- `huly teams` / MCP `huly_list_teams` lists the HR departments that the Huly UI
+  shows as teams, with lead, managers and members. Until now no command could
+  answer "who is in team X"; `huly users` lists the whole workspace and project
+  members were not exposed at all.
+- `huly teams <name>` matches a department name, a project name or a project
+  identifier (case-insensitive) and prints both that department and that
+  project's members and owners. They are separate lists in Huly and routinely
+  disagree: a project's members are everyone who can see it. Showing both makes
+  the gap visible instead of silently picking one.
+- Project `members`/`owners` hold account UUIDs, not Person ids; they are
+  resolved through `Person.personUuid`. A reference that matches no person is
+  kept with an empty name rather than dropped, so the count stays honest.
+- A name that matches nothing fails with `not_found`. A workspace whose model has
+  no HR classes returns no departments; any other failure while reading HR data
+  (connection, permission) propagates with its usual error code rather than
+  turning into an empty list.
+- Departments and staff are read without a row cap, so no team or member is
+  silently left out.
+- `huly teams --json` follows the list envelope: departments under `data` with
+  `count`; projects, when shown, under `projects.data`.
+- `huly_list_teams` takes the usual `limit` (default 50, `0` for no cap) and
+  `fields` arguments and returns `count`, `total` and `truncated`. By default
+  each row carries `memberCount` and leaves the member list out, so one large
+  department cannot fill the result whatever `limit` says; add `members` to
+  `fields`, or pass `fields: "all"`, for the lists.
+- The assembly is a pure function in `src/utils/teams.ts`, covered by
+  `tests/teams.test.ts`.
+
 ## 1.10.4
 
 ### Fixed — ranks the Huly UI can actually parse

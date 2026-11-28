@@ -31,11 +31,14 @@ import { issueUrl, storageUrls } from './utils/links.js';
 import { hulyError } from './utils/errors.js';
 import { ATTACHMENT_QUERY, isSafeBlobId, memoizeSuccess, withTimeout } from './utils/task-detail.js';
 import {
-    tracker, contact, document as hulyDocument, tags,
+    tracker, contact, document as hulyDocument, tags, hr,
     activity, chunter, task, attachment,
     IssuePriority, MilestoneStatus, AvatarType,
     makeRank,
 } from './huly-types.js';
+import { applyMove, currentParentId, planMove } from './utils/move.js';
+import { labelDisplay, planAssign, planLabelRepair } from './utils/labels.js';
+import { buildTeams, type Teams } from './utils/teams.js';
 
 export interface TaskQueryOptions {
     assignee?: string;
@@ -146,6 +149,30 @@ export class HulyClient {
         });
     }
 
+    /**
+     * HR departments (teams in the Huly UI) with their members, plus every
+     * tracker project's members and owners. Department membership and project
+     * membership are separate in Huly and often disagree, so both are returned
+     * rather than one standing in for the other.
+     */
+    async getTeams(): Promise<Teams> {
+        const [persons, projects] = await Promise.all([this.getPersons(), this.getProjects()]);
+        let departments: any[] = [];
+        let staff: any[] = [];
+        // Only a workspace whose model has no HR classes is allowed to answer with
+        // no departments. Any other failure (connection, permission) propagates, so
+        // callers get the usual error code instead of an empty, "successful" list.
+        // No row limits: departments and staff are small, and a cap here would
+        // silently drop teams or members.
+        if ((this.client as any).getHierarchy().hasClass(hr.class.Department)) {
+            [departments, staff] = await Promise.all([
+                this.client!.findAll(hr.class.Department as any, {}),
+                this.client!.findAll(hr.mixin.Staff as any, {}),
+            ]);
+        }
+        return buildTeams({ departments, staff, persons, projects, staffMixin: hr.mixin.Staff, employeeMixin: contact.mixin.Employee });
+    }
+
     async getSocialIdentities(): Promise<any[]> {
         if (!this._socialIds) {
             this._socialIds = await this.client!.findAll(contact.class.SocialIdentity as any, {});
@@ -217,6 +244,18 @@ export class HulyClient {
      * Mirrors how Huly's tracker stores nested issues (`attachedTo` points
      * at the parent issue, `collection` is the `subIssues` collection).
      */
+    /**
+     * Exact number of direct sub-issues. `findSubIssues` is capped at 500 rows,
+     * which is fine for listing but would write a wrong counter, so ask the
+     * server for the total and fall back to an uncapped query if it has none.
+     */
+    async countSubIssues(parentInternalId: string): Promise<number> {
+        const query = { attachedTo: parentInternalId, collection: 'subIssues' } as any;
+        const page: any = await this.client!.findAll(tracker.class.Issue as any, query, { limit: 1, total: true } as any);
+        if (typeof page?.total === 'number' && page.total >= 0) return page.total;
+        return (await this.client!.findAll(tracker.class.Issue as any, query)).length;
+    }
+
     async findSubIssues(parentInternalId: string): Promise<any[]> {
         return await this.client!.findAll(
             tracker.class.Issue as any,
@@ -502,6 +541,81 @@ export class HulyClient {
         );
     }
 
+    /**
+     * Re-parent an issue the way Huly's "Set parent" action does: update
+     * `attachedTo` (NoParent to detach) and put it last among the new
+     * parent's children. The server trigger rewrites `parents` on the issue
+     * and its descendants and moves it between ancestors' `childInfo`.
+     */
+    async moveTask(taskId: string, newParentId: string | null): Promise<{ task: any; from: any; to: any; moved: boolean; reason?: string }> {
+        const task = await this.getTask(taskId);
+        if (!task) throw hulyError('not_found', `Task not found: ${taskId}`);
+
+        let newParent: any = null;
+        if (newParentId !== null) {
+            // Only an explicit null detaches. An empty id is a mistake, not a request
+            // to detach, so it must not silently fall through to the NoParent path.
+            if (!newParentId.trim()) {
+                throw hulyError('invalid_input', 'Parent id is empty; pass --no-parent (CLI) or parentId: null (MCP) to detach');
+            }
+            newParent = (await this.getTask(newParentId)) ?? (await this.getTaskByInternalId(newParentId));
+            if (!newParent) throw hulyError('not_found', `Parent task not found: ${newParentId}`);
+        }
+        const fromId = currentParentId(task, tracker.ids.NoParent);
+        const from = task.parents?.[0] ?? (fromId ? { parentId: fromId } : null);
+        const to = newParent ? { parentId: newParent._id, identifier: newParent.identifier, parentTitle: newParent.title } : null;
+
+        let plan;
+        try {
+            plan = planMove(task, newParent, tracker.ids.NoParent);
+        } catch (e: any) {
+            throw hulyError('invalid_input', e.message);
+        }
+        // The server trigger fixes `parents` and `childInfo` but leaves the
+        // `subIssues` counters alone. A move adjusts them by $inc in the same
+        // transaction (applyMove); a no-op recounts the current parent from its
+        // real children, which repairs a counter left stale by older versions.
+        const recount = async (parentId: string | undefined) => {
+            if (!parentId) return;
+            const parentDoc: any = await this.getTaskByInternalId(parentId);
+            if (!parentDoc) return;
+            const count = await this.countSubIssues(parentId);
+            if (parentDoc.subIssues !== count) {
+                await this.client!.updateDoc(tracker.class.Issue as any, parentDoc.space, parentDoc._id, { subIssues: count } as any);
+            }
+        };
+
+        if (plan.action === 'noop') {
+            await recount(from?.parentId);
+            return { task, from, to, moved: false, reason: plan.reason };
+        }
+
+        const updates: any = { attachedTo: plan.attachedTo };
+        if (newParent) {
+            const last: any = await this.client!.findOne(
+                tracker.class.Issue as any,
+                { attachedTo: newParent._id } as any,
+                { sort: { rank: SortingOrder.Descending } }
+            );
+            updates.rank = makeRank(last?.rank, undefined);
+        }
+        // PlatformClient wraps a TxOperations; its apply() batches the writes
+        // into one TxApplyIf, so they land together or not at all.
+        const txOps: any = (this.client as any).client;
+        if (typeof txOps?.apply !== 'function') {
+            throw new Error('This Huly client cannot batch writes (no TxOperations.apply); nothing was moved');
+        }
+        await applyMove(txOps.apply(`move-${task._id}`), {
+            issueClass: tracker.class.Issue,
+            task,
+            attachedTo: updates.attachedTo,
+            rank: updates.rank,
+            oldParentId: from?.parentId ?? null,
+            newParent: newParent ? { _id: newParent._id, space: newParent.space, attachedTo: newParent.attachedTo } : null,
+        });
+        return { task, from, to, moved: true };
+    }
+
     async deleteTask(taskId: string): Promise<void> {
         const task = await this.getTask(taskId);
         if (!task) {
@@ -536,15 +650,86 @@ export class HulyClient {
         return await this.client!.findOne(tags.class.TagElement as any, { _id: labelId });
     }
 
-    async assignLabel(issueId: string, spaceId: string, labelId: string, title: string, color: number = 11): Promise<void> {
-        await this.client!.addCollection(
-            tags.class.TagReference as any,
-            spaceId as any,
-            issueId as any,
-            tracker.class.Issue as any,
-            'labels',
-            { title, color, tag: labelId } as any
-        );
+    async getLabel(labelId: string): Promise<any> {
+        // Only issue labels: a TagElement of another class (a contact skill, say)
+        // must not be attachable to an issue.
+        return await this.client!.findOne(tags.class.TagElement as any, { _id: labelId, targetClass: tracker.class.Issue } as any);
+    }
+
+    async assignLabel(
+        issueId: string, spaceId: string, labelId: string, title?: string, color?: number,
+    ): Promise<{ title: string; color: number; alreadyAssigned: boolean }> {
+        const element = await this.getLabel(labelId);
+        if (!element) throw hulyError('not_found', `Label not found: ${labelId}`);
+        const display = labelDisplay(element, title, color);
+
+        const existing = await this.getLabels(issueId);
+        let insertedRefId: string | null = null;
+        if (!existing.some((ref: any) => ref.tag === labelId)) {
+            insertedRefId = generateId();
+            await this.client!.addCollection(
+                tags.class.TagReference as any,
+                spaceId as any,
+                issueId as any,
+                tracker.class.Issue as any,
+                'labels',
+                { title: display.title, color: display.color, tag: labelId } as any,
+                insertedRefId
+            );
+        }
+
+        // The check above and the insert are not atomic: two calls racing on the
+        // same task can both insert. Drop every reference but the oldest; a racing
+        // caller makes the same choice, so both converge. This runs when the label
+        // was already there too, so a retry after a cleanup that never finished
+        // still removes the duplicate.
+        const after = insertedRefId ? await this.getLabels(issueId) : existing;
+        const plan = planAssign(after, labelId, insertedRefId);
+        const remove = new Set(plan.remove);
+        for (const ref of after) {
+            if (!remove.has(ref._id)) continue;
+            await this.client!.removeCollection(
+                ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection
+            );
+        }
+        // Report the reference that stays: when the label was already there,
+        // its pill keeps its own title and color, not the ones asked for now.
+        const shown = plan.alreadyAssigned && plan.survivor
+            ? { title: plan.survivor.title ?? display.title, color: plan.survivor.color ?? display.color }
+            : display;
+        return { ...shown, alreadyAssigned: plan.alreadyAssigned };
+    }
+
+    async unassignLabel(issueId: string, labelId: string): Promise<number> {
+        const refs = (await this.getLabels(issueId)).filter((ref: any) => ref.tag === labelId);
+        for (const ref of refs) {
+            await this.client!.removeCollection(
+                ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection
+            );
+        }
+        return refs.length;
+    }
+
+    async repairLabels(issueId: string, elements?: any[]): Promise<{ updated: number; removed: number }> {
+        const refs = await this.getLabels(issueId);
+        elements ??= await this.getAllLabels();
+        const plan = planLabelRepair(refs, elements);
+        const byId = new Map(refs.map((ref: any) => [ref._id, ref]));
+
+        for (const update of plan.updates) {
+            const ref: any = byId.get(update.refId);
+            await this.client!.updateCollection(
+                ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection,
+                { title: update.title, color: update.color } as any
+            );
+        }
+        for (const refId of plan.removals) {
+            const ref: any = byId.get(refId);
+            await this.client!.removeCollection(
+                ref._class, ref.space, ref._id, ref.attachedTo, ref.attachedToClass, ref.collection
+            );
+        }
+        return { updated: plan.updates.length, removed: plan.removals.length };
     }
 
     async getLabels(issueId: string): Promise<any[]> {

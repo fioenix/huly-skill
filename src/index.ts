@@ -16,6 +16,7 @@ import { updateTaskCommand } from './commands/update.js';
 import { reportCommand } from './commands/report.js';
 import { projectsCommand } from './commands/projects.js';
 import { deleteTaskCommand } from './commands/delete.js';
+import { moveTaskCommand } from './commands/move.js';
 import { whoamiCommand } from './commands/whoami.js';
 import { labelsCommand } from './commands/labels.js';
 import { documentsCommand } from './commands/documents.js';
@@ -25,6 +26,7 @@ import { activityCommand } from './commands/activity.js';
 import { commentsCommand } from './commands/comments.js';
 import { kindsCommand } from './commands/kinds.js';
 import { usersCommand } from './commands/users.js';
+import { teamsCommand } from './commands/teams.js';
 
 const program = new Command();
 
@@ -46,6 +48,7 @@ program.addCommand(updateTaskCommand());
 program.addCommand(reportCommand());
 program.addCommand(projectsCommand());
 program.addCommand(deleteTaskCommand());
+program.addCommand(moveTaskCommand());
 program.addCommand(whoamiCommand());
 program.addCommand(labelsCommand());
 program.addCommand(documentsCommand());
@@ -56,6 +59,7 @@ program.addCommand(activityCommand());
 program.addCommand(commentsCommand());
 program.addCommand(kindsCommand());
 program.addCommand(usersCommand());
+program.addCommand(teamsCommand());
 
 // Exit once the command has finished and its output is flushed: a lookup left
 // waiting on an unresponsive server (the task link after a create) must not
