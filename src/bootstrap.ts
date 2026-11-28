@@ -20,13 +20,14 @@ for (const method of ['log', 'info', 'debug'] as const) {
 
 // Proxy support — must run before any network calls.
 import { ProxyAgent, setGlobalDispatcher, fetch as undiciFetch } from 'undici';
+import { fetchProxyOptions } from './utils/proxy.js';
 
 const _proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
 if (_proxyUrl) {
     // Certificate checks stay on. A proxy that intercepts TLS is trusted by
     // pointing NODE_EXTRA_CA_CERTS at its CA; turning checks off is left to an
     // explicit NODE_TLS_REJECT_UNAUTHORIZED=0 from whoever runs the process.
-    const _agent = new ProxyAgent(_proxyUrl);
+    const _agent = new ProxyAgent(fetchProxyOptions(_proxyUrl));
     setGlobalDispatcher(_agent);
     // Node's built-in fetch uses its own internal undici instance which
     // setGlobalDispatcher may not reach — monkey-patch globalThis.fetch too.

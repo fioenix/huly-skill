@@ -11,6 +11,8 @@ which are released together under the same number.
   a token or `user:pass@` in it reached the output. All three now show the origin
   only, and `huly_whoami` reports the credentials actually in scope (a caller's,
   over HTTP) rather than the process environment.
+- `tests/proxy.test.ts` now covers the proxy WebSocket's whole contract (events,
+  both send paths, close) and the `fetch` proxy agent's TLS options.
 
 ### Changed — certificates are verified behind `HTTPS_PROXY`, which can reject a previously working proxy setup
 - With `HTTPS_PROXY` set, the CLI and MCP server used to set
