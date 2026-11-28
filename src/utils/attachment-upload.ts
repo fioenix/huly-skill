@@ -298,26 +298,29 @@ export async function prepareUploads(paths: string[], limits: Partial<UploadLimi
  * default: reading sends a file to a workspace many people see, and temp is
  * shared with every other process. A working directory of home or the
  * filesystem root would expose everything under it, so that needs an explicit
- * HULY_UPLOAD_ROOT, which is held to the same rule.
+ * HULY_UPLOAD_ROOT, which is held to the same breadth rule. Only the working
+ * directory default is refused inside a hidden directory: an explicit root
+ * there (a checkout under `.claude/worktrees/…`) is the operator's choice.
  */
 async function uploadRoots(): Promise<string[]> {
     if (process.env.HULY_UPLOAD_ROOT?.trim()) {
         const roots = (await allowedRoots('HULY_UPLOAD_ROOT')).roots;
-        for (const root of roots) refuseRoot(root, `HULY_UPLOAD_ROOT ${root}`, 'set it to the directory that holds the files', await tooBroad(root));
+        for (const root of roots) refuseRoot(root, `HULY_UPLOAD_ROOT ${root}`, 'set it to the directory that holds the files', await tooBroad(root), false);
         return roots;
     }
     const cwd = await realpath(process.cwd());
-    refuseRoot(cwd, `The working directory ${cwd}`, 'set HULY_UPLOAD_ROOT to the directory that holds the files', await tooBroad(cwd));
+    refuseRoot(cwd, `The working directory ${cwd}`, 'set HULY_UPLOAD_ROOT to the directory that holds the files', await tooBroad(cwd), true);
     return [cwd];
 }
 
 /**
- * A root inside a hidden directory (`~/.claude`, `~/.config`) would make every
- * file below it pass the "never hidden" rule, which only looks below the root.
+ * A working directory inside a hidden directory (`~/.claude`, `~/.config`)
+ * would make every file below it pass the "never hidden" rule, which only
+ * looks below the root, without anyone having chosen that root.
  */
-function refuseRoot(root: string, what: string, fix: string, broad: boolean): void {
+function refuseRoot(root: string, what: string, fix: string, broad: boolean, refuseHidden: boolean): void {
     if (broad) throw hulyError('invalid_input', `${what} is too broad to upload from; ${fix}`);
-    const hidden = root.split(sep).find((segment) => segment.startsWith('.'));
+    const hidden = refuseHidden && root.split(sep).find((segment) => segment.startsWith('.'));
     if (hidden) {
         throw hulyError(
             'invalid_input',

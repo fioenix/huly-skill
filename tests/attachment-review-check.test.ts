@@ -247,12 +247,20 @@ function hiddenProject(): { root: string; path: string } {
     return { root, path };
 }
 
-test('HULY_UPLOAD_ROOT inside a hidden directory is refused, naming why', async () => {
+test('an explicit HULY_UPLOAD_ROOT inside a hidden directory is accepted', async () => {
     const { root, path } = hiddenProject();
     process.env.HULY_UPLOAD_ROOT = root;
-    await assert.rejects(prepareUploads([path]), (e: any) => {
+    assert.deepEqual((await prepareUploads([path])).map((f) => f.name), ['history.jsonl']);
+});
+
+test('a hidden file below an explicit HULY_UPLOAD_ROOT inside a hidden directory is refused', async () => {
+    const { root } = hiddenProject();
+    const secret = join(root, '.netrc');
+    writeFileSync(secret, 'synthetic');
+    process.env.HULY_UPLOAD_ROOT = root;
+    await assert.rejects(prepareUploads([secret]), (e: any) => {
         assert.equal(e.code, 'invalid_input');
-        assert.match(e.message, /HULY_UPLOAD_ROOT .* is inside a hidden directory/);
+        assert.match(e.message, /is a hidden file or inside a hidden directory/);
         return true;
     });
 });
@@ -261,7 +269,8 @@ test('without HULY_UPLOAD_ROOT a working directory inside a hidden directory is 
     const { root } = hiddenProject();
     delete process.env.HULY_UPLOAD_ROOT;
     process.chdir(root);
-    await assert.rejects(prepareUploads(['history.jsonl']), (e: any) => /working directory .* is inside a hidden directory/.test(e.message));
+    await assert.rejects(prepareUploads(['history.jsonl']), (e: any) =>
+        /working directory .* is inside a hidden directory.*set HULY_UPLOAD_ROOT/.test(e.message));
 });
 
 test('HULY_UPLOAD_ROOT=/var/tmp is refused as too broad', { skip: !existsSync('/var/tmp') }, async () => {
